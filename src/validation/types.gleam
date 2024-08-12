@@ -1,5 +1,6 @@
 import gleam/list
 import gleam/result
+import structure/common as structure_common
 import structure/numbers.{type U32, u32, unwrap_u32}
 import structure/types.{
   type Context, type DefType, type HeapType, type RecType, type RefType,
@@ -71,11 +72,12 @@ fn do_map_heap_types_to_type_indicies(
 ) {
   case dt {
     [] -> Ok(#(ctx, result |> list.reverse))
-    [dt, ..rest] -> {
+    [DefTypeHeapType(dt), ..rest] -> {
       use idx <- result.try(ctx.types |> types_index_of(dt, 0))
       use val <- result.try(u32(idx))
-      do_map_def_types_to_type_indicies(ctx, rest, [val, ..result])
+      do_map_heap_types_to_type_indicies(ctx, rest, [val, ..result])
     }
+    _ -> Error("DefType not found")
   }
 }
 
@@ -108,6 +110,17 @@ fn roll_visit_heap_type(ctx: Context, st: HeapType) {
     RecTypeHeapType(idx) -> {
       use #(ctx, dt) <- result.map(type_idx_to_def_type(ctx, idx))
       #(ctx, DefTypeHeapType(dt))
+    }
+    _ -> Ok(#(ctx, st))
+  }
+}
+
+fn unroll_visit_heap_type(ctx: Context, st: HeapType) {
+  case st {
+    DefTypeHeapType(dt) -> {
+      use idx <- result.map(ctx.types |> types_index_of(dt, 0))
+      use idx <- result.map(u32(idx))
+      #(ctx, RecTypeHeapType(idx))
     }
     _ -> Ok(#(ctx, st))
   }

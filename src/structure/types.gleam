@@ -1,9 +1,8 @@
 import gleam/list
 import gleam/option.{type Option}
 import structure/common.{between}
-import structure/values.{
+import structure/numbers.{
   type F32, type F64, type I32, type I64, type S33, type U32, type V128Value,
-  type Vec, Vec,
 }
 
 pub fn lane_16(val: Int) {
@@ -80,10 +79,10 @@ pub type HeapType {
   StructHeapType
   ArrayHeapType
   NoneHeapType
+  RecTypeHeapType(idx: RecTypeIDX)
 
   // for validation and execution only
   DefTypeHeapType(dt: DefType)
-  RecTypeHeapType(idx: RecTypeIDX)
   BotHeapType
 }
 
@@ -120,11 +119,11 @@ pub type RefType {
   /// Shorthand for (ref null Extern)
   ExternRefType
   /// Shorthand for (ref null None)
-  NoneRefType
+  NullRefType
   /// Shorthand for (ref null NoFunc)
-  NoFuncRefType
+  NullFuncRefType
   /// Shorthand for (ref null NoExtern)
-  NoExternRefType
+  NullExternRefType
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#value-types
@@ -217,12 +216,12 @@ pub type FuncType {
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#aggregate-types
 pub type StructType {
-  StructType(ft: Vec(FieldType))
+  StructType(ft: List(FieldType))
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#aggregate-types
 pub type ArrayType {
-  ArrayType(ft: Vec(FieldType))
+  ArrayType(ft: FieldType)
 }
 
 /// Please See: https://webassembly.github.io/gc/core/syntax/types.html#aggregate-types
@@ -262,7 +261,7 @@ pub type CompositeType {
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#recursive-types
 pub type RecType {
-  RecType(st: Vec(SubType))
+  RecType(st: List(SubType))
 }
 
 pub type TypeIDX =
@@ -276,8 +275,8 @@ pub type HeapTypeIDX =
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#recursive-types
 pub type SubType {
-  SubType(final: Bool, t: Vec(TypeIDX), ct: CompositeType)
-  ValidationSubType(final: Bool, ht: Vec(HeapType), ct: CompositeType)
+  SubType(final: Bool, t: List(TypeIDX), ct: CompositeType)
+  UnrolledSubType(final: Bool, ht: List(HeapType), ct: CompositeType)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#limits
@@ -315,64 +314,52 @@ pub type ExternType {
 }
 
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
-pub fn get_extern_func_types(et: Vec(ExternType)) -> Vec(ExternType) {
-  let funcs =
-    et.elements
-    |> list.filter(fn(et) {
-      case et {
-        FuncExternType(_) -> True
-        _ -> False
-      }
-    })
-
-  Vec(funcs |> list.length, funcs)
+pub fn get_extern_func_types(et: List(ExternType)) -> List(ExternType) {
+  et
+  |> list.filter(fn(et) {
+    case et {
+      FuncExternType(_) -> True
+      _ -> False
+    }
+  })
 }
 
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
-pub fn get_extern_table_types(et: Vec(ExternType)) -> Vec(ExternType) {
-  let elements =
-    et.elements
-    |> list.filter(fn(et) {
-      case et {
-        TableExternType(_) -> True
-        _ -> False
-      }
-    })
-
-  Vec(elements |> list.length, elements)
+pub fn get_extern_table_types(et: List(ExternType)) -> List(ExternType) {
+  et
+  |> list.filter(fn(et) {
+    case et {
+      TableExternType(_) -> True
+      _ -> False
+    }
+  })
 }
 
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
-pub fn get_extern_memory_types(et: Vec(ExternType)) -> Vec(ExternType) {
-  let elements =
-    et.elements
-    |> list.filter(fn(et) {
-      case et {
-        MemExternType(_) -> True
-        _ -> False
-      }
-    })
-
-  Vec(elements |> list.length, elements)
+pub fn get_extern_memory_types(et: List(ExternType)) -> List(ExternType) {
+  et
+  |> list.filter(fn(et) {
+    case et {
+      MemExternType(_) -> True
+      _ -> False
+    }
+  })
 }
 
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
-pub fn get_extern_global_types(et: Vec(ExternType)) -> Vec(ExternType) {
-  let elements =
-    et.elements
-    |> list.filter(fn(et) {
-      case et {
-        GlobalExternType(_) -> True
-        _ -> False
-      }
-    })
-
-  Vec(elements |> list.length, elements)
+pub fn get_extern_global_types(et: List(ExternType)) -> List(ExternType) {
+  et
+  |> list.filter(fn(et) {
+    case et {
+      GlobalExternType(_) -> True
+      _ -> False
+    }
+  })
 }
 
 /// Please see: https://webassembly.github.io/gc/core/valid/types.html#instruction-types
 pub type InstructionType {
-  InstructionType(t1: Vec(ValType), t2: Vec(ValType))
+  InstructionType(t1: List(ValType), t2: List(ValType))
 }
 
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#defined-types
@@ -421,17 +408,17 @@ pub type MemArg {
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#contexts
 pub type Context {
   Context(
-    types: Vec(DefType),
-    funcs: Vec(DefType),
-    tables: Vec(TableType),
-    mems: Vec(MemType),
-    globals: Vec(GlobalType),
-    elems: Vec(RefType),
-    datas: Vec(Bool),
-    locals: Vec(LocalType),
-    labels: Vec(ResultType),
+    types: List(DefType),
+    funcs: List(DefType),
+    tables: List(TableType),
+    mems: List(MemType),
+    globals: List(GlobalType),
+    elems: List(RefType),
+    datas: List(Bool),
+    locals: List(LocalType),
+    labels: List(ResultType),
     return: Option(ResultType),
-    refs: Vec(FuncIDX),
+    refs: List(FuncIDX),
   )
 }
 
@@ -829,7 +816,7 @@ pub type Instruction {
   ExternConvertAny
   Drop
   Select
-  SelectT(vt: Vec(ValType))
+  SelectT(vt: List(ValType))
   LocalGet(idx: U32)
   LocalSet(idx: U32)
   LocalTee(idx: U32)

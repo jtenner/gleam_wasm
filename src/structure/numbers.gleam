@@ -1,3 +1,4 @@
+import gleam/bit_array
 import ieee_float.{type IEEEFloat}
 import structure/common.{between}
 
@@ -169,4 +170,15 @@ pub fn unwrap_u64(val: U64) {
 
 pub fn unwrap_u8(val: U8) {
   val.val
+}
+
+pub opaque type V128Value {
+  V128Value(val: BitArray)
+}
+
+pub fn v128(val: BitArray) -> Result(V128Value, String) {
+  case val |> bit_array.byte_size {
+    16 -> Ok(V128Value(val))
+    _ -> Error("V128 value must be 16 bytes long")
+  }
 }

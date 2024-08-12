@@ -1,30 +1,30 @@
 import gleam/list
 import gleam/option.{type Option}
+import structure/numbers.{type U32}
 import structure/types.{
   type Expr, type GlobalType, type MemType, type RecType, type RefType,
   type TableType, type ValType,
 }
-import structure/values.{type U32, type Vec}
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#modules
 pub type Module {
   Module(
-    types: Vec(RecType),
-    funcs: Vec(Func),
-    tables: Vec(Table),
-    mems: Vec(Mem),
-    globals: Vec(Global),
-    elems: Vec(Elem),
-    datas: Vec(Data),
+    types: List(RecType),
+    funcs: List(Func),
+    tables: List(Table),
+    mems: List(Mem),
+    globals: List(Global),
+    elems: List(Elem),
+    datas: List(Data),
     start: Option(Start),
-    imports: Vec(Import),
-    exports: Vec(Export),
+    imports: List(Import),
+    exports: List(Export),
   )
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
 pub type Func {
-  Func(type_: U32, locals: Vec(Local), body: Expr)
+  Func(type_: U32, locals: List(Local), body: Expr)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
@@ -49,7 +49,7 @@ pub type Global {
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
 pub type Elem {
-  Elem(type_: RefType, init: Vec(Expr), mode: ElemMode)
+  Elem(type_: RefType, init: List(Expr), mode: ElemMode)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
@@ -117,20 +117,20 @@ pub fn export_is_global(export: Export) -> Bool {
   }
 }
 
-pub fn funcs(exports: Vec(Export)) -> List(Export) {
-  exports.elements |> list.filter(export_is_func)
+pub fn funcs(exports: List(Export)) -> List(Export) {
+  exports |> list.filter(export_is_func)
 }
 
-pub fn tables(exports: Vec(Export)) -> List(Export) {
-  exports.elements |> list.filter(export_is_table)
+pub fn tables(exports: List(Export)) -> List(Export) {
+  exports |> list.filter(export_is_table)
 }
 
-pub fn mems(exports: Vec(Export)) -> List(Export) {
-  exports.elements |> list.filter(export_is_mem)
+pub fn mems(exports: List(Export)) -> List(Export) {
+  exports |> list.filter(export_is_mem)
 }
 
-pub fn globals(exports: Vec(Export)) -> List(Export) {
-  exports.elements |> list.filter(export_is_global)
+pub fn globals(exports: List(Export)) -> List(Export) {
+  exports |> list.filter(export_is_global)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#imports

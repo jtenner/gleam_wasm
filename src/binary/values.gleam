@@ -656,3 +656,34 @@ pub fn encode_i8(builder: BytesBuilder, val: I8) {
 pub fn encode_s33(builder: BytesBuilder, val: S33) {
   do_encode_signed(builder, val |> unwrap_s33)
 }
+
+pub fn decode_u32_test(val: BitArray) -> Result(#(U32, BitArray), String) {
+  do_decode_unsigned_test(val, 0, 32, u32)
+}
+
+fn do_decode_unsigned_test(
+  bits: BitArray,
+  acc: Int,
+  bit_count: Int,
+  next: fn(Int) -> Result(u, String),
+) -> Result(#(u, BitArray), String) {
+  case bits {
+    <<0b1:1, val:7, rest:bits>> if bit_count > 7 -> {
+      do_decode_unsigned_test(
+        rest,
+        acc
+          |> int.bitwise_shift_left(7)
+          |> int.bitwise_or(val),
+        bit_count - 7,
+        next,
+      )
+    }
+    <<0b0:1, val:7, rest:bits>> if bit_count > 0 -> {
+      case next(acc |> int.bitwise_shift_left(7) |> int.bitwise_or(val)) {
+        Ok(val) -> Ok(#(val, rest))
+        Error(msg) -> Error(msg)
+      }
+    }
+    _ -> Error("Invalid number format")
+  }
+}

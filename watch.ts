@@ -235,7 +235,7 @@ const instrs = [
 	// Please see: https://webassembly.github.io/gc/core/syntax/instructions.html#parametric-instructions
 	"drop||todo",
 	"select||todo",
-	"select_t|(vt: Vec(ValType))|todo",
+	"select_t|(vt: List(ValType))|todo",
 
 	// Please see: https://webassembly.github.io/gc/core/syntax/instructions.html#variable-instructions
 	"local.get|(idx: LocalIDX)|todo",

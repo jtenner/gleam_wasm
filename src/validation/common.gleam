@@ -2,251 +2,26 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import structure/types.{
-  type AbstractHeapType, type ArrayType, type CompositeType, type Context,
+  type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
   type DefType, type ExternType, type FieldType, type FuncType, type GlobalType,
   type HeapType, type Instruction, type InstructionType, type LocalType,
   type MemType, type NumType, type PackedType, type RecType, type RefType,
   type ResultType, type ResultTypes, type StorageType, type StructType,
-  type SubType, type TableType, type ValType, type VecType, AnyHeapType,
-  AnyRefType, ArrayCompositeType, ArrayHeapType, ArrayRefType, ArrayType,
-  BotHeapType, DefType, DefTypeHeapType, EightResultTypes, EqHeapType, EqRefType,
-  ExternHeapType, ExternRefType, F32ValType, F64ValType, FieldType,
-  FiveResultTypes, FourResultTypes, FuncCompositeType, FuncExternType,
+  type SubType, type TableType, type TypeIDX, type ValType, type VecType,
+  AnyHeapType, AnyRefType, ArrayCompositeType, ArrayHeapType, ArrayRefType,
+  ArrayType, BotHeapType, ConcreteHeapType, DefType, EightResultTypes,
+  EqHeapType, EqRefType, ExternHeapType, ExternRefType, F32ValType, F64ValType,
+  FieldType, FiveResultTypes, FourResultTypes, FuncCompositeType, FuncExternType,
   FuncHeapType, FuncRefType, FuncType, GlobalExternType, GlobalType,
   HeapTypeRefType, I31HeapType, I31RefType, I32ValType, I64ValType, LocalType,
   MemExternType, NineResultTypes, NoExternHeapType, NoFuncHeapType, NoneHeapType,
   NullExternRefType, NullFuncRefType, NullRefType, OneResultType, RecType,
-  RecTypeHeapType, RefTypeValType, ResultType, SevenResultTypes, SixResultTypes,
+  RefTypeValType, ResultType, SevenResultTypes, SixResultTypes,
   StructCompositeType, StructHeapType, StructRefType, StructType, SubType,
   TableExternType, TableType, TenResultTypes, ThreeResultTypes, TwoResultTypes,
-  UnrolledSubType, V128ValType, ValTypeStorageType, VecTypeValType,
+  UnrolledSubType, V128ValType, ValTypeStorageType,
 }
-
-type NumTypeVisitor =
-  fn(Context, NumType) -> Result(#(Context, NumType), String)
-
-type VecTypeVisitor =
-  fn(Context, VecType) -> Result(#(Context, VecType), String)
-
-type HeapTypeVisitor =
-  fn(Context, HeapType) -> Result(#(Context, HeapType), String)
-
-type AbstractHeapTypeVisitor =
-  fn(Context, AbstractHeapType) -> Result(#(Context, AbstractHeapType), String)
-
-type RefTypeVisitor =
-  fn(Context, RefType) -> Result(#(Context, RefType), String)
-
-type ValTypeVisitor =
-  fn(Context, ValType) -> Result(#(Context, ValType), String)
-
-type ResultTypeVisitor =
-  fn(Context, ResultType) -> Result(#(Context, ResultType), String)
-
-type ResultTypesVisitor =
-  fn(Context, ResultTypes) -> Result(#(Context, ResultTypes), String)
-
-type FuncTypeVisitor =
-  fn(Context, FuncType) -> Result(#(Context, FuncType), String)
-
-type StructTypeVisitor =
-  fn(Context, StructType) -> Result(#(Context, StructType), String)
-
-type ArrayTypeVisitor =
-  fn(Context, ArrayType) -> Result(#(Context, ArrayType), String)
-
-type FieldTypeVisitor =
-  fn(Context, FieldType) -> Result(#(Context, FieldType), String)
-
-type StorageTypeVisitor =
-  fn(Context, StorageType) -> Result(#(Context, StorageType), String)
-
-type PackedTypeVisitor =
-  fn(Context, PackedType) -> Result(#(Context, PackedType), String)
-
-type CompositeTypeVisitor =
-  fn(Context, CompositeType) -> Result(#(Context, CompositeType), String)
-
-type RecTypeVisitor =
-  fn(Context, RecType) -> Result(#(Context, RecType), String)
-
-type SubTypeVisitor =
-  fn(Context, SubType) -> Result(#(Context, SubType), String)
-
-type MemTypeVisitor =
-  fn(Context, MemType) -> Result(#(Context, MemType), String)
-
-type TableTypeVisitor =
-  fn(Context, TableType) -> Result(#(Context, TableType), String)
-
-type GlobalTypeVisitor =
-  fn(Context, GlobalType) -> Result(#(Context, GlobalType), String)
-
-type ExternTypeVisitor =
-  fn(Context, ExternType) -> Result(#(Context, ExternType), String)
-
-type InstructionVisitor =
-  fn(Context, Instruction) -> Result(#(Context, Instruction), String)
-
-type DefTypeVisitor =
-  fn(Context, DefType) -> Result(#(Context, DefType), String)
-
-type LocalTypeVisitor =
-  fn(Context, LocalType) -> Result(#(Context, LocalType), String)
-
-pub type TypeVisitor {
-  TypeVisitor(
-    num_type: Option(NumTypeVisitor),
-    vec_type: Option(VecTypeVisitor),
-    heap_type: Option(HeapTypeVisitor),
-    abstract_heap_type: Option(AbstractHeapTypeVisitor),
-    ref_type: Option(RefTypeVisitor),
-    val_type: Option(ValTypeVisitor),
-    result_type: Option(ResultTypeVisitor),
-    result_types: Option(ResultTypesVisitor),
-    func_type: Option(FuncTypeVisitor),
-    struct_type: Option(StructTypeVisitor),
-    array_type: Option(ArrayTypeVisitor),
-    field_type: Option(FieldTypeVisitor),
-    storage_type: Option(StorageTypeVisitor),
-    packed_type: Option(PackedTypeVisitor),
-    composite_type: Option(CompositeTypeVisitor),
-    rec_type: Option(RecTypeVisitor),
-    sub_type: Option(SubTypeVisitor),
-    mem_type: Option(MemTypeVisitor),
-    table_type: Option(TableTypeVisitor),
-    global_type: Option(GlobalTypeVisitor),
-    extern_type: Option(ExternTypeVisitor),
-    instruction_type: Option(InstructionVisitor),
-    def_type: Option(DefTypeVisitor),
-    local_type: Option(LocalTypeVisitor),
-  )
-}
-
-pub fn on_num_type(v: TypeVisitor, vs: NumTypeVisitor) {
-  TypeVisitor(..v, num_type: Some(vs))
-}
-
-pub fn on_vec_type(v: TypeVisitor, vs: VecTypeVisitor) {
-  TypeVisitor(..v, vec_type: Some(vs))
-}
-
-pub fn on_heap_type(v: TypeVisitor, vs: HeapTypeVisitor) {
-  TypeVisitor(..v, heap_type: Some(vs))
-}
-
-pub fn on_abstract_heap_type(v: TypeVisitor, vs: AbstractHeapTypeVisitor) {
-  TypeVisitor(..v, abstract_heap_type: Some(vs))
-}
-
-pub fn on_ref_type(v: TypeVisitor, vs: RefTypeVisitor) {
-  TypeVisitor(..v, ref_type: Some(vs))
-}
-
-pub fn on_val_type(v: TypeVisitor, vs: ValTypeVisitor) {
-  TypeVisitor(..v, val_type: Some(vs))
-}
-
-pub fn on_result_type(v: TypeVisitor, vs: ResultTypeVisitor) {
-  TypeVisitor(..v, result_type: Some(vs))
-}
-
-pub fn on_result_types(v: TypeVisitor, vs: ResultTypesVisitor) {
-  TypeVisitor(..v, result_types: Some(vs))
-}
-
-pub fn on_func_type(v: TypeVisitor, vs: FuncTypeVisitor) {
-  TypeVisitor(..v, func_type: Some(vs))
-}
-
-pub fn on_struct_type(v: TypeVisitor, vs: StructTypeVisitor) {
-  TypeVisitor(..v, struct_type: Some(vs))
-}
-
-pub fn on_array_type(v: TypeVisitor, vs: ArrayTypeVisitor) {
-  TypeVisitor(..v, array_type: Some(vs))
-}
-
-pub fn on_field_type(v: TypeVisitor, vs: FieldTypeVisitor) {
-  TypeVisitor(..v, field_type: Some(vs))
-}
-
-pub fn on_storage_type(v: TypeVisitor, vs: StorageTypeVisitor) {
-  TypeVisitor(..v, storage_type: Some(vs))
-}
-
-pub fn on_packed_type(v: TypeVisitor, vs: PackedTypeVisitor) {
-  TypeVisitor(..v, packed_type: Some(vs))
-}
-
-pub fn on_composite_type(v: TypeVisitor, vs: CompositeTypeVisitor) {
-  TypeVisitor(..v, composite_type: Some(vs))
-}
-
-pub fn on_rec_type(v: TypeVisitor, vs: RecTypeVisitor) {
-  TypeVisitor(..v, rec_type: Some(vs))
-}
-
-pub fn on_sub_type(v: TypeVisitor, vs: SubTypeVisitor) {
-  TypeVisitor(..v, sub_type: Some(vs))
-}
-
-pub fn on_mem_type(v: TypeVisitor, vs: MemTypeVisitor) {
-  TypeVisitor(..v, mem_type: Some(vs))
-}
-
-pub fn on_table_type(v: TypeVisitor, vs: TableTypeVisitor) {
-  TypeVisitor(..v, table_type: Some(vs))
-}
-
-pub fn on_global_type(v: TypeVisitor, vs: GlobalTypeVisitor) {
-  TypeVisitor(..v, global_type: Some(vs))
-}
-
-pub fn on_extern_type(v: TypeVisitor, vs: ExternTypeVisitor) {
-  TypeVisitor(..v, extern_type: Some(vs))
-}
-
-pub fn on_instruction(v: TypeVisitor, vs: InstructionVisitor) {
-  TypeVisitor(..v, instruction_type: Some(vs))
-}
-
-pub fn on_def_type(v: TypeVisitor, vs: DefTypeVisitor) {
-  TypeVisitor(..v, def_type: Some(vs))
-}
-
-pub fn on_local_type(v: TypeVisitor, vs: LocalTypeVisitor) {
-  TypeVisitor(..v, local_type: Some(vs))
-}
-
-pub fn visitor_new() {
-  TypeVisitor(
-    num_type: None,
-    vec_type: None,
-    heap_type: None,
-    abstract_heap_type: None,
-    ref_type: None,
-    val_type: None,
-    result_type: None,
-    result_types: None,
-    func_type: None,
-    struct_type: None,
-    array_type: None,
-    field_type: None,
-    storage_type: None,
-    packed_type: None,
-    composite_type: None,
-    rec_type: None,
-    sub_type: None,
-    mem_type: None,
-    table_type: None,
-    global_type: None,
-    extern_type: None,
-    instruction_type: None,
-    def_type: None,
-    local_type: None,
-  )
-}
+import validation/types.{type Context, type TypeVisitor} as validation_types
 
 pub fn visit_num_type(
   ctx: Context,
@@ -291,29 +66,9 @@ pub fn visit_heap_type(
   ty: HeapType,
   visitor: TypeVisitor,
 ) -> Result(#(Context, HeapType), String) {
-  use #(ctx, ht) <- result.try(case visitor.heap_type {
+  case visitor.heap_type {
     Some(f) -> f(ctx, ty)
     None -> Ok(#(ctx, ty))
-  })
-
-  case ht {
-    FuncHeapType
-    | NoFuncHeapType
-    | ExternHeapType
-    | NoExternHeapType
-    | AnyHeapType
-    | EqHeapType
-    | I31HeapType
-    | StructHeapType
-    | ArrayHeapType
-    | NoneHeapType
-    | BotHeapType
-    | RecTypeHeapType(_) -> Ok(#(ctx, ht))
-
-    DefTypeHeapType(dt) -> {
-      use #(ctx, dt) <- result.map(visit_def_type(ctx, dt, visitor))
-      #(ctx, DefTypeHeapType(dt))
-    }
   }
 }
 
@@ -372,7 +127,7 @@ pub fn visit_val_type(
     | I64ValType
     | F32ValType
     | F64ValType
-    | VecTypeValType -> Ok(#(ctx, vt))
+    | V128ValType -> Ok(#(ctx, vt))
 
     RefTypeValType(rt) -> {
       use #(ctx, rt) <- result.map(visit_ref_type(ctx, rt, visitor))
@@ -674,16 +429,14 @@ pub fn visit_sub_type(
   })
 
   case st {
-    // SubType(final: Bool, t: Vec(TypeIDX), ct: CompositeType)
+    // SubType(final: Bool, t: List(TypeIDX), ct: CompositeType)
     SubType(f, t, ct) -> {
       use #(ctx, ct) <- result.map(visit_composite_type(ctx, ct, visitor))
       #(ctx, SubType(f, t, ct))
     }
-    // UnrolledSubType(final: Bool, ht: Vec(HeapType), ct: CompositeType)
-    UnrolledSubType(f, ht, ct) -> {
-      use #(ctx, ht) <- result.try(do_visit_heap_types(ctx, ht, [], visitor))
+    UnrolledSubType(f, t, ct) -> {
       use #(ctx, ct) <- result.map(visit_composite_type(ctx, ct, visitor))
-      #(ctx, UnrolledSubType(f, ht, ct))
+      #(ctx, UnrolledSubType(f, t, ct))
     }
   }
 }
@@ -799,4 +552,13 @@ pub fn visit_local_type(
   use #(ctx, vt) <- result.map(visit_val_type(ctx, lt.t, visitor))
 
   #(ctx, LocalType(lt.initialized, vt))
+}
+
+pub fn def_type_expand(dt: DefType) {
+  let DefType(RecType(st), idx) = dt
+  case st |> list.drop(idx) {
+    [SubType(_, _, ct), ..] -> Ok(ct)
+    [UnrolledSubType(_, _, ct), ..] -> Ok(ct)
+    [] -> Error("Type index out of bounds")
+  }
 }

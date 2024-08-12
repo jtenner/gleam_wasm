@@ -1,5 +1,5 @@
 import gleam/list
-import gleam/option.{type Option}
+import gleam/option.{type Option, None}
 import structure/common.{between}
 import structure/numbers.{
   type F32, type F64, type I32, type I64, type S33, type U32, type V128Value,
@@ -79,10 +79,7 @@ pub type HeapType {
   StructHeapType
   ArrayHeapType
   NoneHeapType
-  RecTypeHeapType(idx: RecTypeIDX)
-
-  // for validation and execution only
-  DefTypeHeapType(dt: DefType)
+  ConcreteHeapType(idx: TypeIDX)
   BotHeapType
 }
 
@@ -133,8 +130,14 @@ pub type ValType {
   I64ValType
   F32ValType
   F64ValType
-  VecTypeValType
   RefTypeValType(rt: RefType)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/binary/instructions.html#control-instructions
+pub type BlockType {
+  VoidBlockType
+  ValTypeBlockType(vt: ValType)
+  FuncTypeBlockType(idx: TypeIDX)
 }
 
 pub type ResultTypes {
@@ -264,19 +267,24 @@ pub type RecType {
   RecType(st: List(SubType))
 }
 
-pub type TypeIDX =
-  U32
+pub type TypeIDX {
+  /// Module Type Index
+  TypeIDX(id: U32)
+
+  /// Rolled type index
+  RolledTypeIDX(id: U32)
+
+  // Direct DefType reference
+  UnrolledDefType(dt: DefType)
+}
 
 pub type ElemIDX =
-  U32
-
-pub type HeapTypeIDX =
   U32
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#recursive-types
 pub type SubType {
   SubType(final: Bool, t: List(TypeIDX), ct: CompositeType)
-  UnrolledSubType(final: Bool, ht: List(HeapType), ct: CompositeType)
+  UnrolledSubType(final: Bool, t: List(HeapType), ct: CompositeType)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#limits
@@ -363,12 +371,8 @@ pub type InstructionType {
 }
 
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#defined-types
-pub type RecTypeIDX =
-  U32
-
-/// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#defined-types
 pub type DefType {
-  DefType(rt: RecType, idx: RecTypeIDX)
+  DefType(rt: RecType, idx: Int)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#local-types 
@@ -403,23 +407,6 @@ pub type TableIDX =
 /// Please see: todo
 pub type MemArg {
   MemArg(offset: U32, align: U32)
-}
-
-/// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#contexts
-pub type Context {
-  Context(
-    types: List(DefType),
-    funcs: List(DefType),
-    tables: List(TableType),
-    mems: List(MemType),
-    globals: List(GlobalType),
-    elems: List(RefType),
-    datas: List(Bool),
-    locals: List(LocalType),
-    labels: List(ResultType),
-    return: Option(ResultType),
-    refs: List(FuncIDX),
-  )
 }
 
 pub type Instruction {
@@ -1384,7 +1371,7 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
       ResultType(
         NoResultTypes,
         OneResultType(
-          RefTypeValType(HeapTypeRefType(RecTypeHeapType(idx), False)),
+          RefTypeValType(HeapTypeRefType(ConcreteHeapType(idx), False)),
         ),
       )
     RefI31 ->
@@ -1443,4 +1430,13 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
 
 pub type Expr {
   Expr(insts: List(Instruction))
+}
+
+pub fn def_type_expand(dt: DefType) {
+  let DefType(RecType(st), idx) = dt
+  case st |> list.drop(idx) {
+    [SubType(_, _, ct), ..] -> Ok(ct)
+    [UnrolledSubType(_, _, ct), ..] -> Ok(ct)
+    [] -> Error("Type index out of bounds")
+  }
 }

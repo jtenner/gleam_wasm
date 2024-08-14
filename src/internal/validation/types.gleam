@@ -1,9 +1,9 @@
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import structure/common as structure_common
-import structure/numbers.{type U32, u32, unwrap_u32}
-import structure/types.{
+import internal/structure/common as structure_common
+import internal/structure/numbers.{type U32, u32, unwrap_u32}
+import internal/structure/types.{
   type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
   type DefType, type ExternType, type FieldType, type FuncIDX, type FuncType,
   type GlobalType, type HeapType, type Instruction, type LocalType, type MemType,
@@ -13,10 +13,9 @@ import structure/types.{
   AnyRefType, ArrayHeapType, ArrayRefType, ConcreteHeapType, DefType, EqHeapType,
   EqRefType, ExternHeapType, ExternRefType, FuncCompositeType, FuncHeapType,
   FuncRefType, FuncTypeBlockType, HeapTypeRefType, I31HeapType, I31RefType,
-  NoExternHeapType, NoFuncHeapType, NoneHeapType, NullExternRefType,
-  NullFuncRefType, NullRefType, RecType, RolledTypeIDX, StructHeapType,
-  StructRefType, SubType, TypeIDX, UnrolledDefType, UnrolledSubType,
-  def_type_expand,
+  NoExternHeapType, NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType,
+  NoneRefType, RecType, StructHeapType, StructRefType, SubType, TypeIDX,
+  UnrolledSubType, def_type_expand,
 }
 
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#contexts
@@ -69,9 +68,9 @@ fn ref_type_as_non_nullable(rt: RefType) {
     ArrayRefType -> HeapTypeRefType(ArrayHeapType, False)
     FuncRefType -> HeapTypeRefType(FuncHeapType, False)
     ExternRefType -> HeapTypeRefType(ExternHeapType, False)
-    NullRefType -> HeapTypeRefType(NoneHeapType, False)
-    NullFuncRefType -> HeapTypeRefType(NoFuncHeapType, False)
-    NullExternRefType -> HeapTypeRefType(NoExternHeapType, False)
+    NoneRefType -> HeapTypeRefType(NoneHeapType, False)
+    NoFuncRefType -> HeapTypeRefType(NoFuncHeapType, False)
+    NoExternRefType -> HeapTypeRefType(NoExternHeapType, False)
   }
 }
 

@@ -1,7 +1,7 @@
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import structure/types.{
+import internal/structure/types.{
   type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
   type DefType, type ExternType, type FieldType, type FuncType, type GlobalType,
   type HeapType, type Instruction, type InstructionType, type LocalType,
@@ -14,14 +14,14 @@ import structure/types.{
   FieldType, FiveResultTypes, FourResultTypes, FuncCompositeType, FuncExternType,
   FuncHeapType, FuncRefType, FuncType, GlobalExternType, GlobalType,
   HeapTypeRefType, I31HeapType, I31RefType, I32ValType, I64ValType, LocalType,
-  MemExternType, NineResultTypes, NoExternHeapType, NoFuncHeapType, NoneHeapType,
-  NullExternRefType, NullFuncRefType, NullRefType, OneResultType, RecType,
-  RefTypeValType, ResultType, SevenResultTypes, SixResultTypes,
+  MemExternType, NineResultTypes, NoExternHeapType, NoExternRefType,
+  NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, OneResultType,
+  RecType, RefTypeValType, ResultType, SevenResultTypes, SixResultTypes,
   StructCompositeType, StructHeapType, StructRefType, StructType, SubType,
   TableExternType, TableType, TenResultTypes, ThreeResultTypes, TwoResultTypes,
   UnrolledSubType, V128ValType, ValTypeStorageType,
 }
-import validation/types.{type Context, type TypeVisitor} as validation_types
+import internal/validation/types.{type Context, type TypeVisitor} as validation_types
 
 pub fn visit_num_type(
   ctx: Context,
@@ -105,9 +105,9 @@ pub fn visit_ref_type(
     | ArrayRefType
     | FuncRefType
     | ExternRefType
-    | NullRefType
-    | NullFuncRefType
-    | NullExternRefType -> Ok(#(ctx, rt))
+    | NoneRefType
+    | NoFuncRefType
+    | NoExternRefType -> Ok(#(ctx, rt))
   }
 }
 

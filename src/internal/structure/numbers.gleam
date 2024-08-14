@@ -1,6 +1,6 @@
 import gleam/bit_array
 import ieee_float.{type IEEEFloat}
-import structure/common.{between}
+import internal/structure/common.{between}
 
 pub opaque type I8 {
   I8(val: Int)
@@ -181,4 +181,130 @@ pub fn v128(val: BitArray) -> Result(V128Value, String) {
     16 -> Ok(V128Value(val))
     _ -> Error("V128 value must be 16 bytes long")
   }
+}
+
+pub fn f32(val: Float) {
+  F32(ieee_float.finite(val))
+}
+
+pub fn f32_nan() {
+  F32(ieee_float.nan())
+}
+
+pub fn f32_neg_inf() {
+  F32(ieee_float.negative_infinity())
+}
+
+pub fn f32_pos_inf() {
+  F32(ieee_float.positive_infinity())
+}
+
+pub fn f64(val: Float) {
+  F64(ieee_float.finite(val))
+}
+
+pub fn f64_nan() {
+  F64(ieee_float.nan())
+}
+
+pub fn f64_neg_inf() {
+  F64(ieee_float.negative_infinity())
+}
+
+pub fn f64_pos_inf() {
+  F64(ieee_float.positive_infinity())
+}
+
+pub fn unwrap_f32(val: F32) {
+  val.val
+}
+
+pub fn unwrap_f64(val: F64) {
+  val.val
+}
+
+pub fn unwrap_v128(val: V128Value) {
+  val.val
+}
+
+pub fn i8x16(
+  v0: I8,
+  v1: I8,
+  v2: I8,
+  v3: I8,
+  v4: I8,
+  v5: I8,
+  v6: I8,
+  v7: I8,
+  v8: I8,
+  v9: I8,
+  v10: I8,
+  v11: I8,
+  v12: I8,
+  v13: I8,
+  v14: I8,
+  v15: I8,
+) {
+  v128(<<
+    v0.val,
+    v1.val,
+    v2.val,
+    v3.val,
+    v4.val,
+    v5.val,
+    v6.val,
+    v7.val,
+    v8.val,
+    v9.val,
+    v10.val,
+    v11.val,
+    v12.val,
+    v13.val,
+    v14.val,
+    v15.val,
+  >>)
+}
+
+pub fn i16x8(
+  v0: I16,
+  v1: I16,
+  v2: I16,
+  v3: I16,
+  v4: I16,
+  v5: I16,
+  v6: I16,
+  v7: I16,
+) {
+  v128(<<
+    v0.val:16,
+    v1.val:16,
+    v2.val:16,
+    v3.val:16,
+    v4.val:16,
+    v5.val:16,
+    v6.val:16,
+    v7.val:16,
+  >>)
+}
+
+pub fn i32x4(v0: I32, v1: I32, v2: I32, v3: I32) {
+  v128(<<v0.val:32, v1.val:32, v2.val:32, v3.val:32>>)
+}
+
+pub fn i64x2(v0: I64, v1: I64) {
+  v128(<<v0.val:64, v1.val:64>>)
+}
+
+pub fn f32x4(v0: F32, v1: F32, v2: F32, v3: F32) {
+  let v0 = v0.val |> ieee_float.to_bytes_32_le
+  let v1 = v1.val |> ieee_float.to_bytes_32_le
+  let v2 = v2.val |> ieee_float.to_bytes_32_le
+  let v3 = v3.val |> ieee_float.to_bytes_32_le
+  v128(<<v0:bits, v1:bits, v2:bits, v3:bits>>)
+}
+
+pub fn f64x2(v0: F64, v1: F64) {
+  let v0 = v0.val |> ieee_float.to_bytes_64_le
+  let v1 = v1.val |> ieee_float.to_bytes_64_le
+  v128(<<v0:bits, v1:bits>>)
 }

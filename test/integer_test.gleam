@@ -1,14 +1,14 @@
-import binary/values.{
-  decode_i16, decode_i32, decode_i64, decode_i8, decode_s33, decode_u16,
-  decode_u32, decode_u64, decode_u8, encode_i16, encode_i32, encode_i64,
-  encode_i8, encode_s33, encode_u16, encode_u32, encode_u64, encode_u8,
-}
 import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/io
 import gleam/pair
 import gleeunit/should
-import structure/numbers.{
+import internal/binary/values.{
+  decode_i16, decode_i32, decode_i64, decode_i8, decode_s33, decode_u16,
+  decode_u32, decode_u64, decode_u8, encode_i16, encode_i32, encode_i64,
+  encode_i8, encode_s33, encode_u16, encode_u32, encode_u64, encode_u8,
+}
+import internal/structure/numbers.{
   type I16, type I32, type I64, type I8, type S33, type U16, type U32, type U64,
   type U8, i16, i32, i64, i8, s33, u16, u32, u64, u8, unwrap_i16, unwrap_i32,
   unwrap_i64, unwrap_i8, unwrap_s33, unwrap_u16, unwrap_u32, unwrap_u64,

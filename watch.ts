@@ -189,7 +189,7 @@ const instrs = [
 	"i16x8.avgr_u||ResultType(TwoResultTypes(V128ValType, V128ValType), OneResultType(V128ValType))",
 	"i16x8.extmul_{HALF}_i8x16_{SX}||ResultType(TwoResultTypes(V128ValType, V128ValType), OneResultType(V128ValType))",
 	"i32x4.extmul_{HALF}_i16x8_{SX}||ResultType(TwoResultTypes(V128ValType, V128ValType), OneResultType(V128ValType))",
-	"i64x4.extmul_{HALF}_i32x4_{SX}||ResultType(TwoResultTypes(V128ValType, V128ValType), OneResultType(V128ValType))",
+	"i64x2.extmul_{HALF}_i32x4_{SX}||ResultType(TwoResultTypes(V128ValType, V128ValType), OneResultType(V128ValType))",
 	"i16x8.extadd_pairwise_i8x16_{SX}||ResultType(TwoResultTypes(V128ValType, V128ValType), OneResultType(V128ValType))",
 	"i32x4.extadd_pairwise_i16x8_{SX}||ResultType(TwoResultTypes(V128ValType, V128ValType), OneResultType(V128ValType))",
 	"{FSHAPE}.{VFBINOP}||ResultType(TwoResultTypes(V128ValType, V128ValType), OneResultType(V128ValType))",
@@ -202,7 +202,7 @@ const instrs = [
 
 	// Please see: https://webassembly.github.io/gc/core/syntax/instructions.html#reference-instructions
 	"ref.null|(ht: HeapType)|ResultType(NoResultTypes, OneResultType(RefTypeValType(HeapTypeRefType(ht, True))))",
-	"ref.func|(idx: FuncIDX)|ResultType(NoResultTypes, OneResultType(RefTypeValType(NullFuncRefType)))",
+	"ref.func|(idx: FuncIDX)|ResultType(NoResultTypes, OneResultType(RefTypeValType(NoFuncRefType)))",
 	"ref.is_null||todo",
 	"ref.as_non_null||todo",
 	"ref.eq||todo",
@@ -413,3 +413,8 @@ ${Array.from(caseMap.entries())
 }\n`,
 );
 console.log("Wrote results");
+
+await Bun.write(
+	"./funcs.txt",
+	result.map(e => e.split("|")[0]).join("\n") + "\n",
+)

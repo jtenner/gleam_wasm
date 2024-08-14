@@ -1,7 +1,7 @@
 import gleam/list
 import gleam/option.{type Option, None}
-import structure/common.{between}
-import structure/numbers.{
+import internal/structure/common.{between}
+import internal/structure/numbers.{
   type F32, type F64, type I32, type I64, type S33, type U32, type V128Value,
 }
 
@@ -116,11 +116,11 @@ pub type RefType {
   /// Shorthand for (ref null Extern)
   ExternRefType
   /// Shorthand for (ref null None)
-  NullRefType
+  NoneRefType
   /// Shorthand for (ref null NoFunc)
-  NullFuncRefType
+  NoFuncRefType
   /// Shorthand for (ref null NoExtern)
-  NullExternRefType
+  NoExternRefType
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#value-types
@@ -270,12 +270,6 @@ pub type RecType {
 pub type TypeIDX {
   /// Module Type Index
   TypeIDX(id: U32)
-
-  /// Rolled type index
-  RolledTypeIDX(id: U32)
-
-  // Direct DefType reference
-  UnrolledDefType(dt: DefType)
 }
 
 pub type ElemIDX =

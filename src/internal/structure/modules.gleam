@@ -1,7 +1,7 @@
 import gleam/list
 import gleam/option.{type Option}
-import structure/numbers.{type U32}
-import structure/types.{
+import internal/structure/numbers.{type U32}
+import internal/structure/types.{
   type Expr, type GlobalType, type MemType, type RecType, type RefType,
   type TableType, type ValType,
 }

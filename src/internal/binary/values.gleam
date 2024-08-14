@@ -1,6 +1,10 @@
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/int
-import structure/numbers.{
+import gleam/list
+import gleam/result
+import internal/finger_tree.{type FingerTree}
+import internal/structure/common
+import internal/structure/numbers.{
   type I16, type I32, type I64, type I8, type S33, type U16, type U32, type U64,
   type U8, i16, i32, i64, i8, s33, u16, u32, u64, u8, unwrap_i16, unwrap_i32,
   unwrap_i64, unwrap_i8, unwrap_s33, unwrap_u16, unwrap_u32, unwrap_u64,
@@ -657,33 +661,58 @@ pub fn encode_s33(builder: BytesBuilder, val: S33) {
   do_encode_signed(builder, val |> unwrap_s33)
 }
 
-pub fn decode_u32_test(val: BitArray) -> Result(#(U32, BitArray), String) {
-  do_decode_unsigned_test(val, 0, 32, u32)
+pub fn decode_string(val: BitArray) -> Result(List(Int), String) {
+  use #(byte_length, rest) <- result.try(decode_u32(val))
+  do_decode_string(rest, byte_length |> unwrap_u32, finger_tree.new())
 }
 
-fn do_decode_unsigned_test(
-  bits: BitArray,
-  acc: Int,
-  bit_count: Int,
-  next: fn(Int) -> Result(u, String),
-) -> Result(#(u, BitArray), String) {
-  case bits {
-    <<0b1:1, val:7, rest:bits>> if bit_count > 7 -> {
-      do_decode_unsigned_test(
-        rest,
-        acc
-          |> int.bitwise_shift_left(7)
-          |> int.bitwise_or(val),
-        bit_count - 7,
-        next,
-      )
-    }
-    <<0b0:1, val:7, rest:bits>> if bit_count > 0 -> {
-      case next(acc |> int.bitwise_shift_left(7) |> int.bitwise_or(val)) {
-        Ok(val) -> Ok(#(val, rest))
-        Error(msg) -> Error(msg)
+fn do_decode_string(
+  rest: BitArray,
+  rest_length: Int,
+  acc: FingerTree(Int),
+) -> Result(List(Int), String) {
+  case rest {
+    <<b, rest:bits>> if rest_length >= 1 && b < 0x80 ->
+      do_decode_string(rest, rest_length - 1, acc |> finger_tree.push(b))
+    <<b1, b2, rest:bits>> if rest_length >= 2 && b2 < 0xC0 -> {
+      let c = 0x40 * { b1 - 0xC0 } + b2 - 0x80
+      case c |> common.between(#(0x80, 0x800 - 1)) {
+        True ->
+          do_decode_string(rest, rest_length - 2, acc |> finger_tree.push(c))
+        False -> Error("Invalid UTF-8 sequence")
       }
     }
-    _ -> Error("Invalid number format")
+    <<b1, b2, b3, rest:bits>> if rest_length >= 3 && b3 < 0xC0 && b2 < 0xC0 -> {
+      let c = 0x1000 * { b1 - 0xE0 } + 0x40 * { b2 - 0x80 } + b3 - 0x80
+      case
+        c |> common.between(#(0x800, 0xD800 - 1)),
+        c |> common.between(#(0xE000, 0x10000 - 1))
+      {
+        True, _ | _, True ->
+          do_decode_string(rest, rest_length - 3, acc |> finger_tree.push(c))
+        _, _ -> Error("Invalid UTF-8 sequence")
+      }
+    }
+    <<b1, b2, b3, b4, rest:bits>>
+      if rest_length >= 4 && b4 < 0xC0 && b3 < 0xC0 && b2 < 0xC0
+    -> {
+      let c =
+        0x40000
+        * { b1 - 0xF0 }
+        + 0x1000
+        * { b2 - 0x80 }
+        + 0x40
+        * { b3 - 0x80 }
+        + b4
+        - 0x80
+
+      case c |> common.between(#(0x10000, 0x110000 - 1)) {
+        True ->
+          do_decode_string(rest, rest_length - 4, acc |> finger_tree.push(c))
+        False -> Error("Invalid UTF-8 sequence")
+      }
+    }
+    _ if rest_length == 0 -> Ok(acc |> finger_tree.to_list)
+    _ -> Error("Invalid UTF-8 sequence")
   }
 }

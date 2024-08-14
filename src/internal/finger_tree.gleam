@@ -78,7 +78,7 @@ pub fn shift(tree: FingerTree(u)) -> Result(#(u, FingerTree(u)), Nil) {
     Deep(s, None, Empty, Two(v1, v2)) ->
       Ok(#(v1, Deep(s - 1, None, Empty, One(v2))))
     Deep(s, None, Empty, One(v1)) -> Ok(#(v1, Deep(s - 1, None, Empty, None)))
-    Deep(s, None, Empty, None) -> Error(Nil)
+    Deep(_, None, Empty, None) -> Error(Nil)
     Deep(s, None, Single(v1), r) -> Ok(#(v1, Deep(s - 1, None, Empty, r)))
     Deep(s, None, t, r) ->
       case shift(t) {
@@ -105,7 +105,7 @@ pub fn pop(tree: FingerTree(u)) -> Result(#(u, FingerTree(u)), Nil) {
     Deep(s, Two(v1, v2), Empty, None) ->
       Ok(#(v2, Deep(s - 1, One(v1), Empty, None)))
     Deep(s, One(v1), Empty, None) -> Ok(#(v1, Deep(s - 1, None, Empty, None)))
-    Deep(s, None, Empty, None) -> Error(Nil)
+    Deep(_, None, Empty, None) -> Error(Nil)
     Deep(s, l, Single(v1), None) -> Ok(#(v1, Deep(s - 1, l, Empty, None)))
     Deep(s, l, t, None) ->
       case pop(t) {
@@ -207,4 +207,197 @@ fn do_append_shift_pop(t1: FingerTree(u), t2: FingerTree(u)) -> FingerTree(u) {
 
 pub fn new() {
   Empty
+}
+
+pub fn fold(tree: FingerTree(v), init: u, f: fn(u, v) -> u) -> u {
+  do_fold(tree, init, f)
+}
+
+fn do_fold(tree: FingerTree(v), init: u, f: fn(u, v) -> u) -> u {
+  case tree {
+    Empty -> init
+    Single(v) -> f(init, v)
+    Deep(_, l, t, r) ->
+      do_fold_digits(l, init, f)
+      |> do_fold(t, _, f)
+      |> do_fold_digits(r, _, f)
+  }
+}
+
+fn do_fold_digits(digits: Digits(v), init: u, f: fn(u, v) -> u) -> u {
+  case digits {
+    None -> init
+    One(v) -> f(init, v)
+    Two(v1, v2) -> init |> f(v1) |> f(v2)
+    Three(v1, v2, v3) -> init |> f(v1) |> f(v2) |> f(v3)
+    Four(v1, v2, v3, v4) -> init |> f(v1) |> f(v2) |> f(v3) |> f(v4)
+  }
+}
+
+pub fn drop(tree: FingerTree(u), n: Int) -> Result(FingerTree(u), Nil) {
+  case tree {
+    t if n == 0 -> Ok(t)
+    Empty -> Error(Nil)
+    Single(_) if n > 1 -> Error(Nil)
+    Single(_) -> Ok(Empty)
+    Deep(s, None, Empty, None) if n > 1 -> Error(Nil)
+    Deep(s, l, t, r) -> {
+      case drop_digit(l) {
+        Ok(l) -> drop(Deep(s - 1, l, t, r), n - 1)
+        Error(_) ->
+          case drop(t, n) {
+            Ok(t) -> drop(Deep(s - 1, l, t, r), n - 1)
+            Error(_) ->
+              case drop_digit(r) {
+                Ok(r) ->
+                  drop(
+                    Deep(count_digits(l) + size(t) + count_digits(r), l, t, r),
+                    n - 1,
+                  )
+                Error(_) -> Error(Nil)
+              }
+          }
+      }
+    }
+  }
+}
+
+fn drop_digit(digits: Digits(u)) -> Result(Digits(u), Nil) {
+  case digits {
+    None -> Error(Nil)
+    One(_) -> Ok(None)
+    Two(_, a) -> Ok(One(a))
+    Three(_, a, b) -> Ok(Two(a, b))
+    Four(_, a, b, c) -> Ok(Three(a, b, c))
+  }
+}
+
+fn count_digits(digits: Digits(u)) -> Int {
+  case digits {
+    None -> 0
+    One(_) -> 1
+    Two(_, _) -> 2
+    Three(_, _, _) -> 3
+    Four(_, _, _, _) -> 4
+  }
+}
+
+pub fn filter(tree: FingerTree(v), f: fn(v) -> Bool) -> FingerTree(v) {
+  do_filter(tree, Empty, f)
+}
+
+fn do_filter(
+  tree: FingerTree(v),
+  acc: FingerTree(v),
+  f: fn(v) -> Bool,
+) -> FingerTree(v) {
+  case tree {
+    Empty -> acc
+    Single(v) ->
+      case f(v) {
+        True -> acc |> push(v)
+        False -> acc
+      }
+    Deep(_, l, t, r) ->
+      do_filter_digits(l, acc, f)
+      |> do_filter(t, _, f)
+      |> do_filter_digits(r, _, f)
+  }
+}
+
+fn do_filter_digits(
+  digits: Digits(v),
+  acc: FingerTree(v),
+  f: fn(v) -> Bool,
+) -> FingerTree(v) {
+  case digits {
+    None -> acc
+    One(v) -> acc |> filter_digit(v, f)
+    Two(v1, v2) -> acc |> filter_digit(v1, f) |> filter_digit(v2, f)
+    Three(v1, v2, v3) ->
+      acc |> filter_digit(v1, f) |> filter_digit(v2, f) |> filter_digit(v3, f)
+    Four(v1, v2, v3, v4) ->
+      acc
+      |> filter_digit(v1, f)
+      |> filter_digit(v2, f)
+      |> filter_digit(v3, f)
+      |> filter_digit(v4, f)
+  }
+}
+
+fn filter_digit(acc: FingerTree(v), item: v, f: fn(v) -> Bool) -> FingerTree(v) {
+  case f(item) {
+    True -> acc |> push(item)
+    False -> acc
+  }
+}
+
+pub fn map(tree: FingerTree(v), f: fn(v) -> u) -> FingerTree(u) {
+  case tree {
+    Empty -> Empty
+    Single(v) -> Single(f(v))
+    Deep(s, l, t, r) ->
+      Deep(s, l |> map_digits(f), t |> map(f), r |> map_digits(f))
+  }
+}
+
+fn map_digits(digits: Digits(v), f: fn(v) -> u) -> Digits(u) {
+  case digits {
+    None -> None
+    One(v) -> One(f(v))
+    Two(v1, v2) -> Two(f(v1), f(v2))
+    Three(v1, v2, v3) -> Three(f(v1), f(v2), f(v3))
+    Four(v1, v2, v3, v4) -> Four(f(v1), f(v2), f(v3), f(v4))
+  }
+}
+
+pub fn map_index(tree: FingerTree(v), f: fn(v, Int) -> u) -> FingerTree(u) {
+  let #(tree, _) = do_map_index(tree, 0, Empty, f)
+  tree
+}
+
+fn do_map_index(
+  tree: FingerTree(v),
+  i: Int,
+  acc: FingerTree(u),
+  f: fn(v, Int) -> u,
+) {
+  case tree {
+    Empty -> #(acc, i)
+    Single(v) -> #(acc |> push(f(v, i)), i + 1)
+    Deep(s, l, t, r) -> {
+      let #(acc, i) = do_map_index_digits(l, i, acc, f)
+      let #(acc, i) = do_map_index(t, i, acc, f)
+      do_map_index_digits(r, i, acc, f)
+    }
+  }
+}
+
+fn do_map_index_digits(
+  digits: Digits(v),
+  i: Int,
+  acc: FingerTree(u),
+  f: fn(v, Int) -> u,
+) {
+  case digits {
+    None -> #(acc, i)
+    One(v) -> #(acc |> push(f(v, i)), i + 1)
+    Two(v1, v2) -> #(acc |> push(f(v1, i)) |> push(f(v2, i + 1)), i + 2)
+    Three(v1, v2, v3) -> #(
+      acc |> push(f(v1, i)) |> push(f(v2, i + 1)) |> push(f(v3, i + 2)),
+      i + 3,
+    )
+    Four(v1, v2, v3, v4) -> #(
+      acc
+        |> push(f(v1, i))
+        |> push(f(v2, i + 1))
+        |> push(f(v3, i + 2))
+        |> push(f(v4, i + 3)),
+      i + 4,
+    )
+  }
+}
+
+pub fn flat(tree: FingerTree(FingerTree(v))) -> FingerTree(v) {
+  tree |> fold(Empty, append)
 }

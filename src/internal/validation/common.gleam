@@ -1,25 +1,26 @@
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
+import internal/binary/values
+import internal/finger_tree.{type FingerTree}
+import internal/structure/numbers
 import internal/structure/types.{
   type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
   type DefType, type ExternType, type FieldType, type FuncType, type GlobalType,
   type HeapType, type Instruction, type InstructionType, type LocalType,
   type MemType, type NumType, type PackedType, type RecType, type RefType,
-  type ResultType, type ResultTypes, type StorageType, type StructType,
-  type SubType, type TableType, type TypeIDX, type ValType, type VecType,
-  AnyHeapType, AnyRefType, ArrayCompositeType, ArrayHeapType, ArrayRefType,
-  ArrayType, BotHeapType, ConcreteHeapType, DefType, EightResultTypes,
-  EqHeapType, EqRefType, ExternHeapType, ExternRefType, F32ValType, F64ValType,
-  FieldType, FiveResultTypes, FourResultTypes, FuncCompositeType, FuncExternType,
-  FuncHeapType, FuncRefType, FuncType, GlobalExternType, GlobalType,
-  HeapTypeRefType, I31HeapType, I31RefType, I32ValType, I64ValType, LocalType,
-  MemExternType, NineResultTypes, NoExternHeapType, NoExternRefType,
-  NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, OneResultType,
-  RecType, RefTypeValType, ResultType, SevenResultTypes, SixResultTypes,
-  StructCompositeType, StructHeapType, StructRefType, StructType, SubType,
-  TableExternType, TableType, TenResultTypes, ThreeResultTypes, TwoResultTypes,
-  UnrolledSubType, V128ValType, ValTypeStorageType,
+  type ResultType, type StorageType, type StructType, type SubType,
+  type TableType, type TypeIDX, type ValType, type VecType, AnyHeapType,
+  AnyRefType, ArrayCompositeType, ArrayHeapType, ArrayRefType, ArrayType,
+  BotHeapType, ConcreteHeapType, DefType, EqHeapType, EqRefType, ExternHeapType,
+  ExternRefType, F32ValType, F64ValType, FieldType, FuncCompositeType,
+  FuncExternType, FuncHeapType, FuncRefType, FuncType, FuncTypeBlockType,
+  GlobalExternType, GlobalType, HeapTypeRefType, I31HeapType, I31RefType,
+  I32ValType, I64ValType, LocalType, MemExternType, NoExternHeapType,
+  NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType,
+  RecType, RefTypeValType, ResultType, StructCompositeType, StructHeapType,
+  StructRefType, StructType, SubType, TableExternType, TableType, V128ValType,
+  ValTypeBlockType, ValTypeStorageType, VoidBlockType,
 }
 import internal/validation/types.{type Context, type TypeVisitor} as validation_types
 
@@ -136,103 +137,18 @@ pub fn visit_val_type(
   }
 }
 
-pub fn visit_result_types(
+fn do_visit_val_types(
   ctx: Context,
-  ty: ResultTypes,
+  ft: FingerTree(ValType),
+  acc: FingerTree(ValType),
   visitor: TypeVisitor,
-) -> Result(#(Context, ResultTypes), String) {
-  use #(ctx, rt) <- result.try(case visitor.result_types {
-    Some(f) -> f(ctx, ty)
-    None -> Ok(#(ctx, ty))
-  })
-
-  case rt {
-    OneResultType(v0) -> {
-      use #(ctx, v0) <- result.map(visit_val_type(ctx, v0, visitor))
-      #(ctx, OneResultType(v0))
+) {
+  case ft |> finger_tree.shift {
+    Ok(#(u, ft)) -> {
+      use #(ctx, u) <- result.try(visit_val_type(ctx, u, visitor))
+      do_visit_val_types(ctx, ft, acc |> finger_tree.push(u), visitor)
     }
-    TwoResultTypes(v0, v1) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.map(visit_val_type(ctx, v1, visitor))
-      #(ctx, TwoResultTypes(v0, v1))
-    }
-    ThreeResultTypes(v0, v1, v2) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.try(visit_val_type(ctx, v1, visitor))
-      use #(ctx, v2) <- result.map(visit_val_type(ctx, v2, visitor))
-      #(ctx, ThreeResultTypes(v0, v1, v2))
-    }
-    FourResultTypes(v0, v1, v2, v3) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.try(visit_val_type(ctx, v1, visitor))
-      use #(ctx, v2) <- result.try(visit_val_type(ctx, v2, visitor))
-      use #(ctx, v3) <- result.map(visit_val_type(ctx, v3, visitor))
-      #(ctx, FourResultTypes(v0, v1, v2, v3))
-    }
-    FiveResultTypes(v0, v1, v2, v3, v4) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.try(visit_val_type(ctx, v1, visitor))
-      use #(ctx, v2) <- result.try(visit_val_type(ctx, v2, visitor))
-      use #(ctx, v3) <- result.try(visit_val_type(ctx, v3, visitor))
-      use #(ctx, v4) <- result.map(visit_val_type(ctx, v4, visitor))
-      #(ctx, FiveResultTypes(v0, v1, v2, v3, v4))
-    }
-    SixResultTypes(v0, v1, v2, v3, v4, v5) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.try(visit_val_type(ctx, v1, visitor))
-      use #(ctx, v2) <- result.try(visit_val_type(ctx, v2, visitor))
-      use #(ctx, v3) <- result.try(visit_val_type(ctx, v3, visitor))
-      use #(ctx, v4) <- result.try(visit_val_type(ctx, v4, visitor))
-      use #(ctx, v5) <- result.map(visit_val_type(ctx, v5, visitor))
-      #(ctx, SixResultTypes(v0, v1, v2, v3, v4, v5))
-    }
-    SevenResultTypes(v0, v1, v2, v3, v4, v5, v6) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.try(visit_val_type(ctx, v1, visitor))
-      use #(ctx, v2) <- result.try(visit_val_type(ctx, v2, visitor))
-      use #(ctx, v3) <- result.try(visit_val_type(ctx, v3, visitor))
-      use #(ctx, v4) <- result.try(visit_val_type(ctx, v4, visitor))
-      use #(ctx, v5) <- result.try(visit_val_type(ctx, v5, visitor))
-      use #(ctx, v6) <- result.map(visit_val_type(ctx, v6, visitor))
-      #(ctx, SevenResultTypes(v0, v1, v2, v3, v4, v5, v6))
-    }
-    EightResultTypes(v0, v1, v2, v3, v4, v5, v6, v7) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.try(visit_val_type(ctx, v1, visitor))
-      use #(ctx, v2) <- result.try(visit_val_type(ctx, v2, visitor))
-      use #(ctx, v3) <- result.try(visit_val_type(ctx, v3, visitor))
-      use #(ctx, v4) <- result.try(visit_val_type(ctx, v4, visitor))
-      use #(ctx, v5) <- result.try(visit_val_type(ctx, v5, visitor))
-      use #(ctx, v6) <- result.try(visit_val_type(ctx, v6, visitor))
-      use #(ctx, v7) <- result.map(visit_val_type(ctx, v7, visitor))
-      #(ctx, EightResultTypes(v0, v1, v2, v3, v4, v5, v6, v7))
-    }
-    NineResultTypes(v0, v1, v2, v3, v4, v5, v6, v7, v8) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.try(visit_val_type(ctx, v1, visitor))
-      use #(ctx, v2) <- result.try(visit_val_type(ctx, v2, visitor))
-      use #(ctx, v3) <- result.try(visit_val_type(ctx, v3, visitor))
-      use #(ctx, v4) <- result.try(visit_val_type(ctx, v4, visitor))
-      use #(ctx, v5) <- result.try(visit_val_type(ctx, v5, visitor))
-      use #(ctx, v6) <- result.try(visit_val_type(ctx, v6, visitor))
-      use #(ctx, v7) <- result.try(visit_val_type(ctx, v7, visitor))
-      use #(ctx, v8) <- result.map(visit_val_type(ctx, v8, visitor))
-      #(ctx, NineResultTypes(v0, v1, v2, v3, v4, v5, v6, v7, v8))
-    }
-    TenResultTypes(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9) -> {
-      use #(ctx, v0) <- result.try(visit_val_type(ctx, v0, visitor))
-      use #(ctx, v1) <- result.try(visit_val_type(ctx, v1, visitor))
-      use #(ctx, v2) <- result.try(visit_val_type(ctx, v2, visitor))
-      use #(ctx, v3) <- result.try(visit_val_type(ctx, v3, visitor))
-      use #(ctx, v4) <- result.try(visit_val_type(ctx, v4, visitor))
-      use #(ctx, v5) <- result.try(visit_val_type(ctx, v5, visitor))
-      use #(ctx, v6) <- result.try(visit_val_type(ctx, v6, visitor))
-      use #(ctx, v7) <- result.try(visit_val_type(ctx, v7, visitor))
-      use #(ctx, v8) <- result.try(visit_val_type(ctx, v8, visitor))
-      use #(ctx, v9) <- result.map(visit_val_type(ctx, v9, visitor))
-      #(ctx, TenResultTypes(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9))
-    }
-    _ -> Ok(#(ctx, rt))
+    Error(_) -> Ok(#(ctx, acc))
   }
 }
 
@@ -241,19 +157,24 @@ pub fn visit_result_type(
   ty: ResultType,
   visitor: TypeVisitor,
 ) -> Result(#(Context, ResultType), String) {
-  use #(ctx, rt) <- result.try(case visitor.result_type {
+  use #(ctx, rt) <- result.try(case visitor.result_types {
     Some(f) -> f(ctx, ty)
     None -> Ok(#(ctx, ty))
   })
 
-  use #(ctx, parameters) <- result.try(visit_result_types(
+  use #(ctx, parameters) <- result.try(do_visit_val_types(
     ctx,
-    ty.parameters,
+    rt.parameters,
+    finger_tree.new(),
     visitor,
   ))
-  use #(ctx, results) <- result.map(visit_result_types(ctx, ty.result, visitor))
-
-  #(ctx, ResultType(parameters, results))
+  use #(ctx, result) <- result.map(do_visit_val_types(
+    ctx,
+    rt.result,
+    finger_tree.new(),
+    visitor,
+  ))
+  #(ctx, ResultType(parameters, result))
 }
 
 /// This type means something needs to be calculated based on the stack
@@ -282,23 +203,28 @@ pub fn visit_struct_type(
     None -> Ok(#(ctx, ty))
   })
 
-  use #(ctx, ft) <- result.map(do_visit_field_types(ctx, st.ft, [], visitor))
+  use #(ctx, ft) <- result.map(do_visit_field_types(
+    ctx,
+    st.ft,
+    finger_tree.new(),
+    visitor,
+  ))
 
   #(ctx, StructType(ft))
 }
 
 fn do_visit_field_types(
   ctx: Context,
-  ft: List(FieldType),
-  acc: List(FieldType),
+  ft: FingerTree(FieldType),
+  acc: FingerTree(FieldType),
   visitor: TypeVisitor,
 ) {
-  case ft {
-    [] -> Ok(#(ctx, acc |> list.reverse()))
-    [ft, ..rest] -> {
-      use #(ctx, ft) <- result.try(visit_field_type(ctx, ft, visitor))
-      do_visit_field_types(ctx, rest, [ft, ..acc], visitor)
+  case ft |> finger_tree.shift {
+    Ok(#(u, ft)) -> {
+      use #(ctx, u) <- result.try(visit_field_type(ctx, u, visitor))
+      do_visit_field_types(ctx, ft, acc |> finger_tree.push(u), visitor)
     }
+    Error(_) -> Ok(#(ctx, acc))
   }
 }
 
@@ -329,7 +255,7 @@ pub fn visit_field_type(
 
   use #(ctx, st) <- result.map(visit_storage_type(ctx, ft.st, visitor))
 
-  #(ctx, FieldType(ft.mut, st))
+  #(ctx, FieldType(st, ft.mut))
 }
 
 pub fn visit_storage_type(
@@ -398,22 +324,27 @@ pub fn visit_rec_type(
     None -> Ok(#(ctx, ty))
   })
 
-  use #(ctx, st) <- result.map(do_visit_sub_types(ctx, rt.st, [], visitor))
+  use #(ctx, st) <- result.map(do_visit_sub_types(
+    ctx,
+    rt.st,
+    finger_tree.new(),
+    visitor,
+  ))
 
   #(ctx, RecType(st))
 }
 
 fn do_visit_sub_types(
   ctx: Context,
-  st: List(SubType),
-  acc: List(SubType),
+  st: FingerTree(SubType),
+  acc: FingerTree(SubType),
   visitor: TypeVisitor,
 ) {
-  case st {
-    [] -> Ok(#(ctx, acc |> list.reverse()))
-    [st, ..rest] -> {
+  case st |> finger_tree.shift {
+    Error(_) -> Ok(#(ctx, acc))
+    Ok(#(st, rest)) -> {
       use #(ctx, st) <- result.try(visit_sub_type(ctx, st, visitor))
-      do_visit_sub_types(ctx, rest, [st, ..acc], visitor)
+      do_visit_sub_types(ctx, rest, acc |> finger_tree.push(st), visitor)
     }
   }
 }
@@ -433,10 +364,6 @@ pub fn visit_sub_type(
     SubType(f, t, ct) -> {
       use #(ctx, ct) <- result.map(visit_composite_type(ctx, ct, visitor))
       #(ctx, SubType(f, t, ct))
-    }
-    UnrolledSubType(f, t, ct) -> {
-      use #(ctx, ct) <- result.map(visit_composite_type(ctx, ct, visitor))
-      #(ctx, UnrolledSubType(f, t, ct))
     }
   }
 }
@@ -464,7 +391,7 @@ pub fn visit_table_type(
 
   use #(ctx, rt) <- result.map(visit_ref_type(ctx, tt.t, visitor))
 
-  #(ctx, TableType(tt.limits, rt))
+  #(ctx, TableType(rt, tt.limits))
 }
 
 pub fn visit_global_type(
@@ -479,7 +406,7 @@ pub fn visit_global_type(
 
   use #(ctx, vt) <- result.map(visit_val_type(ctx, gt.vt, visitor))
 
-  #(ctx, GlobalType(gt.mut, vt))
+  #(ctx, GlobalType(vt, gt.mut))
 }
 
 pub fn visit_extern_type(
@@ -556,9 +483,20 @@ pub fn visit_local_type(
 
 pub fn def_type_expand(dt: DefType) {
   let DefType(RecType(st), idx) = dt
-  case st |> list.drop(idx) {
-    [SubType(_, _, ct), ..] -> Ok(ct)
-    [UnrolledSubType(_, _, ct), ..] -> Ok(ct)
-    [] -> Error("Type index out of bounds")
+  use _ <- result.map_error(do_def_type_expand(st, idx))
+  Error("Invalid def type")
+}
+
+fn do_def_type_expand(st: FingerTree(SubType), idx: Int) {
+  case idx {
+    0 -> {
+      use #(st, _) <- result.map(st |> finger_tree.shift)
+      Ok(st.ct)
+    }
+    t if t > 0 -> {
+      use #(_, rest) <- result.try(st |> finger_tree.shift)
+      do_def_type_expand(rest, t - 1)
+    }
+    _ -> Error(Nil)
   }
 }

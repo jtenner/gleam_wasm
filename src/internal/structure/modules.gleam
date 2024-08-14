@@ -1,5 +1,6 @@
 import gleam/list
 import gleam/option.{type Option}
+import internal/finger_tree.{type FingerTree}
 import internal/structure/numbers.{type U32}
 import internal/structure/types.{
   type Expr, type GlobalType, type MemType, type RecType, type RefType,
@@ -9,22 +10,22 @@ import internal/structure/types.{
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#modules
 pub type Module {
   Module(
-    types: List(RecType),
-    funcs: List(Func),
-    tables: List(Table),
-    mems: List(Mem),
-    globals: List(Global),
-    elems: List(Elem),
-    datas: List(Data),
+    types: FingerTree(RecType),
+    funcs: FingerTree(Func),
+    tables: FingerTree(Table),
+    mems: FingerTree(Mem),
+    globals: FingerTree(Global),
+    elems: FingerTree(Elem),
+    datas: FingerTree(Data),
     start: Option(Start),
-    imports: List(Import),
-    exports: List(Export),
+    imports: FingerTree(Import),
+    exports: FingerTree(Export),
   )
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
 pub type Func {
-  Func(type_: U32, locals: List(Local), body: Expr)
+  Func(type_: U32, locals: FingerTree(Local), body: Expr)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
@@ -49,7 +50,7 @@ pub type Global {
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
 pub type Elem {
-  Elem(type_: RefType, init: List(Expr), mode: ElemMode)
+  Elem(type_: RefType, init: FingerTree(Expr), mode: ElemMode)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
@@ -117,20 +118,20 @@ pub fn export_is_global(export: Export) -> Bool {
   }
 }
 
-pub fn funcs(exports: List(Export)) -> List(Export) {
-  exports |> list.filter(export_is_func)
+pub fn funcs(exports: FingerTree(Export)) -> FingerTree(Export) {
+  exports |> finger_tree.filter(export_is_func)
 }
 
-pub fn tables(exports: List(Export)) -> List(Export) {
-  exports |> list.filter(export_is_table)
+pub fn tables(exports: FingerTree(Export)) -> FingerTree(Export) {
+  exports |> finger_tree.filter(export_is_table)
 }
 
-pub fn mems(exports: List(Export)) -> List(Export) {
-  exports |> list.filter(export_is_mem)
+pub fn mems(exports: FingerTree(Export)) -> FingerTree(Export) {
+  exports |> finger_tree.filter(export_is_mem)
 }
 
-pub fn globals(exports: List(Export)) -> List(Export) {
-  exports |> list.filter(export_is_global)
+pub fn globals(exports: FingerTree(Export)) -> FingerTree(Export) {
+  exports |> finger_tree.filter(export_is_global)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#imports

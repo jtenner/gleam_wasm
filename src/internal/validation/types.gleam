@@ -1,6 +1,7 @@
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
+import internal/finger_tree.{type FingerTree}
 import internal/structure/common as structure_common
 import internal/structure/numbers.{type U32, u32, unwrap_u32}
 import internal/structure/types.{
@@ -8,46 +9,45 @@ import internal/structure/types.{
   type DefType, type ExternType, type FieldType, type FuncIDX, type FuncType,
   type GlobalType, type HeapType, type Instruction, type LocalType, type MemType,
   type NumType, type PackedType, type RecType, type RefType, type ResultType,
-  type ResultTypes, type StorageType, type StructType, type SubType,
-  type TableType, type TypeIDX, type ValType, type VecType, AnyHeapType,
-  AnyRefType, ArrayHeapType, ArrayRefType, ConcreteHeapType, DefType, EqHeapType,
-  EqRefType, ExternHeapType, ExternRefType, FuncCompositeType, FuncHeapType,
-  FuncRefType, FuncTypeBlockType, HeapTypeRefType, I31HeapType, I31RefType,
-  NoExternHeapType, NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType,
-  NoneRefType, RecType, StructHeapType, StructRefType, SubType, TypeIDX,
-  UnrolledSubType, def_type_expand,
+  type StorageType, type StructType, type SubType, type TableType, type TypeIDX,
+  type ValType, type VecType, AnyHeapType, AnyRefType, ArrayHeapType,
+  ArrayRefType, ConcreteHeapType, DefType, EqHeapType, EqRefType, ExternHeapType,
+  ExternRefType, FuncCompositeType, FuncHeapType, FuncRefType, FuncTypeBlockType,
+  HeapTypeRefType, I31HeapType, I31RefType, NoExternHeapType, NoExternRefType,
+  NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, RecType,
+  StructHeapType, StructRefType, SubType, TypeIDX,
 }
 
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#contexts
 pub type Context {
   Context(
-    types: List(DefType),
-    funcs: List(DefType),
-    tables: List(TableType),
-    mems: List(MemType),
-    globals: List(GlobalType),
-    elems: List(RefType),
-    datas: List(Bool),
-    locals: List(LocalType),
-    labels: List(ResultType),
+    types: FingerTree(DefType),
+    funcs: FingerTree(DefType),
+    tables: FingerTree(TableType),
+    mems: FingerTree(MemType),
+    globals: FingerTree(GlobalType),
+    elems: FingerTree(RefType),
+    datas: FingerTree(Bool),
+    locals: FingerTree(LocalType),
+    labels: FingerTree(ResultType),
     return: Option(ResultType),
-    refs: List(FuncIDX),
+    refs: FingerTree(FuncIDX),
   )
 }
 
 pub fn new_context() -> Context {
   Context(
-    types: [],
-    funcs: [],
-    tables: [],
-    mems: [],
-    globals: [],
-    elems: [],
-    datas: [],
-    locals: [],
-    labels: [],
+    types: finger_tree.new(),
+    funcs: finger_tree.new(),
+    tables: finger_tree.new(),
+    mems: finger_tree.new(),
+    globals: finger_tree.new(),
+    elems: finger_tree.new(),
+    datas: finger_tree.new(),
+    locals: finger_tree.new(),
+    labels: finger_tree.new(),
     return: None,
-    refs: [],
+    refs: finger_tree.new(),
   )
 }
 
@@ -79,7 +79,7 @@ fn validate_heap_type(ctx: Context, ht: HeapType) {
     ConcreteHeapType(TypeIDX(i)) -> {
       let idx = i |> unwrap_u32
 
-      case ctx.types |> list.length > idx {
+      case ctx.types |> finger_tree.size > idx {
         True -> Ok(#(ctx, ht))
         False -> Error("Type index out of bounds")
       }
@@ -91,7 +91,16 @@ fn validate_heap_type(ctx: Context, ht: HeapType) {
 /// Block types are valid if their type indexes point to a Composite Function
 /// type
 fn validate_block_type(ctx: Context, bt: BlockType) {
-  todo
+  case bt {
+    FuncTypeBlockType(TypeIDX(idx)) -> {
+      let idx = idx |> unwrap_u32
+      case idx < ctx.funcs |> finger_tree.size {
+        True -> Ok(#(ctx, bt))
+        False -> Error("Type index out of bounds")
+      }
+    }
+    _ -> Ok(#(ctx, bt))
+  }
 }
 
 pub const type_validator = TypeVisitor(
@@ -183,7 +192,7 @@ type ResultTypeVisitor =
   fn(Context, ResultType) -> Result(#(Context, ResultType), String)
 
 type ResultTypesVisitor =
-  fn(Context, ResultTypes) -> Result(#(Context, ResultTypes), String)
+  fn(Context, ResultType) -> Result(#(Context, ResultType), String)
 
 type FuncTypeVisitor =
   fn(Context, FuncType) -> Result(#(Context, FuncType), String)

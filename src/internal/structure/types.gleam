@@ -7,6 +7,10 @@ import internal/structure/numbers.{
   type F32, type F64, type I32, type I64, type S33, type U32, type V128Value,
 }
 
+pub fn unwrap_lane_16(val: LaneIDX16) {
+  val.val
+}
+
 pub fn lane_16(val: Int) {
   case val |> between(#(0, 15)) {
     True -> Ok(LaneIDX16(val))
@@ -16,6 +20,10 @@ pub fn lane_16(val: Int) {
 
 pub opaque type LaneIDX16 {
   LaneIDX16(val: Int)
+}
+
+pub fn unwrap_lane_2(val: LaneIDX2) {
+  val.val
 }
 
 pub fn lane_2(val: Int) {
@@ -29,6 +37,10 @@ pub opaque type LaneIDX2 {
   LaneIDX2(val: Int)
 }
 
+pub fn unwrap_lane_4(val: LaneIDX4) {
+  val.val
+}
+
 pub fn lane_4(val: Int) {
   case val |> between(#(0, 3)) {
     True -> Ok(LaneIDX4(val))
@@ -38,6 +50,10 @@ pub fn lane_4(val: Int) {
 
 pub opaque type LaneIDX4 {
   LaneIDX4(val: Int)
+}
+
+pub fn unwrap_lane_8(val: LaneIDX8) {
+  val.val
 }
 
 pub fn lane_8(val: Int) {
@@ -227,8 +243,10 @@ pub type LabelIDX {
   LabelIDX(id: U32)
 }
 
-pub type ElemIDX =
-  U32
+pub type ElemIDX {
+  /// Module Elem Index
+  ElemIDX(id: U32)
+}
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#recursive-types
 pub type SubType {
@@ -270,9 +288,11 @@ pub type ExternType {
 }
 
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
-pub fn get_extern_func_types(et: List(ExternType)) -> List(ExternType) {
+pub fn get_extern_func_types(
+  et: FingerTree(ExternType),
+) -> FingerTree(ExternType) {
   et
-  |> list.filter(fn(et) {
+  |> finger_tree.filter(fn(et) {
     case et {
       FuncExternType(_) -> True
       _ -> False
@@ -281,9 +301,11 @@ pub fn get_extern_func_types(et: List(ExternType)) -> List(ExternType) {
 }
 
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
-pub fn get_extern_table_types(et: List(ExternType)) -> List(ExternType) {
+pub fn get_extern_table_types(
+  et: FingerTree(ExternType),
+) -> FingerTree(ExternType) {
   et
-  |> list.filter(fn(et) {
+  |> finger_tree.filter(fn(et) {
     case et {
       TableExternType(_) -> True
       _ -> False
@@ -292,9 +314,11 @@ pub fn get_extern_table_types(et: List(ExternType)) -> List(ExternType) {
 }
 
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
-pub fn get_extern_memory_types(et: List(ExternType)) -> List(ExternType) {
+pub fn get_extern_memory_types(
+  et: FingerTree(ExternType),
+) -> FingerTree(ExternType) {
   et
-  |> list.filter(fn(et) {
+  |> finger_tree.filter(fn(et) {
     case et {
       MemExternType(_) -> True
       _ -> False
@@ -303,9 +327,11 @@ pub fn get_extern_memory_types(et: List(ExternType)) -> List(ExternType) {
 }
 
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
-pub fn get_extern_global_types(et: List(ExternType)) -> List(ExternType) {
+pub fn get_extern_global_types(
+  et: FingerTree(ExternType),
+) -> FingerTree(ExternType) {
   et
-  |> list.filter(fn(et) {
+  |> finger_tree.filter(fn(et) {
     case et {
       GlobalExternType(_) -> True
       _ -> False
@@ -315,7 +341,7 @@ pub fn get_extern_global_types(et: List(ExternType)) -> List(ExternType) {
 
 /// Please see: https://webassembly.github.io/gc/core/valid/types.html#instruction-types
 pub type InstructionType {
-  InstructionType(t1: List(ValType), t2: List(ValType))
+  InstructionType(t1: FingerTree(ValType), t2: FingerTree(ValType))
 }
 
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#defined-types
@@ -334,12 +360,14 @@ pub type DataIDX {
 }
 
 /// Please see: todo
-pub type LocalIDX =
-  U32
+pub type LocalIDX {
+  LocalIDX(id: U32)
+}
 
 /// Please see: todo
-pub type GlobalIDX =
-  U32
+pub type GlobalIDX {
+  GlobalIDX(id: U32)
+}
 
 /// Please see: todo
 pub type MemArg {
@@ -499,7 +527,24 @@ pub type Instruction {
   V128And
   V128Bitselect
   V128AnyTrue
-  I8x16Shuffle(idx: LaneIDX16)
+  I8x16Shuffle(
+    i0: LaneIDX16,
+    i1: LaneIDX16,
+    i2: LaneIDX16,
+    i3: LaneIDX16,
+    i4: LaneIDX16,
+    i5: LaneIDX16,
+    i6: LaneIDX16,
+    i7: LaneIDX16,
+    i8: LaneIDX16,
+    i9: LaneIDX16,
+    i10: LaneIDX16,
+    i11: LaneIDX16,
+    i12: LaneIDX16,
+    i13: LaneIDX16,
+    i14: LaneIDX16,
+    i15: LaneIDX16,
+  )
   I8x16Swizzle
   I32x4Splat
   I16x8Splat
@@ -509,12 +554,10 @@ pub type Instruction {
   F64x2Splat
   I8x16ExtractLaneS(idx: LaneIDX16)
   I16x8ExtractLaneS(idx: LaneIDX8)
-  I32x4ExtractLaneS(idx: LaneIDX4)
-  I64x2ExtractLaneS(idx: LaneIDX2)
-  I8x16ExtractLane(idx: LaneIDX16)
-  I16x8ExtractLane(idx: LaneIDX8)
   I32x4ExtractLane(idx: LaneIDX4)
   I64x2ExtractLane(idx: LaneIDX2)
+  I8x16ExtractLaneU(idx: LaneIDX16)
+  I16x8ExtractLaneU(idx: LaneIDX8)
   F32x4ExtractLane(idx: LaneIDX4)
   F64x2ExtractLane(idx: LaneIDX2)
   I8x16ReplaceLane(idx: LaneIDX16)
@@ -741,10 +784,10 @@ pub type Instruction {
   ExternConvertAny
   Drop
   Select
-  SelectT(vt: List(ValType))
-  LocalGet(idx: U32)
-  LocalSet(idx: U32)
-  LocalTee(idx: U32)
+  SelectT(vt: FingerTree(ValType))
+  LocalGet(idx: LocalIDX)
+  LocalSet(idx: LocalIDX)
+  LocalTee(idx: LocalIDX)
   GlobalGet(idx: GlobalIDX)
   GlobalSet(idx: GlobalIDX)
   TableGet(idx: TableIDX)
@@ -753,7 +796,7 @@ pub type Instruction {
   TableGrow(idx: TableIDX)
   TableFill(idx: TableIDX)
   TableCopy(idx1: TableIDX, idx2: TableIDX)
-  TableInit(idx: TableIDX, elem: ElemIDX)
+  TableInit(elem: ElemIDX, idx: TableIDX)
   ElemDrop(idx: ElemIDX)
   I64Load(arg: MemArg)
   I32Load(arg: MemArg)
@@ -761,7 +804,12 @@ pub type Instruction {
   F32Load(arg: MemArg)
   V128Load(arg: MemArg)
   I64Store(arg: MemArg)
+  I64Store8(arg: MemArg)
+  I64Store16(arg: MemArg)
+  I64Store32(arg: MemArg)
   I32Store(arg: MemArg)
+  I32Store8(arg: MemArg)
+  I32Store16(arg: MemArg)
   F64Store(arg: MemArg)
   F32Store(arg: MemArg)
   V128Store(arg: MemArg)
@@ -775,16 +823,6 @@ pub type Instruction {
   I32Load8U(arg: MemArg)
   I64Load32S(arg: MemArg)
   I64Load32U(arg: MemArg)
-  I64Store16S(arg: MemArg)
-  I64Store16U(arg: MemArg)
-  I64Store8S(arg: MemArg)
-  I64Store8U(arg: MemArg)
-  I32Store16S(arg: MemArg)
-  I32Store16U(arg: MemArg)
-  I32Store8S(arg: MemArg)
-  I32Store8U(arg: MemArg)
-  I64Store32S(arg: MemArg)
-  I64Store32U(arg: MemArg)
   V128Load8x8S(arg: MemArg)
   V128Load8x8U(arg: MemArg)
   V128Load16x4S(arg: MemArg)
@@ -958,6 +996,7 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
         finger_tree.from_list([I64ValType, I64ValType]),
         finger_tree.from_list([I32ValType]),
       )
+
     F64Ge | F64Le | F64Gt | F64Lt | F64Ne | F64Eq ->
       ResultType(
         finger_tree.from_list([F64ValType, F64ValType]),
@@ -1093,7 +1132,7 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | V128Or
     | V128Andor
     | V128And
-    | I8x16Shuffle(_)
+    | I8x16Shuffle(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
     | I8x16Swizzle
     | I8x16GeS
     | I8x16GeU
@@ -1234,10 +1273,8 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     V128AnyTrue
     | I8x16ExtractLaneS(_)
     | I16x8ExtractLaneS(_)
-    | I32x4ExtractLaneS(_)
-    | I8x16ExtractLane(_)
-    | I16x8ExtractLane(_)
-    | I32x4ExtractLane(_)
+    | I8x16ExtractLaneU(_)
+    | I16x8ExtractLaneU(_)
     | I64x2AllTrue
     | I32x4AllTrue
     | I16x8AllTrue
@@ -1285,10 +1322,15 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([V128ValType]),
       )
-    I64x2ExtractLaneS(_) | I64x2ExtractLane(_) ->
+    I64x2ExtractLane(_) ->
       ResultType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([I64ValType]),
+      )
+    I32x4ExtractLane(_) ->
+      ResultType(
+        finger_tree.from_list([V128ValType]),
+        finger_tree.from_list([I32ValType]),
       )
     F32x4ExtractLane(_) ->
       ResultType(
@@ -1415,22 +1457,12 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
         finger_tree.from_list([RefTypeValType(AnyRefType)]),
         finger_tree.from_list([RefTypeValType(ExternRefType)]),
       )
-    I64Store(_)
-    | I64Store16S(_)
-    | I64Store16U(_)
-    | I64Store8S(_)
-    | I64Store8U(_)
-    | I64Store32S(_)
-    | I64Store32U(_) ->
+    I64Store(_) | I64Store16(_) | I64Store8(_) | I64Store32(_) ->
       ResultType(
         finger_tree.from_list([I32ValType, I64ValType]),
         finger_tree.new(),
       )
-    I32Store(_)
-    | I32Store16S(_)
-    | I32Store16U(_)
-    | I32Store8S(_)
-    | I32Store8U(_) ->
+    I32Store(_) | I32Store16(_) | I32Store8(_) ->
       ResultType(
         finger_tree.from_list([I32ValType, I32ValType]),
         finger_tree.new(),
@@ -1474,7 +1506,7 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
 }
 
 pub type Expr {
-  Expr(insts: List(Instruction))
+  Expr(insts: FingerTree(Instruction))
 }
 
 pub fn def_type_expand(dt: DefType) {

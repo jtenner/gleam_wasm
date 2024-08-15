@@ -1,4 +1,5 @@
 import gleam/bit_array
+import gleam/bytes_builder.{type BytesBuilder}
 import ieee_float.{type IEEEFloat}
 import internal/structure/common.{between}
 
@@ -307,4 +308,32 @@ pub fn f64x2(v0: F64, v1: F64) {
   let v0 = v0.val |> ieee_float.to_bytes_64_le
   let v1 = v1.val |> ieee_float.to_bytes_64_le
   v128(<<v0:bits, v1:bits>>)
+}
+
+pub fn decode_f32(val: BitArray) {
+  case val {
+    <<val:bits-32, rest:bits>> -> {
+      Ok(#(F32(ieee_float.from_bytes_32_le(val)), rest))
+    }
+    _ -> Error("Expected 32-bit float")
+  }
+}
+
+pub fn encode_f32(builder: BytesBuilder, val: F32) {
+  builder
+  |> bytes_builder.append(val.val |> ieee_float.to_bytes_32_le)
+}
+
+pub fn decode_f64(val: BitArray) {
+  case val {
+    <<val:bits-64, rest:bits>> -> {
+      Ok(#(F64(ieee_float.from_bytes_64_le(val)), rest))
+    }
+    _ -> Error("Expected 32-bit float")
+  }
+}
+
+pub fn encode_f64(builder: BytesBuilder, val: F64) {
+  builder
+  |> bytes_builder.append(val.val |> ieee_float.to_bytes_64_le)
 }

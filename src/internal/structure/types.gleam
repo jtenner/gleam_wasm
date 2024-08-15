@@ -1,10 +1,9 @@
-import gleam/list
-import gleam/option.{type Option, None}
+import gleam/option.{type Option}
 import gleam/result
 import internal/finger_tree.{type FingerTree}
 import internal/structure/common.{between}
 import internal/structure/numbers.{
-  type F32, type F64, type I32, type I64, type S33, type U32, type V128Value,
+  type F32, type F64, type I32, type I64, type U32, type V128Value,
 }
 
 pub fn unwrap_lane_16(val: LaneIDX16) {
@@ -141,6 +140,29 @@ pub type RefType {
   NoExternRefType
 }
 
+pub fn ref_type_is_nullable(rt: RefType) {
+  case rt {
+    HeapTypeRefType(_, null) -> null
+    _ -> True
+  }
+}
+
+pub fn ref_type_get_heap_type(rt: RefType) {
+  case rt {
+    HeapTypeRefType(ht, _) -> ht
+    AnyRefType -> AnyHeapType
+    EqRefType -> EqHeapType
+    I31RefType -> I31HeapType
+    StructRefType -> StructHeapType
+    ArrayRefType -> ArrayHeapType
+    FuncRefType -> FuncHeapType
+    ExternRefType -> ExternHeapType
+    NoneRefType -> NoneHeapType
+    NoFuncRefType -> NoFuncHeapType
+    NoExternRefType -> NoExternHeapType
+  }
+}
+
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#value-types
 pub type ValType {
   V128ValType
@@ -246,6 +268,11 @@ pub type LabelIDX {
 pub type ElemIDX {
   /// Module Elem Index
   ElemIDX(id: U32)
+}
+
+pub type MemIDX {
+  /// Module Mem Index
+  MemIDX(id: U32)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#recursive-types
@@ -464,6 +491,7 @@ pub type Instruction {
   I32LtS
   I32LtU
   I32Ne
+  V128AndNot
   I32Eq
   F64Ge
   F64Le
@@ -512,18 +540,13 @@ pub type Instruction {
   F32ConvertI32S
   F32ConvertI32U
   F64ReinterpretI64
-  F64ReinterpretI32
-  F32ReinterpretI64
   F32ReinterpretI32
   I64ReinterpretF64
-  I64ReinterpretF32
-  I32ReinterpretF64
   I32ReinterpretF32
   V128Const(val: V128Value)
   V128Not
   V128Xor
   V128Or
-  V128Andor
   V128And
   V128Bitselect
   V128AnyTrue
@@ -624,7 +647,7 @@ pub type Instruction {
   I8x16Abs
   I8x16Popcnt
   I16x8Q15mulrSatS
-  I32x4DotI8x16S
+  I32x4DotI16x8S
   F64x2Nearest
   F64x2Trunc
   F64x2Floor
@@ -703,10 +726,10 @@ pub type Instruction {
   I16x8SubSatU
   I16x8AddSatS
   I16x8AddSatU
-  I8x16Mul
   I16x8Mul
   I32x4Mul
   I8x16AvgrU
+  I64x2Mul
   I16x8AvgrU
   I16x8ExtmulHighI8x16S
   I16x8ExtmulHighI8x16U
@@ -716,10 +739,10 @@ pub type Instruction {
   I32x4ExtmulHighI16x8U
   I32x4ExtmulLowI16x8S
   I32x4ExtmulLowI16x8U
-  I64x4ExtmulHighI32x4S
-  I64x4ExtmulHighI32x4U
-  I64x4ExtmulLowI32x4S
-  I64x4ExtmulLowI32x4U
+  I64x2ExtmulHighI32x4S
+  I64x2ExtmulHighI32x4U
+  I64x2ExtmulLowI32x4S
+  I64x2ExtmulLowI32x4U
   I16x8ExtaddPairwiseI8x16S
   I16x8ExtaddPairwiseI8x16U
   I32x4ExtaddPairwiseI16x8S
@@ -876,23 +899,23 @@ pub type Instruction {
   Else
 }
 
-pub fn get_result_type(instruction: Instruction) -> ResultType {
+pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
   case instruction {
-    End | Else -> todo
+    End | Else -> Error(Nil)
 
     I64Const(_) ->
-      ResultType(finger_tree.new(), finger_tree.from_list([I64ValType]))
+      Ok(ResultType(finger_tree.new(), finger_tree.from_list([I64ValType])))
     I32Const(_) | ArrayLen | I31GetS | I31GetU ->
-      ResultType(finger_tree.new(), finger_tree.from_list([I32ValType]))
+      Ok(ResultType(finger_tree.new(), finger_tree.from_list([I32ValType])))
     F64Const(_) ->
-      ResultType(finger_tree.new(), finger_tree.from_list([F64ValType]))
+      Ok(ResultType(finger_tree.new(), finger_tree.from_list([F64ValType])))
     F32Const(_) ->
-      ResultType(finger_tree.new(), finger_tree.from_list([F32ValType]))
+      Ok(ResultType(finger_tree.new(), finger_tree.from_list([F32ValType])))
     I64Popcnt | I64Ctz | I64Clz | I64Extend32S | I64Extend16S | I64Extend8S ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([I64ValType]),
-      )
+      ))
     I32Popcnt
     | I32Ctz
     | I32Clz
@@ -905,20 +928,20 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I32Load8S(_)
     | I32Load8U(_)
     | MemoryGrow ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     F64Nearest | F64Trunc | F64Floor | F64Ceil | F64Sqrt | F64Neg | F64Abs ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([F64ValType]),
-      )
+      ))
     F32Nearest | F32Trunc | F32Floor | F32Ceil | F32Sqrt | F32Neg | F32Abs ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([F32ValType]),
-      )
+      ))
     I64Rotr
     | I64Rotl
     | I64ShrS
@@ -934,10 +957,10 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I64Mul
     | I64Sub
     | I64Add ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I64ValType, I64ValType]),
         finger_tree.from_list([I64ValType]),
-      )
+      ))
     I32Rotr
     | I32Rotl
     | I32ShrS
@@ -963,25 +986,25 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I32LtU
     | I32Ne
     | I32Eq ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType, I32ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     F64Copysign | F64Max | F64Min | F64Div | F64Mul | F64Sub | F64Add ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F64ValType, F64ValType]),
         finger_tree.from_list([F64ValType]),
-      )
+      ))
     F32Copysign | F32Max | F32Min | F32Div | F32Mul | F32Sub | F32Add ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F32ValType, F32ValType]),
         finger_tree.from_list([F32ValType]),
-      )
+      ))
     I64Eqz | I32WrapI64 ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     I64GeS
     | I64GeU
     | I64LeS
@@ -992,21 +1015,21 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I64LtU
     | I64Ne
     | I64Eq ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I64ValType, I64ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
 
     F64Ge | F64Le | F64Gt | F64Lt | F64Ne | F64Eq ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F64ValType, F64ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     F32Ge | F32Le | F32Gt | F32Lt | F32Ne | F32Eq ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F32ValType, F32ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     I64ExtendI32S
     | I64ExtendI32U
     | I64Load(_)
@@ -1016,76 +1039,70 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I64Load8U(_)
     | I64Load32S(_)
     | I64Load32U(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([I64ValType]),
-      )
+      ))
     I64TruncF64S
     | I64TruncF64U
     | I64TruncSatF64S
     | I64TruncSatF64U
-    | I64ReinterpretF64
-    | I32ReinterpretF64 ->
-      ResultType(
+    | I64ReinterpretF64 ->
+      Ok(ResultType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([I64ValType]),
-      )
+      ))
     I64TruncF32S | I64TruncF32U | I64TruncSatF32S | I64TruncSatF32U ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([I64ValType]),
-      )
+      ))
     I32TruncF64S | I32TruncF64U | I32TruncSatF64S | I32TruncSatF64U ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     I32TruncF32S
     | I32TruncF32U
     | I32TruncSatF32S
     | I32TruncSatF32U
-    | I64ReinterpretF32
     | I32ReinterpretF32 ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     F32DemoteF64 ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([F64ValType]),
-      )
+      ))
     F64PromoteF32 ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([F32ValType]),
-      )
-    F64ConvertI64S | F64ConvertI64U | F64ReinterpretI64 | F32ReinterpretI64 ->
-      ResultType(
+      ))
+    F64ConvertI64S | F64ConvertI64U | F64ReinterpretI64 ->
+      Ok(ResultType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([F64ValType]),
-      )
+      ))
     F64ConvertI32S | F64ConvertI32U | F64Load(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([F64ValType]),
-      )
+      ))
     F32ConvertI64S | F32ConvertI64U ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([F32ValType]),
-      )
-    F32ConvertI32S
-    | F32ConvertI32U
-    | F64ReinterpretI32
-    | F32ReinterpretI32
-    | F32Load(_) ->
-      ResultType(
+      ))
+    F32ConvertI32S | F32ConvertI32U | F32ReinterpretI32 | F32Load(_) ->
+      Ok(ResultType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([F32ValType]),
-      )
+      ))
     V128Const(_) ->
-      ResultType(finger_tree.new(), finger_tree.from_list([V128ValType]))
+      Ok(ResultType(finger_tree.new(), finger_tree.from_list([V128ValType])))
     V128Not
     | I64x2Neg
     | I64x2Abs
@@ -1124,13 +1141,13 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | F64x2ConvertLowI32x4S
     | F64x2ConvertLowI32x4U
     | F64x2PromoteLowF32x4 ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     V128Xor
+    | V128AndNot
     | V128Or
-    | V128Andor
     | V128And
     | I8x16Shuffle(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
     | I8x16Swizzle
@@ -1183,7 +1200,7 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | F32x4Ne
     | F32x4Eq
     | I16x8Q15mulrSatS
-    | I32x4DotI8x16S
+    | I32x4DotI16x8S
     | I16x8ExtendHighI8x16S
     | I16x8ExtendHighI8x16U
     | I16x8ExtendLowI8x16S
@@ -1224,7 +1241,6 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I16x8SubSatU
     | I16x8AddSatS
     | I16x8AddSatU
-    | I8x16Mul
     | I16x8Mul
     | I32x4Mul
     | I8x16AvgrU
@@ -1237,10 +1253,10 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I32x4ExtmulHighI16x8U
     | I32x4ExtmulLowI16x8S
     | I32x4ExtmulLowI16x8U
-    | I64x4ExtmulHighI32x4S
-    | I64x4ExtmulHighI32x4U
-    | I64x4ExtmulLowI32x4S
-    | I64x4ExtmulLowI32x4U
+    | I64x2ExtmulHighI32x4S
+    | I64x2ExtmulHighI32x4U
+    | I64x2ExtmulLowI32x4S
+    | I64x2ExtmulLowI32x4U
     | I16x8ExtaddPairwiseI8x16S
     | I16x8ExtaddPairwiseI8x16U
     | I32x4ExtaddPairwiseI16x8S
@@ -1260,16 +1276,17 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | F32x4Div
     | F32x4Mul
     | F32x4Sub
-    | F32x4Add ->
-      ResultType(
+    | F32x4Add
+    | I64x2Mul ->
+      Ok(ResultType(
         finger_tree.from_list([V128ValType, V128ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     V128Bitselect ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType, V128ValType, V128ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     V128AnyTrue
     | I8x16ExtractLaneS(_)
     | I16x8ExtractLaneS(_)
@@ -1283,10 +1300,10 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I32x4Bitmask
     | I16x8Bitmask
     | I8x16Bitmask ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     I32x4Splat
     | I16x8Splat
     | I8x16Splat
@@ -1303,45 +1320,45 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | V128Load32Splat(_)
     | V128Load16Splat(_)
     | V128Load8Splat(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     I64x2Splat ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     F32x4Splat ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     F64x2Splat ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     I64x2ExtractLane(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([I64ValType]),
-      )
+      ))
     I32x4ExtractLane(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([I32ValType]),
-      )
+      ))
     F32x4ExtractLane(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([F32ValType]),
-      )
+      ))
     F64x2ExtractLane(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([F64ValType]),
-      )
+      ))
     I8x16ReplaceLane(_)
     | I16x8ReplaceLane(_)
     | I32x4ReplaceLane(_)
@@ -1357,25 +1374,26 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | I8x16ShrS
     | I8x16ShrU
     | I8x16Shl ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType, I32ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     I64x2ReplaceLane(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType, I64ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     F32x4ReplaceLane(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType, F32ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     F64x2ReplaceLane(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([V128ValType, F64ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
+    Nop -> Ok(ResultType(finger_tree.new(), finger_tree.new()))
     RefFunc(_)
     | ArrayNewFixed(_, _)
     | RefNull(_)
@@ -1416,7 +1434,6 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | TableCopy(_, _)
     | TableInit(_, _)
     | ElemDrop(_)
-    | Nop
     | Unreachable
     | Block(_, _)
     | Loop(_, _)
@@ -1434,74 +1451,70 @@ pub fn get_result_type(instruction: Instruction) -> ResultType {
     | CallIndirect(_, _)
     | ReturnCall(_)
     | ReturnCallRef(_)
-    | ReturnCallIndirect(_, _) -> todo
-    StructNew(idx) | StructNewDefault(idx) ->
-      ResultType(
-        finger_tree.new(),
-        finger_tree.from_list([
-          RefTypeValType(HeapTypeRefType(ConcreteHeapType(idx), False)),
-        ]),
-      )
+    | ReturnCallIndirect(_, _)
+    | StructNew(_)
+    | StructNewDefault(_) -> todo
+
     RefI31 ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.new(),
         finger_tree.from_list([RefTypeValType(I31RefType)]),
-      )
+      ))
     AnyConvertExtern ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([RefTypeValType(ExternRefType)]),
         finger_tree.from_list([RefTypeValType(AnyRefType)]),
-      )
+      ))
     ExternConvertAny ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([RefTypeValType(AnyRefType)]),
         finger_tree.from_list([RefTypeValType(ExternRefType)]),
-      )
+      ))
     I64Store(_) | I64Store16(_) | I64Store8(_) | I64Store32(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType, I64ValType]),
         finger_tree.new(),
-      )
+      ))
     I32Store(_) | I32Store16(_) | I32Store8(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType, I32ValType]),
         finger_tree.new(),
-      )
+      ))
     F64Store(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType, F64ValType]),
         finger_tree.new(),
-      )
+      ))
     F32Store(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType, F32ValType]),
         finger_tree.new(),
-      )
+      ))
     V128Store(_)
     | V128Store8Lane(_, _)
     | V128Store16Lane(_, _)
     | V128Store32Lane(_, _)
     | V128Store64Lane(_, _) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType, V128ValType]),
         finger_tree.new(),
-      )
+      ))
     V128Load8Lane(_, _)
     | V128Load16Lane(_, _)
     | V128Load32Lane(_, _)
     | V128Load64Lane(_, _) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType, V128ValType]),
         finger_tree.from_list([V128ValType]),
-      )
+      ))
     MemorySize ->
-      ResultType(finger_tree.new(), finger_tree.from_list([I32ValType]))
+      Ok(ResultType(finger_tree.new(), finger_tree.from_list([I32ValType])))
     MemoryFill | MemoryCopy | MemoryInit(_) ->
-      ResultType(
+      Ok(ResultType(
         finger_tree.from_list([I32ValType, I32ValType, I32ValType]),
         finger_tree.new(),
-      )
-    DataDrop(_) -> ResultType(finger_tree.new(), finger_tree.new())
+      ))
+    DataDrop(_) -> Ok(ResultType(finger_tree.new(), finger_tree.new()))
   }
 }
 
@@ -1514,4 +1527,340 @@ pub fn def_type_expand(dt: DefType) {
   use st <- result.try(st |> finger_tree.drop(idx))
   use #(st, _) <- result.map(st |> finger_tree.shift)
   st.ct
+}
+
+pub type Import {
+  FuncImport(mod: String, name: String, type_idx: TypeIDX)
+  TableImport(mod: String, name: String, type_idx: TableType)
+  MemImport(mod: String, name: String, type_idx: MemType)
+  GlobalImport(mod: String, name: String, type_idx: GlobalType)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
+pub type Func {
+  Func(type_: U32, locals: FingerTree(Local), body: Expr)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
+pub type Local {
+  Local(type_: ValType)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#tables
+pub type Table {
+  Table(type_: TableType, init: Expr)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#memories
+pub type Mem {
+  Mem(type_: MemType)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#globals
+pub type Global {
+  Global(type_: GlobalType, init: Expr)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
+pub type Elem {
+  Elem(type_: RefType, init: FingerTree(Expr), mode: ElemMode)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
+pub type ElemMode {
+  PassiveElemMode
+  ActiveElemMode(table: U32, offset: Expr)
+  DeclarativeElemMode
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#start-function
+pub type Start {
+  Start(func: U32)
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#exports
+pub type Export {
+  FuncExport(name: String, func_idx: FuncIDX)
+  TableExport(name: String, table_idx: TableIDX)
+  MemExport(name: String, mem_idx: MemIDX)
+  GlobalExport(name: String, global_idx: GlobalIDX)
+}
+
+pub fn export_is_func(export: Export) -> Bool {
+  case export {
+    FuncExport(_, _) -> True
+    _ -> False
+  }
+}
+
+/// Conventions: https://webassembly.github.io/gc/core/syntax/modules.html#exports
+pub fn export_is_table(export: Export) -> Bool {
+  case export {
+    TableExport(_, _) -> True
+    _ -> False
+  }
+}
+
+pub fn export_is_mem(export: Export) -> Bool {
+  case export {
+    MemExport(_, _) -> True
+    _ -> False
+  }
+}
+
+pub fn export_is_global(export: Export) -> Bool {
+  case export {
+    GlobalExport(_, _) -> True
+    _ -> False
+  }
+}
+
+pub fn funcs(exports: FingerTree(Export)) -> FingerTree(Export) {
+  exports |> finger_tree.filter(export_is_func)
+}
+
+pub fn tables(exports: FingerTree(Export)) -> FingerTree(Export) {
+  exports |> finger_tree.filter(export_is_table)
+}
+
+pub fn mems(exports: FingerTree(Export)) -> FingerTree(Export) {
+  exports |> finger_tree.filter(export_is_mem)
+}
+
+pub fn globals(exports: FingerTree(Export)) -> FingerTree(Export) {
+  exports |> finger_tree.filter(export_is_global)
+}
+
+pub type Code {
+  Code(size: U32, locals: FingerTree(FingerTree(Local)), body: Expr)
+}
+
+pub type DataMode {
+  Active
+  Passive
+}
+
+pub type Data {
+  Data(
+    mode: DataMode,
+    mem: Option(MemIDX),
+    offset: Option(Expr),
+    init: BitArray,
+  )
+}
+
+pub opaque type Module {
+  Module(
+    has_type: Bool,
+    has_import: Bool,
+    has_func: Bool,
+    has_table: Bool,
+    has_mem: Bool,
+    has_global: Bool,
+    has_export: Bool,
+    has_start: Bool,
+    has_elem: Bool,
+    has_code: Bool,
+    has_data: Bool,
+    has_data_count: Bool,
+    sections: FingerTree(Section),
+  )
+}
+
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#modules
+pub type Section {
+  CustomSection(name: String, bytes: BitArray)
+  TypeSection(types: FingerTree(RecType))
+  ImportSection(imports: FingerTree(Import))
+  FuncSection(funcs: FingerTree(TypeIDX))
+  TableSection(tables: FingerTree(Table))
+  MemSection(mems: FingerTree(MemType))
+  GlobalSection(globals: FingerTree(Global))
+  ExportSection(exports: FingerTree(Export))
+  StartSection(start: Option(FuncIDX))
+  ElemSection(elems: FingerTree(Elem))
+  CodeSection(codes: FingerTree(Code))
+  DataSection(data: FingerTree(Data))
+  DataCountSection(count: U32)
+}
+
+pub fn module_new() {
+  Module(
+    has_type: False,
+    has_import: False,
+    has_func: False,
+    has_table: False,
+    has_mem: False,
+    has_global: False,
+    has_export: False,
+    has_start: False,
+    has_elem: False,
+    has_code: False,
+    has_data: False,
+    has_data_count: False,
+    sections: finger_tree.new(),
+  )
+}
+
+pub fn custom_section(mod: Module, name: String, bytes: BitArray) {
+  Module(
+    ..mod,
+    sections: mod.sections |> finger_tree.push(CustomSection(name, bytes)),
+  )
+}
+
+pub fn type_section(mod: Module, types: FingerTree(RecType)) {
+  case mod {
+    Module(has_type: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(TypeSection(types)),
+        ),
+      )
+  }
+}
+
+pub fn import_section(mod: Module, imports: FingerTree(Import)) {
+  case mod {
+    Module(has_import: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(ImportSection(imports)),
+        ),
+      )
+  }
+}
+
+pub fn func_section(mod: Module, funcs: FingerTree(TypeIDX)) {
+  case mod {
+    Module(has_func: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(FuncSection(funcs)),
+        ),
+      )
+  }
+}
+
+pub fn table_section(mod: Module, tables: FingerTree(Table)) {
+  case mod {
+    Module(has_table: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(TableSection(tables)),
+        ),
+      )
+  }
+}
+
+pub fn mem_section(mod: Module, mems: FingerTree(MemType)) {
+  case mod {
+    Module(has_mem: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(MemSection(mems)),
+        ),
+      )
+  }
+}
+
+pub fn global_section(mod: Module, globals: FingerTree(Global)) {
+  case mod {
+    Module(has_global: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(GlobalSection(globals)),
+        ),
+      )
+  }
+}
+
+pub fn export_section(mod: Module, exports: FingerTree(Export)) {
+  case mod {
+    Module(has_export: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(ExportSection(exports)),
+        ),
+      )
+  }
+}
+
+pub fn start_section(mod: Module, start: Option(FuncIDX)) {
+  case mod {
+    Module(has_start: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(StartSection(start)),
+        ),
+      )
+  }
+}
+
+pub fn elem_section(mod: Module, elems: FingerTree(Elem)) {
+  case mod {
+    Module(has_elem: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(ElemSection(elems)),
+        ),
+      )
+  }
+}
+
+pub fn code_section(mod: Module, codes: FingerTree(Code)) {
+  case mod {
+    Module(has_code: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(CodeSection(codes)),
+        ),
+      )
+  }
+}
+
+pub fn data_section(mod: Module, data: FingerTree(Data)) {
+  case mod {
+    Module(has_data: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(DataSection(data)),
+        ),
+      )
+  }
+}
+
+pub fn data_count_section(mod: Module, count: U32) {
+  case mod {
+    Module(has_data_count: True, ..) -> Error("Section already exists")
+    mod ->
+      Ok(
+        Module(
+          ..mod,
+          sections: mod.sections |> finger_tree.push(DataCountSection(count)),
+        ),
+      )
+  }
 }

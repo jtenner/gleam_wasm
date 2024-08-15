@@ -190,18 +190,20 @@ pub fn size(tree: FingerTree(u)) -> Int {
 }
 
 pub fn append(t1: FingerTree(u), t2: FingerTree(u)) -> FingerTree(u) {
-  case t1 {
-    Empty -> t2
-    Single(v) -> Deep(1 + { t2 |> size }, One(v), t2, None)
-    Deep(s1, l1, Empty, None) -> Deep(s1 + { t2 |> size }, l1, t2, None)
-    _ -> do_append_shift_pop(t1, t2)
+  case t1, t2 {
+    Empty, t2 -> t2
+    Single(v), t2 -> Deep(1 + { t2 |> size }, One(v), t2, None)
+    Deep(0, _, _, _), t2 -> t2
+    Deep(s1, l1, Empty, None), t2 -> Deep(s1 + { t2 |> size }, l1, t2, None)
+    t1, Deep(s2, None, Empty, r) -> Deep({ t1 |> size } + s2, None, t1, r)
+    t1, t2 -> do_append_shift_pop(t1, t2)
   }
 }
 
 fn do_append_shift_pop(t1: FingerTree(u), t2: FingerTree(u)) -> FingerTree(u) {
   case shift(t2) {
-    Ok(#(v, t2)) -> do_append_shift_pop(t1 |> push(v), t2)
     Error(Nil) -> t1
+    Ok(#(v, t2)) -> do_append_shift_pop(t1 |> push(v), t2)
   }
 }
 
@@ -240,7 +242,7 @@ pub fn drop(tree: FingerTree(u), n: Int) -> Result(FingerTree(u), Nil) {
     Empty -> Error(Nil)
     Single(_) if n > 1 -> Error(Nil)
     Single(_) -> Ok(Empty)
-    Deep(s, None, Empty, None) if n > 1 -> Error(Nil)
+    Deep(0, _, _, _) | Deep(_, None, Empty, None) if n > 1 -> Error(Nil)
     Deep(s, l, t, r) -> {
       case drop_digit(l) {
         Ok(l) -> drop(Deep(s - 1, l, t, r), n - 1)
@@ -365,7 +367,7 @@ fn do_map_index(
   case tree {
     Empty -> #(acc, i)
     Single(v) -> #(acc |> push(f(v, i)), i + 1)
-    Deep(s, l, t, r) -> {
+    Deep(_, l, t, r) -> {
       let #(acc, i) = do_map_index_digits(l, i, acc, f)
       let #(acc, i) = do_map_index(t, i, acc, f)
       do_map_index_digits(r, i, acc, f)
@@ -400,4 +402,27 @@ fn do_map_index_digits(
 
 pub fn flat(tree: FingerTree(FingerTree(v))) -> FingerTree(v) {
   tree |> fold(Empty, append)
+}
+
+pub fn take(
+  tree: FingerTree(v),
+  n: Int,
+) -> Result(#(List(v), FingerTree(v)), String) {
+  do_take(tree, n, [])
+}
+
+fn do_take(
+  tree: FingerTree(v),
+  n: Int,
+  acc: List(v),
+) -> Result(#(List(v), FingerTree(v)), String) {
+  case n {
+    0 -> Ok(#(acc |> list.reverse, tree))
+    _ -> {
+      case shift(tree) {
+        Ok(#(item, tree)) -> do_take(tree, n - 1, [item, ..acc])
+        Error(_) -> Error("Not enough items")
+      }
+    }
+  }
 }

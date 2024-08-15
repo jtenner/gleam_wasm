@@ -1,15 +1,13 @@
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/int
-import gleam/list
 import gleam/result
-import ieee_float
 import internal/finger_tree.{type FingerTree}
 import internal/structure/common
 import internal/structure/numbers.{
-  type F32, type I16, type I32, type I64, type I8, type S33, type U16, type U32,
-  type U64, type U8, f32, f64, i16, i32, i64, i8, s33, u16, u32, u64, u8,
-  unwrap_i16, unwrap_i32, unwrap_i64, unwrap_i8, unwrap_s33, unwrap_u16,
-  unwrap_u32, unwrap_u64, unwrap_u8,
+  type I16, type I32, type I64, type I8, type S33, type U16, type U32, type U64,
+  type U8, i16, i32, i64, i8, s33, u16, u32, u64, u8, unwrap_i16, unwrap_i32,
+  unwrap_i64, unwrap_i8, unwrap_s33, unwrap_u16, unwrap_u32, unwrap_u64,
+  unwrap_u8,
 }
 
 pub fn decode_i8(bits: BitArray) {

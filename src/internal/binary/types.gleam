@@ -1,13 +1,15 @@
 import gleam/bytes_builder.{type BytesBuilder}
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/result
 import internal/binary/common
 import internal/binary/values.{
-  decode_i32, decode_i64, decode_s33, decode_u32, encode_s33, encode_u32,
+  decode_i32, decode_i64, decode_s33, decode_u32, encode_i32, encode_i64,
+  encode_s33, encode_u32,
 }
-import internal/finger_tree.{type FingerTree, size}
+import internal/finger_tree.{type FingerTree}
 import internal/structure/numbers.{
-  decode_f32, decode_f64, s33, u32, unwrap_s33, unwrap_u32, v128,
+  decode_f32, decode_f64, encode_f32, encode_f64, s33, u32, unwrap_s33,
+  unwrap_u32, unwrap_v128, v128,
 }
 import internal/structure/types.{
   type ArrayType, type BlockType, type CompositeType, type DataIDX, type ElemIDX,
@@ -27,24 +29,24 @@ import internal/structure/types.{
   F32Ceil, F32Const, F32ConvertI32S, F32ConvertI32U, F32ConvertI64S,
   F32ConvertI64U, F32Copysign, F32DemoteF64, F32Div, F32Eq, F32Floor, F32Ge,
   F32Gt, F32Le, F32Load, F32Lt, F32Max, F32Min, F32Mul, F32Ne, F32Nearest,
-  F32Neg, F32ReinterpretI32, F32ReinterpretI64, F32Sqrt, F32Store, F32Sub,
-  F32Trunc, F32ValType, F32x4Abs, F32x4Add, F32x4Ceil, F32x4ConvertI32x4S,
-  F32x4ConvertI32x4U, F32x4DemoteF64x2Zero, F32x4Div, F32x4Eq, F32x4ExtractLane,
-  F32x4Floor, F32x4Ge, F32x4Gt, F32x4Le, F32x4Lt, F32x4Max, F32x4Min, F32x4Mul,
-  F32x4Ne, F32x4Nearest, F32x4Neg, F32x4Pmax, F32x4Pmin, F32x4ReplaceLane,
-  F32x4Splat, F32x4Sqrt, F32x4Sub, F32x4Trunc, F64Abs, F64Add, F64Ceil, F64Const,
-  F64ConvertI32S, F64ConvertI32U, F64ConvertI64S, F64ConvertI64U, F64Copysign,
-  F64Div, F64Eq, F64Floor, F64Ge, F64Gt, F64Le, F64Load, F64Lt, F64Max, F64Min,
-  F64Mul, F64Ne, F64Nearest, F64Neg, F64PromoteF32, F64ReinterpretI32,
-  F64ReinterpretI64, F64Sqrt, F64Store, F64Sub, F64Trunc, F64ValType, F64x2Abs,
-  F64x2Add, F64x2Ceil, F64x2ConvertLowI32x4S, F64x2ConvertLowI32x4U, F64x2Div,
-  F64x2Eq, F64x2ExtractLane, F64x2Floor, F64x2Ge, F64x2Gt, F64x2Le, F64x2Lt,
-  F64x2Max, F64x2Min, F64x2Mul, F64x2Ne, F64x2Nearest, F64x2Neg, F64x2Pmax,
-  F64x2Pmin, F64x2PromoteLowF32x4, F64x2ReplaceLane, F64x2Splat, F64x2Sqrt,
-  F64x2Sub, F64x2Trunc, FieldIDX, FieldType, FuncCompositeType, FuncHeapType,
-  FuncIDX, FuncRefType, FuncType, FuncTypeBlockType, GlobalGet, GlobalIDX,
-  GlobalSet, GlobalType, HeapTypeRefType, I16StorageType, I16x8Abs, I16x8Add,
-  I16x8AddSatS, I16x8AddSatU, I16x8AllTrue, I16x8AvgrU, I16x8Bitmask, I16x8Eq,
+  F32Neg, F32ReinterpretI32, F32Sqrt, F32Store, F32Sub, F32Trunc, F32ValType,
+  F32x4Abs, F32x4Add, F32x4Ceil, F32x4ConvertI32x4S, F32x4ConvertI32x4U,
+  F32x4DemoteF64x2Zero, F32x4Div, F32x4Eq, F32x4ExtractLane, F32x4Floor, F32x4Ge,
+  F32x4Gt, F32x4Le, F32x4Lt, F32x4Max, F32x4Min, F32x4Mul, F32x4Ne, F32x4Nearest,
+  F32x4Neg, F32x4Pmax, F32x4Pmin, F32x4ReplaceLane, F32x4Splat, F32x4Sqrt,
+  F32x4Sub, F32x4Trunc, F64Abs, F64Add, F64Ceil, F64Const, F64ConvertI32S,
+  F64ConvertI32U, F64ConvertI64S, F64ConvertI64U, F64Copysign, F64Div, F64Eq,
+  F64Floor, F64Ge, F64Gt, F64Le, F64Load, F64Lt, F64Max, F64Min, F64Mul, F64Ne,
+  F64Nearest, F64Neg, F64PromoteF32, F64ReinterpretI64, F64Sqrt, F64Store,
+  F64Sub, F64Trunc, F64ValType, F64x2Abs, F64x2Add, F64x2Ceil,
+  F64x2ConvertLowI32x4S, F64x2ConvertLowI32x4U, F64x2Div, F64x2Eq,
+  F64x2ExtractLane, F64x2Floor, F64x2Ge, F64x2Gt, F64x2Le, F64x2Lt, F64x2Max,
+  F64x2Min, F64x2Mul, F64x2Ne, F64x2Nearest, F64x2Neg, F64x2Pmax, F64x2Pmin,
+  F64x2PromoteLowF32x4, F64x2ReplaceLane, F64x2Splat, F64x2Sqrt, F64x2Sub,
+  F64x2Trunc, FieldIDX, FieldType, FuncCompositeType, FuncHeapType, FuncIDX,
+  FuncRefType, FuncType, FuncTypeBlockType, GlobalGet, GlobalIDX, GlobalSet,
+  GlobalType, HeapTypeRefType, I16StorageType, I16x8Abs, I16x8Add, I16x8AddSatS,
+  I16x8AddSatU, I16x8AllTrue, I16x8AvgrU, I16x8Bitmask, I16x8Eq,
   I16x8ExtaddPairwiseI8x16S, I16x8ExtaddPairwiseI8x16U, I16x8ExtendHighI8x16S,
   I16x8ExtendHighI8x16U, I16x8ExtendLowI8x16S, I16x8ExtendLowI8x16U,
   I16x8ExtmulHighI8x16S, I16x8ExtmulHighI8x16U, I16x8ExtmulLowI8x16S,
@@ -57,12 +59,12 @@ import internal/structure/types.{
   I32Clz, I32Const, I32Ctz, I32DivS, I32DivU, I32Eq, I32Eqz, I32Extend16S,
   I32Extend8S, I32GeS, I32GeU, I32GtS, I32GtU, I32LeS, I32LeU, I32Load,
   I32Load16S, I32Load16U, I32Load8S, I32Load8U, I32LtS, I32LtU, I32Mul, I32Ne,
-  I32Or, I32Popcnt, I32ReinterpretF32, I32ReinterpretF64, I32RemS, I32RemU,
-  I32Rotl, I32Rotr, I32Shl, I32ShrS, I32ShrU, I32Store, I32Store16, I32Store8,
-  I32Sub, I32TruncF32S, I32TruncF32U, I32TruncF64S, I32TruncF64U,
-  I32TruncSatF32S, I32TruncSatF32U, I32TruncSatF64S, I32TruncSatF64U, I32ValType,
-  I32WrapI64, I32Xor, I32x4Abs, I32x4Add, I32x4AllTrue, I32x4Bitmask,
-  I32x4DotI8x16S, I32x4Eq, I32x4ExtaddPairwiseI16x8S, I32x4ExtaddPairwiseI16x8U,
+  I32Or, I32Popcnt, I32ReinterpretF32, I32RemS, I32RemU, I32Rotl, I32Rotr,
+  I32Shl, I32ShrS, I32ShrU, I32Store, I32Store16, I32Store8, I32Sub,
+  I32TruncF32S, I32TruncF32U, I32TruncF64S, I32TruncF64U, I32TruncSatF32S,
+  I32TruncSatF32U, I32TruncSatF64S, I32TruncSatF64U, I32ValType, I32WrapI64,
+  I32Xor, I32x4Abs, I32x4Add, I32x4AllTrue, I32x4Bitmask, I32x4DotI16x8S,
+  I32x4Eq, I32x4ExtaddPairwiseI16x8S, I32x4ExtaddPairwiseI16x8U,
   I32x4ExtendHighI16x8S, I32x4ExtendHighI16x8U, I32x4ExtendLowI16x8S,
   I32x4ExtendLowI16x8U, I32x4ExtmulHighI16x8S, I32x4ExtmulHighI16x8U,
   I32x4ExtmulLowI16x8S, I32x4ExtmulLowI16x8U, I32x4ExtractLane, I32x4GeS,
@@ -74,39 +76,38 @@ import internal/structure/types.{
   I64DivU, I64Eq, I64Eqz, I64Extend16S, I64Extend32S, I64Extend8S, I64ExtendI32S,
   I64ExtendI32U, I64GeS, I64GeU, I64GtS, I64GtU, I64LeS, I64LeU, I64Load,
   I64Load16S, I64Load16U, I64Load32S, I64Load32U, I64Load8S, I64Load8U, I64LtS,
-  I64LtU, I64Mul, I64Ne, I64Or, I64Popcnt, I64ReinterpretF32, I64ReinterpretF64,
-  I64RemS, I64RemU, I64Rotl, I64Rotr, I64Shl, I64ShrS, I64ShrU, I64Store,
-  I64Store16, I64Store32, I64Store8, I64Sub, I64TruncF32S, I64TruncF32U,
-  I64TruncF64S, I64TruncF64U, I64TruncSatF32S, I64TruncSatF32U, I64TruncSatF64S,
-  I64TruncSatF64U, I64ValType, I64Xor, I64x2Abs, I64x2Add, I64x2AllTrue,
-  I64x2Bitmask, I64x2Eq, I64x2ExtendHighI32x4S, I64x2ExtendHighI32x4U,
-  I64x2ExtendLowI32x4S, I64x2ExtendLowI32x4U, I64x2ExtractLane, I64x2GeS,
-  I64x2GtS, I64x2LeS, I64x2LtS, I64x2Ne, I64x2Neg, I64x2ReplaceLane, I64x2Shl,
-  I64x2ShrS, I64x2ShrU, I64x2Splat, I64x2Sub, I64x4ExtmulHighI32x4S,
-  I64x4ExtmulHighI32x4U, I64x4ExtmulLowI32x4S, I64x4ExtmulLowI32x4U,
-  I8StorageType, I8x16Abs, I8x16Add, I8x16AddSatS, I8x16AddSatU, I8x16AllTrue,
-  I8x16AvgrU, I8x16Bitmask, I8x16Eq, I8x16ExtractLaneS, I8x16ExtractLaneU,
-  I8x16GeS, I8x16GeU, I8x16GtS, I8x16GtU, I8x16LeS, I8x16LeU, I8x16LtS, I8x16LtU,
-  I8x16MaxS, I8x16MaxU, I8x16MinS, I8x16MinU, I8x16Mul, I8x16NarrowI16x8S,
-  I8x16NarrowI16x8U, I8x16Ne, I8x16Neg, I8x16Popcnt, I8x16ReplaceLane, I8x16Shl,
-  I8x16ShrS, I8x16ShrU, I8x16Shuffle, I8x16Splat, I8x16Sub, I8x16SubSatS,
-  I8x16SubSatU, I8x16Swizzle, If, LabelIDX, Limits, LocalGet, LocalIDX, LocalSet,
-  LocalTee, Loop, MemArg, MemType, MemoryCopy, MemoryFill, MemoryGrow,
-  MemoryInit, MemorySize, NoExternHeapType, NoExternRefType, NoFuncHeapType,
-  NoFuncRefType, NoneHeapType, NoneRefType, Nop, RecType, RefAsNonNull, RefCast,
-  RefEq, RefFunc, RefI31, RefIsNull, RefNull, RefTest, RefTypeValType,
-  ResultType, Return, ReturnCall, ReturnCallIndirect, ReturnCallRef, Select,
-  SelectT, StructCompositeType, StructGet, StructGetS, StructGetU,
-  StructHeapType, StructNew, StructNewDefault, StructRefType, StructSet,
-  StructType, SubType, TableCopy, TableFill, TableGet, TableGrow, TableIDX,
-  TableInit, TableSet, TableSize, TableType, TypeIDX, Unreachable, V128And,
-  V128Andor, V128AnyTrue, V128Bitselect, V128Const, V128Load, V128Load16Lane,
-  V128Load16Splat, V128Load16x4S, V128Load16x4U, V128Load32Lane, V128Load32Splat,
-  V128Load32Zero, V128Load32x2S, V128Load32x2U, V128Load64Lane, V128Load64Splat,
-  V128Load64Zero, V128Load8Lane, V128Load8Splat, V128Load8x8S, V128Load8x8U,
-  V128Not, V128Or, V128Store, V128Store16Lane, V128Store32Lane, V128Store64Lane,
-  V128Store8Lane, V128ValType, V128Xor, ValTypeBlockType, ValTypeStorageType,
-  Var, VoidBlockType, lane_16, lane_2, lane_4, lane_8,
+  I64LtU, I64Mul, I64Ne, I64Or, I64Popcnt, I64ReinterpretF64, I64RemS, I64RemU,
+  I64Rotl, I64Rotr, I64Shl, I64ShrS, I64ShrU, I64Store, I64Store16, I64Store32,
+  I64Store8, I64Sub, I64TruncF32S, I64TruncF32U, I64TruncF64S, I64TruncF64U,
+  I64TruncSatF32S, I64TruncSatF32U, I64TruncSatF64S, I64TruncSatF64U, I64ValType,
+  I64Xor, I64x2Abs, I64x2Add, I64x2AllTrue, I64x2Bitmask, I64x2Eq,
+  I64x2ExtendHighI32x4S, I64x2ExtendHighI32x4U, I64x2ExtendLowI32x4S,
+  I64x2ExtendLowI32x4U, I64x2ExtmulHighI32x4S, I64x2ExtmulHighI32x4U,
+  I64x2ExtmulLowI32x4S, I64x2ExtmulLowI32x4U, I64x2ExtractLane, I64x2GeS,
+  I64x2GtS, I64x2LeS, I64x2LtS, I64x2Mul, I64x2Ne, I64x2Neg, I64x2ReplaceLane,
+  I64x2Shl, I64x2ShrS, I64x2ShrU, I64x2Splat, I64x2Sub, I8StorageType, I8x16Abs,
+  I8x16Add, I8x16AddSatS, I8x16AddSatU, I8x16AllTrue, I8x16AvgrU, I8x16Bitmask,
+  I8x16Eq, I8x16ExtractLaneS, I8x16ExtractLaneU, I8x16GeS, I8x16GeU, I8x16GtS,
+  I8x16GtU, I8x16LeS, I8x16LeU, I8x16LtS, I8x16LtU, I8x16MaxS, I8x16MaxU,
+  I8x16MinS, I8x16MinU, I8x16NarrowI16x8S, I8x16NarrowI16x8U, I8x16Ne, I8x16Neg,
+  I8x16Popcnt, I8x16ReplaceLane, I8x16Shl, I8x16ShrS, I8x16ShrU, I8x16Shuffle,
+  I8x16Splat, I8x16Sub, I8x16SubSatS, I8x16SubSatU, I8x16Swizzle, If, LabelIDX,
+  Limits, LocalGet, LocalIDX, LocalSet, LocalTee, Loop, MemArg, MemType,
+  MemoryCopy, MemoryFill, MemoryGrow, MemoryInit, MemorySize, NoExternHeapType,
+  NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, Nop,
+  RecType, RefAsNonNull, RefCast, RefEq, RefFunc, RefI31, RefIsNull, RefNull,
+  RefTest, RefTypeValType, ResultType, Return, ReturnCall, ReturnCallIndirect,
+  ReturnCallRef, Select, SelectT, StructCompositeType, StructGet, StructGetS,
+  StructGetU, StructHeapType, StructNew, StructNewDefault, StructRefType,
+  StructSet, StructType, SubType, TableCopy, TableFill, TableGet, TableGrow,
+  TableIDX, TableInit, TableSet, TableSize, TableType, TypeIDX, Unreachable,
+  V128And, V128AndNot, V128AnyTrue, V128Bitselect, V128Const, V128Load,
+  V128Load16Lane, V128Load16Splat, V128Load16x4S, V128Load16x4U, V128Load32Lane,
+  V128Load32Splat, V128Load32Zero, V128Load32x2S, V128Load32x2U, V128Load64Lane,
+  V128Load64Splat, V128Load64Zero, V128Load8Lane, V128Load8Splat, V128Load8x8S,
+  V128Load8x8U, V128Not, V128Or, V128Store, V128Store16Lane, V128Store32Lane,
+  V128Store64Lane, V128Store8Lane, V128ValType, V128Xor, ValTypeBlockType,
+  ValTypeStorageType, Var, VoidBlockType, lane_16, lane_2, lane_4, lane_8,
 }
 
 pub fn decode_lane_16(bits: BitArray) {
@@ -131,6 +132,26 @@ pub fn decode_lane_2(bits: BitArray) {
   use #(val, rest) <- result.try(decode_u32(bits))
   use lane <- result.map(lane_2(val |> unwrap_u32))
   #(lane, rest)
+}
+
+pub fn encode_lane_16(builder: BytesBuilder, lane: LaneIDX16) {
+  use lane <- result.map(lane |> types.unwrap_lane_16 |> u32)
+  builder |> encode_u32(lane)
+}
+
+pub fn encode_lane_8(builder: BytesBuilder, lane: LaneIDX8) {
+  use lane <- result.map(lane |> types.unwrap_lane_8 |> u32)
+  builder |> encode_u32(lane)
+}
+
+pub fn encode_lane_4(builder: BytesBuilder, lane: LaneIDX4) {
+  use lane <- result.map(lane |> types.unwrap_lane_4 |> u32)
+  builder |> encode_u32(lane)
+}
+
+pub fn encode_lane_2(builder: BytesBuilder, lane: LaneIDX2) {
+  use lane <- result.map(lane |> types.unwrap_lane_2 |> u32)
+  builder |> encode_u32(lane)
 }
 
 pub fn decode_heap_type(bits: BitArray) {
@@ -598,10 +619,10 @@ pub fn decode_expression(bits: BitArray) {
 fn do_decode_expression(bits: BitArray, acc: FingerTree(Instruction)) {
   case decode_instruction(bits) {
     Ok(#(End, rest)) -> Ok(#(acc, rest))
-    Ok(#(Else, rest)) -> Error("Invalid Else nesting")
+    Ok(#(Else, _)) -> Error("Invalid Else nesting")
     Ok(#(If(block_type, _, _), rest)) -> {
       use #(if_, rest) <- result.map(do_decode_if(
-        bits,
+        rest,
         block_type,
         finger_tree.new(),
       ))
@@ -619,7 +640,7 @@ fn do_decode_if(
 ) {
   case decode_instruction(bits) {
     Ok(#(End, rest)) -> Ok(#(If(block_type, t, None), rest))
-    Ok(#(Else, rest)) -> do_decode_else(bits, block_type, t, finger_tree.new())
+    Ok(#(Else, rest)) -> do_decode_else(rest, block_type, t, finger_tree.new())
     Ok(#(t1, rest)) -> do_decode_if(rest, block_type, t |> finger_tree.push(t1))
     Error(e) -> Error(e)
   }
@@ -633,7 +654,7 @@ fn do_decode_else(
 ) {
   case decode_instruction(bits) {
     Ok(#(End, rest)) -> Ok(#(If(block_type, t, Some(e)), rest))
-    Ok(#(Else, rest)) -> Error("Invalid Else nesting")
+    Ok(#(Else, _)) -> Error("Invalid Else nesting")
     Ok(#(t1, rest)) ->
       do_decode_else(rest, block_type, t, e |> finger_tree.push(t1))
     Error(e) -> Error(e)
@@ -663,6 +684,14 @@ pub fn decode_mem_arg(bits: BitArray) {
   use #(offset, rest) <- result.try(decode_u32(bits))
   use #(align, rest) <- result.map(decode_u32(rest))
   #(MemArg(offset, align), rest)
+}
+
+pub fn encode_mem_arg(builder: BytesBuilder, mem_arg: MemArg) {
+  Ok(
+    builder
+    |> encode_u32(mem_arg.offset)
+    |> encode_u32(mem_arg.align),
+  )
 }
 
 fn decode_instruction(bits: BitArray) {
@@ -1106,7 +1135,204 @@ fn decode_instruction(bits: BitArray) {
           use #(idx, rest) <- result.map(decode_lane_2(rest))
           #(F64x2ReplaceLane(idx), rest)
         }
-
+        14 -> Ok(#(I8x16Swizzle, rest))
+        15 -> Ok(#(I8x16Splat, rest))
+        16 -> Ok(#(I16x8Splat, rest))
+        17 -> Ok(#(I32x4Splat, rest))
+        18 -> Ok(#(I64x2Splat, rest))
+        19 -> Ok(#(F32x4Splat, rest))
+        20 -> Ok(#(F64x2Splat, rest))
+        35 -> Ok(#(I8x16Eq, rest))
+        36 -> Ok(#(I8x16Ne, rest))
+        37 -> Ok(#(I8x16LtS, rest))
+        38 -> Ok(#(I8x16LtU, rest))
+        39 -> Ok(#(I8x16GtS, rest))
+        40 -> Ok(#(I8x16GtU, rest))
+        41 -> Ok(#(I8x16LeS, rest))
+        42 -> Ok(#(I8x16LeU, rest))
+        43 -> Ok(#(I8x16GeS, rest))
+        44 -> Ok(#(I8x16GeU, rest))
+        45 -> Ok(#(I16x8Eq, rest))
+        46 -> Ok(#(I16x8Ne, rest))
+        47 -> Ok(#(I16x8LtS, rest))
+        48 -> Ok(#(I16x8LtU, rest))
+        49 -> Ok(#(I16x8GtS, rest))
+        50 -> Ok(#(I16x8GtU, rest))
+        51 -> Ok(#(I16x8LeS, rest))
+        52 -> Ok(#(I16x8LeU, rest))
+        53 -> Ok(#(I16x8GeS, rest))
+        54 -> Ok(#(I16x8GeU, rest))
+        55 -> Ok(#(I32x4Eq, rest))
+        56 -> Ok(#(I32x4Ne, rest))
+        57 -> Ok(#(I32x4LtS, rest))
+        58 -> Ok(#(I32x4LtU, rest))
+        59 -> Ok(#(I32x4GtS, rest))
+        60 -> Ok(#(I32x4GtU, rest))
+        61 -> Ok(#(I32x4LeS, rest))
+        62 -> Ok(#(I32x4LeU, rest))
+        63 -> Ok(#(I32x4GeS, rest))
+        64 -> Ok(#(I32x4GeU, rest))
+        214 -> Ok(#(I64x2Eq, rest))
+        215 -> Ok(#(I64x2Ne, rest))
+        216 -> Ok(#(I64x2LtS, rest))
+        217 -> Ok(#(I64x2GtS, rest))
+        218 -> Ok(#(I64x2LeS, rest))
+        219 -> Ok(#(I64x2GeS, rest))
+        65 -> Ok(#(F32x4Eq, rest))
+        66 -> Ok(#(F32x4Ne, rest))
+        67 -> Ok(#(F32x4Lt, rest))
+        68 -> Ok(#(F32x4Gt, rest))
+        69 -> Ok(#(F32x4Le, rest))
+        70 -> Ok(#(F32x4Ge, rest))
+        71 -> Ok(#(F64x2Eq, rest))
+        72 -> Ok(#(F64x2Ne, rest))
+        73 -> Ok(#(F64x2Lt, rest))
+        74 -> Ok(#(F64x2Gt, rest))
+        75 -> Ok(#(F64x2Le, rest))
+        76 -> Ok(#(F64x2Ge, rest))
+        77 -> Ok(#(V128Not, rest))
+        78 -> Ok(#(V128And, rest))
+        79 -> Ok(#(V128AndNot, rest))
+        80 -> Ok(#(V128Or, rest))
+        81 -> Ok(#(V128Xor, rest))
+        82 -> Ok(#(V128Bitselect, rest))
+        83 -> Ok(#(V128AnyTrue, rest))
+        96 -> Ok(#(I8x16Abs, rest))
+        97 -> Ok(#(I8x16Neg, rest))
+        98 -> Ok(#(I8x16Popcnt, rest))
+        99 -> Ok(#(I8x16AllTrue, rest))
+        100 -> Ok(#(I8x16Bitmask, rest))
+        101 -> Ok(#(I8x16NarrowI16x8S, rest))
+        102 -> Ok(#(I8x16NarrowI16x8U, rest))
+        107 -> Ok(#(I8x16Shl, rest))
+        108 -> Ok(#(I8x16ShrS, rest))
+        109 -> Ok(#(I8x16ShrU, rest))
+        110 -> Ok(#(I8x16Add, rest))
+        111 -> Ok(#(I8x16AddSatS, rest))
+        112 -> Ok(#(I8x16AddSatU, rest))
+        113 -> Ok(#(I8x16Sub, rest))
+        114 -> Ok(#(I8x16SubSatS, rest))
+        115 -> Ok(#(I8x16SubSatU, rest))
+        118 -> Ok(#(I8x16MinS, rest))
+        119 -> Ok(#(I8x16MinU, rest))
+        120 -> Ok(#(I8x16MaxS, rest))
+        121 -> Ok(#(I8x16MaxU, rest))
+        123 -> Ok(#(I8x16AvgrU, rest))
+        124 -> Ok(#(I16x8ExtaddPairwiseI8x16S, rest))
+        125 -> Ok(#(I16x8ExtaddPairwiseI8x16U, rest))
+        128 -> Ok(#(I16x8Abs, rest))
+        129 -> Ok(#(I16x8Neg, rest))
+        130 -> Ok(#(I16x8Q15mulrSatS, rest))
+        131 -> Ok(#(I16x8AllTrue, rest))
+        132 -> Ok(#(I16x8Bitmask, rest))
+        133 -> Ok(#(I16x8NarrowI32x4S, rest))
+        134 -> Ok(#(I16x8NarrowI32x4U, rest))
+        135 -> Ok(#(I16x8ExtendLowI8x16S, rest))
+        136 -> Ok(#(I16x8ExtendHighI8x16S, rest))
+        137 -> Ok(#(I16x8ExtendLowI8x16U, rest))
+        138 -> Ok(#(I16x8ExtendHighI8x16U, rest))
+        139 -> Ok(#(I16x8Shl, rest))
+        140 -> Ok(#(I16x8ShrS, rest))
+        141 -> Ok(#(I16x8ShrU, rest))
+        142 -> Ok(#(I16x8Add, rest))
+        143 -> Ok(#(I16x8AddSatS, rest))
+        144 -> Ok(#(I16x8AddSatU, rest))
+        145 -> Ok(#(I16x8Sub, rest))
+        146 -> Ok(#(I16x8SubSatS, rest))
+        147 -> Ok(#(I16x8SubSatU, rest))
+        149 -> Ok(#(I16x8Mul, rest))
+        150 -> Ok(#(I16x8MinS, rest))
+        151 -> Ok(#(I16x8MinU, rest))
+        152 -> Ok(#(I16x8MaxS, rest))
+        153 -> Ok(#(I16x8MaxU, rest))
+        155 -> Ok(#(I16x8AvgrU, rest))
+        156 -> Ok(#(I16x8ExtmulLowI8x16S, rest))
+        157 -> Ok(#(I16x8ExtmulHighI8x16S, rest))
+        158 -> Ok(#(I16x8ExtmulLowI8x16U, rest))
+        159 -> Ok(#(I16x8ExtmulHighI8x16U, rest))
+        126 -> Ok(#(I32x4ExtaddPairwiseI16x8S, rest))
+        127 -> Ok(#(I32x4ExtaddPairwiseI16x8U, rest))
+        160 -> Ok(#(I32x4Abs, rest))
+        161 -> Ok(#(I32x4Neg, rest))
+        163 -> Ok(#(I32x4AllTrue, rest))
+        164 -> Ok(#(I32x4Bitmask, rest))
+        167 -> Ok(#(I32x4ExtendLowI16x8S, rest))
+        168 -> Ok(#(I32x4ExtendHighI16x8S, rest))
+        169 -> Ok(#(I32x4ExtendLowI16x8U, rest))
+        170 -> Ok(#(I32x4ExtendHighI16x8U, rest))
+        171 -> Ok(#(I32x4Shl, rest))
+        172 -> Ok(#(I32x4ShrS, rest))
+        173 -> Ok(#(I32x4ShrU, rest))
+        174 -> Ok(#(I32x4Add, rest))
+        177 -> Ok(#(I32x4Sub, rest))
+        181 -> Ok(#(I32x4Mul, rest))
+        182 -> Ok(#(I32x4MinS, rest))
+        183 -> Ok(#(I32x4MinU, rest))
+        184 -> Ok(#(I32x4MaxS, rest))
+        185 -> Ok(#(I32x4MaxU, rest))
+        187 -> Ok(#(I32x4DotI16x8S, rest))
+        188 -> Ok(#(I32x4ExtmulLowI16x8S, rest))
+        189 -> Ok(#(I32x4ExtmulHighI16x8S, rest))
+        190 -> Ok(#(I32x4ExtmulLowI16x8U, rest))
+        191 -> Ok(#(I32x4ExtmulHighI16x8U, rest))
+        192 -> Ok(#(I64x2Abs, rest))
+        193 -> Ok(#(I64x2Neg, rest))
+        195 -> Ok(#(I64x2AllTrue, rest))
+        196 -> Ok(#(I64x2Bitmask, rest))
+        199 -> Ok(#(I64x2ExtendLowI32x4S, rest))
+        200 -> Ok(#(I64x2ExtendHighI32x4S, rest))
+        201 -> Ok(#(I64x2ExtendLowI32x4U, rest))
+        202 -> Ok(#(I64x2ExtendHighI32x4U, rest))
+        203 -> Ok(#(I64x2Shl, rest))
+        204 -> Ok(#(I64x2ShrS, rest))
+        205 -> Ok(#(I64x2ShrU, rest))
+        206 -> Ok(#(I64x2Add, rest))
+        209 -> Ok(#(I64x2Sub, rest))
+        213 -> Ok(#(I64x2Mul, rest))
+        220 -> Ok(#(I64x2ExtmulLowI32x4S, rest))
+        221 -> Ok(#(I64x2ExtmulHighI32x4S, rest))
+        222 -> Ok(#(I64x2ExtmulLowI32x4U, rest))
+        223 -> Ok(#(I64x2ExtmulHighI32x4U, rest))
+        103 -> Ok(#(F32x4Ceil, rest))
+        104 -> Ok(#(F32x4Floor, rest))
+        105 -> Ok(#(F32x4Trunc, rest))
+        106 -> Ok(#(F32x4Nearest, rest))
+        224 -> Ok(#(F32x4Abs, rest))
+        225 -> Ok(#(F32x4Neg, rest))
+        227 -> Ok(#(F32x4Sqrt, rest))
+        228 -> Ok(#(F32x4Add, rest))
+        229 -> Ok(#(F32x4Sub, rest))
+        230 -> Ok(#(F32x4Mul, rest))
+        231 -> Ok(#(F32x4Div, rest))
+        232 -> Ok(#(F32x4Min, rest))
+        233 -> Ok(#(F32x4Max, rest))
+        234 -> Ok(#(F32x4Pmin, rest))
+        235 -> Ok(#(F32x4Pmax, rest))
+        116 -> Ok(#(F64x2Ceil, rest))
+        117 -> Ok(#(F64x2Floor, rest))
+        122 -> Ok(#(F64x2Trunc, rest))
+        148 -> Ok(#(F64x2Nearest, rest))
+        236 -> Ok(#(F64x2Abs, rest))
+        237 -> Ok(#(F64x2Neg, rest))
+        239 -> Ok(#(F64x2Sqrt, rest))
+        240 -> Ok(#(F64x2Add, rest))
+        241 -> Ok(#(F64x2Sub, rest))
+        242 -> Ok(#(F64x2Mul, rest))
+        243 -> Ok(#(F64x2Div, rest))
+        244 -> Ok(#(F64x2Min, rest))
+        245 -> Ok(#(F64x2Max, rest))
+        246 -> Ok(#(F64x2Pmin, rest))
+        247 -> Ok(#(F64x2Pmax, rest))
+        248 -> Ok(#(I32x4TruncSatF32x4S, rest))
+        249 -> Ok(#(I32x4TruncSatF32x4U, rest))
+        250 -> Ok(#(F32x4ConvertI32x4S, rest))
+        251 -> Ok(#(F32x4ConvertI32x4U, rest))
+        252 -> Ok(#(I32x4TruncSatF64x2SZero, rest))
+        253 -> Ok(#(I32x4TruncSatF64x2UZero, rest))
+        254 -> Ok(#(F64x2ConvertLowI32x4S, rest))
+        255 -> Ok(#(F64x2ConvertLowI32x4U, rest))
+        94 -> Ok(#(F32x4DemoteF64x2Zero, rest))
+        95 -> Ok(#(F64x2PromoteLowF32x4, rest))
         _ -> Error("Invalid instruction")
       }
     }
@@ -1438,5 +1664,2317 @@ fn decode_instruction(bits: BitArray) {
     <<0xC3, rest:bits>> -> Ok(#(I64Extend16S, rest))
     <<0xC4, rest:bits>> -> Ok(#(I64ExtendI32S, rest))
     _ -> Error("Invalid instruction")
+  }
+}
+
+pub fn encode_expression(
+  builder: BytesBuilder,
+  expr: FingerTree(Instruction),
+) -> Result(BytesBuilder, String) {
+  do_encode_expression(builder, expr)
+}
+
+fn do_encode_expression(
+  builder: BytesBuilder,
+  expr: FingerTree(Instruction),
+) -> Result(BytesBuilder, String) {
+  case finger_tree.shift(expr) {
+    Ok(#(inst, rest)) -> {
+      use builder <- result.try(encode_instruction(builder, inst))
+      do_encode_expression(builder, rest)
+    }
+    Error(_) -> Ok(builder)
+  }
+}
+
+fn encode_instruction(
+  builder: BytesBuilder,
+  inst: Instruction,
+) -> Result(BytesBuilder, String) {
+  case inst {
+    End -> Ok(builder |> bytes_builder.append(<<0x0B>>))
+    Unreachable -> Ok(builder |> bytes_builder.append(<<0x00>>))
+    Nop -> Ok(builder |> bytes_builder.append(<<0x01>>))
+    Block(bt, expr) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x02>>)
+        |> encode_block_type(bt),
+      )
+      builder |> encode_expression(expr)
+    }
+    Loop(bt, expr) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x03>>)
+        |> encode_block_type(bt),
+      )
+      builder |> encode_expression(expr)
+    }
+    If(bt, expr, else_expr) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x04>>)
+        |> encode_block_type(bt),
+      )
+      use builder <- result.try(builder |> encode_expression(expr))
+      case else_expr {
+        Some(else_expr) -> builder |> encode_expression(else_expr)
+        None -> Ok(builder)
+      }
+    }
+    Else -> Ok(builder |> bytes_builder.append(<<0x05>>))
+    Br(idx) ->
+      builder
+      |> bytes_builder.append(<<0x0C>>)
+      |> encode_label_idx(idx)
+    BrIf(idx) ->
+      builder
+      |> bytes_builder.append(<<0x0D>>)
+      |> encode_label_idx(idx)
+    BrTable(label_idxs, default_label_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x0E>>)
+        |> common.encode_vec(label_idxs, encode_label_idx),
+      )
+      builder |> encode_label_idx(default_label_idx)
+    }
+    Return -> Ok(builder |> bytes_builder.append(<<0x0F>>))
+    Call(func_idx) ->
+      builder
+      |> bytes_builder.append(<<0x10>>)
+      |> encode_func_idx(func_idx)
+    CallIndirect(type_idx, table_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x11>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_table_idx(table_idx)
+    }
+    ReturnCall(func_idx) ->
+      builder
+      |> bytes_builder.append(<<0x12>>)
+      |> encode_func_idx(func_idx)
+    ReturnCallIndirect(type_idx, table_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x13>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_table_idx(table_idx)
+    }
+    CallRef(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0x14>>)
+      |> encode_type_idx(type_idx)
+    ReturnCallRef(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0x15>>)
+      |> encode_type_idx(type_idx)
+    BrOnNull(label_idx) ->
+      builder
+      |> bytes_builder.append(<<0xd5>>)
+      |> encode_label_idx(label_idx)
+    BrOnNonNull(idx) ->
+      builder
+      |> bytes_builder.append(<<0xd6>>)
+      |> encode_label_idx(idx)
+    RefNull(ht) ->
+      builder
+      |> bytes_builder.append(<<0xd0>>)
+      |> encode_heap_type(ht)
+    RefIsNull -> Ok(builder |> bytes_builder.append(<<0xd1>>))
+    RefFunc(idx) ->
+      builder
+      |> bytes_builder.append(<<0xd2>>)
+      |> encode_func_idx(idx)
+
+    RefEq -> Ok(builder |> bytes_builder.append(<<0xd3>>))
+    RefAsNonNull -> Ok(builder |> bytes_builder.append(<<0xd4>>))
+    StructNew(idx) -> {
+      use op <- result.try(u32(0))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(idx)
+    }
+    StructNewDefault(idx) -> {
+      use op <- result.try(u32(1))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(idx)
+    }
+    StructGet(type_idx, field_idx) -> {
+      use op <- result.try(u32(2))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_field_idx(field_idx)
+    }
+    StructGetS(type_idx, field_idx) -> {
+      use op <- result.try(u32(3))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_field_idx(field_idx)
+    }
+    StructGetU(type_idx, field_idx) -> {
+      use op <- result.try(u32(4))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_field_idx(field_idx)
+    }
+    StructSet(type_idx, field_idx) -> {
+      use op <- result.try(u32(5))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_field_idx(field_idx)
+    }
+    ArrayNew(type_idx) -> {
+      use op <- result.try(u32(6))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(type_idx)
+    }
+    ArrayNewDefault(type_idx) -> {
+      use op <- result.try(u32(7))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(type_idx)
+    }
+    ArrayNewFixed(type_idx, n) -> {
+      use op <- result.try(u32(8))
+      use builder <- result.map(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_u32(n)
+    }
+    ArrayNewData(type_idx, data_idx) -> {
+      use op <- result.try(u32(9))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_data_idx(data_idx)
+    }
+    ArrayNewElem(type_idx, elem_idx) -> {
+      use op <- result.try(u32(10))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_elem_idx(elem_idx)
+    }
+    ArrayGet(idx) -> {
+      use op <- result.try(u32(11))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(idx)
+    }
+    ArrayGetS(idx) -> {
+      use op <- result.try(u32(12))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(idx)
+    }
+    ArrayGetU(idx) -> {
+      use op <- result.try(u32(13))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(idx)
+    }
+    ArraySet(idx) -> {
+      use op <- result.try(u32(14))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(idx)
+    }
+    ArrayLen -> {
+      use op <- result.map(u32(15))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+    }
+    ArrayFill(idx) -> {
+      use op <- result.try(u32(16))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_type_idx(idx)
+    }
+    ArrayCopy(id, id2) -> {
+      use op <- result.try(u32(17))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(id),
+      )
+      builder |> encode_type_idx(id2)
+    }
+    ArrayInitData(id, id2) -> {
+      use op <- result.try(u32(18))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(id),
+      )
+      builder |> encode_data_idx(id2)
+    }
+    ArrayInitElem(id, id2) -> {
+      use op <- result.try(u32(19))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_type_idx(id),
+      )
+      builder |> encode_elem_idx(id2)
+    }
+    RefTest(rt) -> {
+      let op = case rt |> types.ref_type_is_nullable {
+        True -> 21
+        False -> 20
+      }
+      use op <- result.try(u32(op))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_heap_type(rt |> types.ref_type_get_heap_type)
+    }
+    RefCast(rt) -> {
+      let op = case rt |> types.ref_type_is_nullable {
+        True -> 23
+        False -> 22
+      }
+      use op <- result.try(u32(op))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+      |> encode_heap_type(rt |> types.ref_type_get_heap_type)
+    }
+    BrOnCast(label_idx, rt1, rt2) -> {
+      use op <- result.try(u32(24))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_cast_flags(#(
+          rt1 |> types.ref_type_is_nullable,
+          rt2 |> types.ref_type_is_nullable,
+        )),
+      )
+      use builder <- result.try(
+        builder
+        |> encode_label_idx(label_idx),
+      )
+      use builder <- result.try(
+        builder
+        |> encode_heap_type(rt1 |> types.ref_type_get_heap_type),
+      )
+      builder |> encode_heap_type(rt2 |> types.ref_type_get_heap_type)
+    }
+    BrOnCastFail(label_idx, rt1, rt2) -> {
+      use op <- result.try(u32(25))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfb>>)
+        |> encode_u32(op)
+        |> encode_cast_flags(#(
+          rt1 |> types.ref_type_is_nullable,
+          rt2 |> types.ref_type_is_nullable,
+        )),
+      )
+      use builder <- result.try(
+        builder
+        |> encode_label_idx(label_idx),
+      )
+      use builder <- result.try(
+        builder
+        |> encode_heap_type(rt1 |> types.ref_type_get_heap_type),
+      )
+      builder |> encode_heap_type(rt2 |> types.ref_type_get_heap_type)
+    }
+    AnyConvertExtern -> {
+      use op <- result.map(u32(26))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+    }
+    ExternConvertAny -> {
+      use op <- result.map(u32(27))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+    }
+    RefI31 -> {
+      use op <- result.map(u32(28))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+    }
+    I31GetS -> {
+      use op <- result.map(u32(29))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+    }
+    I31GetU -> {
+      use op <- result.map(u32(30))
+      builder
+      |> bytes_builder.append(<<0xfb>>)
+      |> encode_u32(op)
+    }
+    I32TruncSatF32S -> {
+      use op <- result.map(u32(0))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+    }
+    I32TruncSatF32U -> {
+      use op <- result.map(u32(1))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+    }
+    I32TruncSatF64S -> {
+      use op <- result.map(u32(2))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+    }
+    I32TruncSatF64U -> {
+      use op <- result.map(u32(3))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+    }
+    I64TruncSatF32S -> {
+      use op <- result.map(u32(4))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+    }
+    I64TruncSatF32U -> {
+      use op <- result.map(u32(5))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+    }
+    I64TruncSatF64S -> {
+      use op <- result.map(u32(6))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+    }
+    I64TruncSatF64U -> {
+      use op <- result.map(u32(7))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+    }
+    V128Load(mem_arg) -> {
+      use op <- result.try(u32(0))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load8x8S(mem_arg) -> {
+      use op <- result.try(u32(1))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load8x8U(mem_arg) -> {
+      use op <- result.try(u32(2))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load16x4S(mem_arg) -> {
+      use op <- result.try(u32(3))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load16x4U(mem_arg) -> {
+      use op <- result.try(u32(4))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load32x2S(mem_arg) -> {
+      use op <- result.try(u32(5))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load32x2U(mem_arg) -> {
+      use op <- result.try(u32(6))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load8Splat(mem_arg) -> {
+      use op <- result.try(u32(7))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load16Splat(mem_arg) -> {
+      use op <- result.try(u32(8))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load32Splat(mem_arg) -> {
+      use op <- result.try(u32(9))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load64Splat(mem_arg) -> {
+      use op <- result.try(u32(10))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load32Zero(mem_arg) -> {
+      use op <- result.try(u32(92))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load64Zero(mem_arg) -> {
+      use op <- result.try(u32(93))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Store(mem_arg) -> {
+      use op <- result.try(u32(11))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_mem_arg(mem_arg)
+    }
+    V128Load8Lane(mem_arg, lane) -> {
+      use op <- result.try(u32(84))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder |> encode_lane_16(lane)
+    }
+    V128Load16Lane(mem_arg, lane) -> {
+      use op <- result.try(u32(85))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder |> encode_lane_8(lane)
+    }
+    V128Load32Lane(mem_arg, lane) -> {
+      use op <- result.try(u32(86))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder |> encode_lane_4(lane)
+    }
+    V128Load64Lane(mem_arg, lane) -> {
+      use op <- result.try(u32(87))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder |> encode_lane_2(lane)
+    }
+    V128Store8Lane(mem_arg, lane) -> {
+      use op <- result.try(u32(88))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder |> encode_lane_16(lane)
+    }
+    V128Store16Lane(mem_arg, lane) -> {
+      use op <- result.try(u32(89))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder |> encode_lane_8(lane)
+    }
+    V128Store32Lane(mem_arg, lane) -> {
+      use op <- result.try(u32(90))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder |> encode_lane_4(lane)
+    }
+    V128Store64Lane(mem_arg, lane) -> {
+      use op <- result.try(u32(91))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder |> encode_lane_2(lane)
+    }
+    V128Const(val) -> {
+      use op <- result.map(u32(12))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> bytes_builder.append(val |> unwrap_v128)
+    }
+    I8x16Shuffle(
+      i0,
+      i1,
+      i2,
+      i3,
+      i4,
+      i5,
+      i6,
+      i7,
+      i8,
+      i9,
+      i10,
+      i11,
+      i12,
+      i13,
+      i14,
+      i15,
+    ) -> {
+      use op <- result.try(u32(13))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfd>>)
+        |> encode_u32(op)
+        |> encode_lane_16(i0),
+      )
+      use builder <- result.try(builder |> encode_lane_16(i1))
+      use builder <- result.try(builder |> encode_lane_16(i2))
+      use builder <- result.try(builder |> encode_lane_16(i3))
+      use builder <- result.try(builder |> encode_lane_16(i4))
+      use builder <- result.try(builder |> encode_lane_16(i5))
+      use builder <- result.try(builder |> encode_lane_16(i6))
+      use builder <- result.try(builder |> encode_lane_16(i7))
+      use builder <- result.try(builder |> encode_lane_16(i8))
+      use builder <- result.try(builder |> encode_lane_16(i9))
+      use builder <- result.try(builder |> encode_lane_16(i10))
+      use builder <- result.try(builder |> encode_lane_16(i11))
+      use builder <- result.try(builder |> encode_lane_16(i12))
+      use builder <- result.try(builder |> encode_lane_16(i13))
+      use builder <- result.try(builder |> encode_lane_16(i14))
+      builder |> encode_lane_16(i15)
+    }
+    I8x16ExtractLaneS(idx) -> {
+      use op <- result.try(u32(21))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_16(idx)
+    }
+    I8x16ExtractLaneU(idx) -> {
+      use op <- result.try(u32(22))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_16(idx)
+    }
+    I8x16ReplaceLane(idx) -> {
+      use op <- result.try(u32(23))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_16(idx)
+    }
+    I16x8ExtractLaneS(idx) -> {
+      use op <- result.try(u32(24))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_8(idx)
+    }
+    I16x8ExtractLaneU(idx) -> {
+      use op <- result.try(u32(25))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_8(idx)
+    }
+    I16x8ReplaceLane(idx) -> {
+      use op <- result.try(u32(26))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_8(idx)
+    }
+    I32x4ExtractLane(idx) -> {
+      use op <- result.try(u32(27))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_4(idx)
+    }
+    I32x4ReplaceLane(idx) -> {
+      use op <- result.try(u32(28))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_4(idx)
+    }
+    I64x2ExtractLane(idx) -> {
+      use op <- result.try(u32(29))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_2(idx)
+    }
+    I64x2ReplaceLane(idx) -> {
+      use op <- result.try(u32(30))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_2(idx)
+    }
+    F32x4ExtractLane(idx) -> {
+      use op <- result.try(u32(31))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_4(idx)
+    }
+    F32x4ReplaceLane(idx) -> {
+      use op <- result.try(u32(32))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_4(idx)
+    }
+    F64x2ExtractLane(idx) -> {
+      use op <- result.try(u32(33))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_2(idx)
+    }
+    F64x2ReplaceLane(idx) -> {
+      use op <- result.try(u32(34))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+      |> encode_lane_2(idx)
+    }
+    I8x16Swizzle -> {
+      use op <- result.map(u32(14))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Splat -> {
+      use op <- result.map(u32(15))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Splat -> {
+      use op <- result.map(u32(16))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Splat -> {
+      use op <- result.map(u32(17))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Splat -> {
+      use op <- result.map(u32(18))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Splat -> {
+      use op <- result.map(u32(19))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Splat -> {
+      use op <- result.map(u32(20))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Eq -> {
+      use op <- result.map(u32(35))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Ne -> {
+      use op <- result.map(u32(36))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16LtS -> {
+      use op <- result.map(u32(37))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16LtU -> {
+      use op <- result.map(u32(38))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16GtS -> {
+      use op <- result.map(u32(39))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16GtU -> {
+      use op <- result.map(u32(40))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16LeS -> {
+      use op <- result.map(u32(41))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16LeU -> {
+      use op <- result.map(u32(42))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16GeS -> {
+      use op <- result.map(u32(43))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16GeU -> {
+      use op <- result.map(u32(44))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Eq -> {
+      use op <- result.map(u32(45))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Ne -> {
+      use op <- result.map(u32(46))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8LtS -> {
+      use op <- result.map(u32(47))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8LtU -> {
+      use op <- result.map(u32(48))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8GtS -> {
+      use op <- result.map(u32(49))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8GtU -> {
+      use op <- result.map(u32(50))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8LeS -> {
+      use op <- result.map(u32(51))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8LeU -> {
+      use op <- result.map(u32(52))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8GeS -> {
+      use op <- result.map(u32(53))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8GeU -> {
+      use op <- result.map(u32(54))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Eq -> {
+      use op <- result.map(u32(55))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Ne -> {
+      use op <- result.map(u32(56))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4LtS -> {
+      use op <- result.map(u32(57))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4LtU -> {
+      use op <- result.map(u32(58))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4GtS -> {
+      use op <- result.map(u32(59))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4GtU -> {
+      use op <- result.map(u32(60))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4LeS -> {
+      use op <- result.map(u32(61))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4LeU -> {
+      use op <- result.map(u32(62))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4GeS -> {
+      use op <- result.map(u32(63))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4GeU -> {
+      use op <- result.map(u32(64))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Eq -> {
+      use op <- result.map(u32(214))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Ne -> {
+      use op <- result.map(u32(215))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2LtS -> {
+      use op <- result.map(u32(216))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2GtS -> {
+      use op <- result.map(u32(217))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2LeS -> {
+      use op <- result.map(u32(218))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2GeS -> {
+      use op <- result.map(u32(219))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Eq -> {
+      use op <- result.map(u32(65))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Ne -> {
+      use op <- result.map(u32(66))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Lt -> {
+      use op <- result.map(u32(67))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Gt -> {
+      use op <- result.map(u32(68))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Le -> {
+      use op <- result.map(u32(69))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Ge -> {
+      use op <- result.map(u32(70))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Eq -> {
+      use op <- result.map(u32(71))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Ne -> {
+      use op <- result.map(u32(72))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Lt -> {
+      use op <- result.map(u32(73))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Gt -> {
+      use op <- result.map(u32(74))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Le -> {
+      use op <- result.map(u32(75))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Ge -> {
+      use op <- result.map(u32(76))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    V128Not -> {
+      use op <- result.map(u32(77))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    V128And -> {
+      use op <- result.map(u32(78))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    V128AndNot -> {
+      use op <- result.map(u32(79))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    V128Or -> {
+      use op <- result.map(u32(80))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    V128Xor -> {
+      use op <- result.map(u32(81))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    V128Bitselect -> {
+      use op <- result.map(u32(82))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    V128AnyTrue -> {
+      use op <- result.map(u32(83))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Abs -> {
+      use op <- result.map(u32(96))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Neg -> {
+      use op <- result.map(u32(97))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Popcnt -> {
+      use op <- result.map(u32(98))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16AllTrue -> {
+      use op <- result.map(u32(99))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Bitmask -> {
+      use op <- result.map(u32(100))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16NarrowI16x8S -> {
+      use op <- result.map(u32(101))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16NarrowI16x8U -> {
+      use op <- result.map(u32(102))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Shl -> {
+      use op <- result.map(u32(107))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16ShrS -> {
+      use op <- result.map(u32(108))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16ShrU -> {
+      use op <- result.map(u32(109))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Add -> {
+      use op <- result.map(u32(110))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16AddSatS -> {
+      use op <- result.map(u32(111))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16AddSatU -> {
+      use op <- result.map(u32(112))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16Sub -> {
+      use op <- result.map(u32(113))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16SubSatS -> {
+      use op <- result.map(u32(114))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16SubSatU -> {
+      use op <- result.map(u32(115))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16MinS -> {
+      use op <- result.map(u32(118))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16MinU -> {
+      use op <- result.map(u32(119))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16MaxS -> {
+      use op <- result.map(u32(120))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16MaxU -> {
+      use op <- result.map(u32(121))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I8x16AvgrU -> {
+      use op <- result.map(u32(123))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtaddPairwiseI8x16S -> {
+      use op <- result.map(u32(124))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtaddPairwiseI8x16U -> {
+      use op <- result.map(u32(125))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Abs -> {
+      use op <- result.map(u32(128))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Neg -> {
+      use op <- result.map(u32(129))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Q15mulrSatS -> {
+      use op <- result.map(u32(130))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8AllTrue -> {
+      use op <- result.map(u32(131))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Bitmask -> {
+      use op <- result.map(u32(132))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8NarrowI32x4S -> {
+      use op <- result.map(u32(133))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8NarrowI32x4U -> {
+      use op <- result.map(u32(134))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtendLowI8x16S -> {
+      use op <- result.map(u32(135))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtendHighI8x16S -> {
+      use op <- result.map(u32(136))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtendLowI8x16U -> {
+      use op <- result.map(u32(137))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtendHighI8x16U -> {
+      use op <- result.map(u32(138))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Shl -> {
+      use op <- result.map(u32(139))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ShrS -> {
+      use op <- result.map(u32(140))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ShrU -> {
+      use op <- result.map(u32(141))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Add -> {
+      use op <- result.map(u32(142))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8AddSatS -> {
+      use op <- result.map(u32(143))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8AddSatU -> {
+      use op <- result.map(u32(144))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Sub -> {
+      use op <- result.map(u32(145))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8SubSatS -> {
+      use op <- result.map(u32(146))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8SubSatU -> {
+      use op <- result.map(u32(147))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8Mul -> {
+      use op <- result.map(u32(149))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8MinS -> {
+      use op <- result.map(u32(150))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8MinU -> {
+      use op <- result.map(u32(151))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8MaxS -> {
+      use op <- result.map(u32(152))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8MaxU -> {
+      use op <- result.map(u32(153))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8AvgrU -> {
+      use op <- result.map(u32(155))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtmulLowI8x16S -> {
+      use op <- result.map(u32(156))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtmulHighI8x16S -> {
+      use op <- result.map(u32(157))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtmulLowI8x16U -> {
+      use op <- result.map(u32(158))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I16x8ExtmulHighI8x16U -> {
+      use op <- result.map(u32(159))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtaddPairwiseI16x8S -> {
+      use op <- result.map(u32(126))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtaddPairwiseI16x8U -> {
+      use op <- result.map(u32(127))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Abs -> {
+      use op <- result.map(u32(160))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Neg -> {
+      use op <- result.map(u32(161))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4AllTrue -> {
+      use op <- result.map(u32(163))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Bitmask -> {
+      use op <- result.map(u32(164))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtendLowI16x8S -> {
+      use op <- result.map(u32(167))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtendHighI16x8S -> {
+      use op <- result.map(u32(168))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtendLowI16x8U -> {
+      use op <- result.map(u32(169))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtendHighI16x8U -> {
+      use op <- result.map(u32(170))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Shl -> {
+      use op <- result.map(u32(171))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ShrS -> {
+      use op <- result.map(u32(172))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ShrU -> {
+      use op <- result.map(u32(173))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Add -> {
+      use op <- result.map(u32(174))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Sub -> {
+      use op <- result.map(u32(177))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4Mul -> {
+      use op <- result.map(u32(181))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4MinS -> {
+      use op <- result.map(u32(182))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4MinU -> {
+      use op <- result.map(u32(183))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4MaxS -> {
+      use op <- result.map(u32(184))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4MaxU -> {
+      use op <- result.map(u32(185))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4DotI16x8S -> {
+      use op <- result.map(u32(187))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtmulLowI16x8S -> {
+      use op <- result.map(u32(188))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtmulHighI16x8S -> {
+      use op <- result.map(u32(189))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtmulLowI16x8U -> {
+      use op <- result.map(u32(190))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4ExtmulHighI16x8U -> {
+      use op <- result.map(u32(191))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Abs -> {
+      use op <- result.map(u32(192))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Neg -> {
+      use op <- result.map(u32(193))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2AllTrue -> {
+      use op <- result.map(u32(195))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Bitmask -> {
+      use op <- result.map(u32(196))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ExtendLowI32x4S -> {
+      use op <- result.map(u32(199))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ExtendHighI32x4S -> {
+      use op <- result.map(u32(200))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ExtendLowI32x4U -> {
+      use op <- result.map(u32(201))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ExtendHighI32x4U -> {
+      use op <- result.map(u32(202))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Shl -> {
+      use op <- result.map(u32(203))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ShrS -> {
+      use op <- result.map(u32(204))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ShrU -> {
+      use op <- result.map(u32(205))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Add -> {
+      use op <- result.map(u32(206))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Sub -> {
+      use op <- result.map(u32(209))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2Mul -> {
+      use op <- result.map(u32(213))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ExtmulLowI32x4S -> {
+      use op <- result.map(u32(220))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ExtmulHighI32x4S -> {
+      use op <- result.map(u32(221))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ExtmulLowI32x4U -> {
+      use op <- result.map(u32(222))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I64x2ExtmulHighI32x4U -> {
+      use op <- result.map(u32(223))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Ceil -> {
+      use op <- result.map(u32(103))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Floor -> {
+      use op <- result.map(u32(104))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Trunc -> {
+      use op <- result.map(u32(105))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Nearest -> {
+      use op <- result.map(u32(106))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Abs -> {
+      use op <- result.map(u32(224))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Neg -> {
+      use op <- result.map(u32(225))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Sqrt -> {
+      use op <- result.map(u32(227))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Add -> {
+      use op <- result.map(u32(228))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Sub -> {
+      use op <- result.map(u32(229))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Mul -> {
+      use op <- result.map(u32(230))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Div -> {
+      use op <- result.map(u32(231))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Min -> {
+      use op <- result.map(u32(232))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Max -> {
+      use op <- result.map(u32(233))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Pmin -> {
+      use op <- result.map(u32(234))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4Pmax -> {
+      use op <- result.map(u32(235))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Ceil -> {
+      use op <- result.map(u32(116))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Floor -> {
+      use op <- result.map(u32(117))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Trunc -> {
+      use op <- result.map(u32(122))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Nearest -> {
+      use op <- result.map(u32(148))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Abs -> {
+      use op <- result.map(u32(236))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Neg -> {
+      use op <- result.map(u32(237))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Sqrt -> {
+      use op <- result.map(u32(239))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Add -> {
+      use op <- result.map(u32(240))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Sub -> {
+      use op <- result.map(u32(241))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Mul -> {
+      use op <- result.map(u32(242))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Div -> {
+      use op <- result.map(u32(243))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Min -> {
+      use op <- result.map(u32(244))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Max -> {
+      use op <- result.map(u32(245))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Pmin -> {
+      use op <- result.map(u32(246))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2Pmax -> {
+      use op <- result.map(u32(247))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4TruncSatF32x4S -> {
+      use op <- result.map(u32(248))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4TruncSatF32x4U -> {
+      use op <- result.map(u32(249))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4ConvertI32x4S -> {
+      use op <- result.map(u32(250))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4ConvertI32x4U -> {
+      use op <- result.map(u32(251))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4TruncSatF64x2SZero -> {
+      use op <- result.map(u32(252))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    I32x4TruncSatF64x2UZero -> {
+      use op <- result.map(u32(253))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2ConvertLowI32x4S -> {
+      use op <- result.map(u32(254))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2ConvertLowI32x4U -> {
+      use op <- result.map(u32(255))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F32x4DemoteF64x2Zero -> {
+      use op <- result.map(u32(94))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+    F64x2PromoteLowF32x4 -> {
+      use op <- result.map(u32(95))
+      builder
+      |> bytes_builder.append(<<0xfd>>)
+      |> encode_u32(op)
+    }
+
+    Drop -> Ok(builder |> bytes_builder.append(<<0x1A>>))
+    Select -> Ok(builder |> bytes_builder.append(<<0x1B>>))
+    SelectT(idxs) ->
+      builder
+      |> bytes_builder.append(<<0x1C>>)
+      |> common.encode_vec(idxs, encode_val_type)
+    LocalGet(idx) ->
+      builder
+      |> bytes_builder.append(<<0x20>>)
+      |> encode_local_idx(idx)
+    LocalSet(idx) ->
+      builder
+      |> bytes_builder.append(<<0x21>>)
+      |> encode_local_idx(idx)
+    LocalTee(idx) ->
+      builder
+      |> bytes_builder.append(<<0x22>>)
+      |> encode_local_idx(idx)
+    GlobalGet(idx) ->
+      builder
+      |> bytes_builder.append(<<0x23>>)
+      |> encode_global_idx(idx)
+    GlobalSet(idx) ->
+      builder
+      |> bytes_builder.append(<<0x24>>)
+      |> encode_global_idx(idx)
+    TableGet(idx) ->
+      builder
+      |> bytes_builder.append(<<0x25>>)
+      |> encode_table_idx(idx)
+    TableSet(idx) ->
+      builder
+      |> bytes_builder.append(<<0x26>>)
+      |> encode_table_idx(idx)
+    MemoryInit(idx) -> {
+      use op <- result.try(u32(8))
+      use builder <- result.map(
+        builder
+        |> bytes_builder.append(<<0xfc>>)
+        |> encode_u32(op)
+        |> encode_data_idx(idx),
+      )
+      builder |> bytes_builder.append(<<0x00>>)
+    }
+    DataDrop(idx) -> {
+      use op <- result.try(u32(9))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+      |> encode_data_idx(idx)
+    }
+    MemoryCopy -> {
+      use op <- result.map(u32(10))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+      |> bytes_builder.append(<<0x00, 0x00>>)
+    }
+    MemoryFill -> {
+      use op <- result.map(u32(11))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+      |> bytes_builder.append(<<0x00>>)
+    }
+    TableInit(idx, idx2) -> {
+      use op <- result.try(u32(12))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfc>>)
+        |> encode_u32(op)
+        |> encode_elem_idx(idx),
+      )
+      builder |> encode_table_idx(idx2)
+    }
+    ElemDrop(idx) -> {
+      use op <- result.try(u32(13))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+      |> encode_elem_idx(idx)
+    }
+    TableCopy(idx, idx2) -> {
+      use op <- result.try(u32(14))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xfc>>)
+        |> encode_u32(op)
+        |> encode_table_idx(idx),
+      )
+      builder |> encode_table_idx(idx2)
+    }
+    TableGrow(idx) -> {
+      use op <- result.try(u32(15))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+      |> encode_table_idx(idx)
+    }
+    TableSize(idx) -> {
+      use op <- result.try(u32(16))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+      |> encode_table_idx(idx)
+    }
+    TableFill(idx) -> {
+      use op <- result.try(u32(17))
+      builder
+      |> bytes_builder.append(<<0xfc>>)
+      |> encode_u32(op)
+      |> encode_table_idx(idx)
+    }
+    I32Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x28>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x29>>)
+      |> encode_mem_arg(mem_arg)
+    F32Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2A>>)
+      |> encode_mem_arg(mem_arg)
+    F64Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2B>>)
+      |> encode_mem_arg(mem_arg)
+    I32Load8S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2C>>)
+      |> encode_mem_arg(mem_arg)
+    I32Load8U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2D>>)
+      |> encode_mem_arg(mem_arg)
+    I32Load16S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2E>>)
+      |> encode_mem_arg(mem_arg)
+    I32Load16U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2F>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load8S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x30>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load8U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x31>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load16S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x32>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load16U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x33>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load32U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x34>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load32S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x35>>)
+      |> encode_mem_arg(mem_arg)
+    I32Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x36>>)
+      |> encode_mem_arg(mem_arg)
+    I64Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x37>>)
+      |> encode_mem_arg(mem_arg)
+    F32Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x38>>)
+      |> encode_mem_arg(mem_arg)
+    F64Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x39>>)
+      |> encode_mem_arg(mem_arg)
+    I32Store8(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3A>>)
+      |> encode_mem_arg(mem_arg)
+    I32Store16(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3B>>)
+      |> encode_mem_arg(mem_arg)
+    I64Store8(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3C>>)
+      |> encode_mem_arg(mem_arg)
+    I64Store16(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3D>>)
+      |> encode_mem_arg(mem_arg)
+    I64Store32(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3E>>)
+      |> encode_mem_arg(mem_arg)
+    MemorySize -> Ok(builder |> bytes_builder.append(<<0x3F, 0x00>>))
+    MemoryGrow -> Ok(builder |> bytes_builder.append(<<0x40, 0x00>>))
+    I32Const(i32_value) ->
+      Ok(
+        builder
+        |> bytes_builder.append(<<0x41>>)
+        |> encode_i32(i32_value),
+      )
+    I64Const(i64_value) ->
+      Ok(
+        builder
+        |> bytes_builder.append(<<0x42>>)
+        |> encode_i64(i64_value),
+      )
+    F32Const(f32_value) ->
+      Ok(
+        builder
+        |> bytes_builder.append(<<0x43>>)
+        |> encode_f32(f32_value),
+      )
+    F64Const(f64_value) ->
+      Ok(
+        builder
+        |> bytes_builder.append(<<0x44>>)
+        |> encode_f64(f64_value),
+      )
+    I32Eqz -> Ok(builder |> bytes_builder.append(<<0x45>>))
+    I32Eq -> Ok(builder |> bytes_builder.append(<<0x46>>))
+    I32Ne -> Ok(builder |> bytes_builder.append(<<0x47>>))
+    I32LtS -> Ok(builder |> bytes_builder.append(<<0x48>>))
+    I32LtU -> Ok(builder |> bytes_builder.append(<<0x49>>))
+    I32GtS -> Ok(builder |> bytes_builder.append(<<0x4A>>))
+    I32GtU -> Ok(builder |> bytes_builder.append(<<0x4B>>))
+    I32LeS -> Ok(builder |> bytes_builder.append(<<0x4C>>))
+    I32LeU -> Ok(builder |> bytes_builder.append(<<0x4D>>))
+    I32GeS -> Ok(builder |> bytes_builder.append(<<0x4E>>))
+    I32GeU -> Ok(builder |> bytes_builder.append(<<0x4F>>))
+    I64Eqz -> Ok(builder |> bytes_builder.append(<<0x50>>))
+    I64Eq -> Ok(builder |> bytes_builder.append(<<0x51>>))
+    I64Ne -> Ok(builder |> bytes_builder.append(<<0x52>>))
+    I64LtS -> Ok(builder |> bytes_builder.append(<<0x53>>))
+    I64LtU -> Ok(builder |> bytes_builder.append(<<0x54>>))
+    I64GtS -> Ok(builder |> bytes_builder.append(<<0x55>>))
+    I64GtU -> Ok(builder |> bytes_builder.append(<<0x56>>))
+    I64LeS -> Ok(builder |> bytes_builder.append(<<0x57>>))
+    I64LeU -> Ok(builder |> bytes_builder.append(<<0x58>>))
+    I64GeS -> Ok(builder |> bytes_builder.append(<<0x59>>))
+    I64GeU -> Ok(builder |> bytes_builder.append(<<0x5A>>))
+    F32Eq -> Ok(builder |> bytes_builder.append(<<0x5B>>))
+    F32Ne -> Ok(builder |> bytes_builder.append(<<0x5C>>))
+    F32Lt -> Ok(builder |> bytes_builder.append(<<0x5D>>))
+    F32Gt -> Ok(builder |> bytes_builder.append(<<0x5E>>))
+    F32Le -> Ok(builder |> bytes_builder.append(<<0x5F>>))
+    F32Ge -> Ok(builder |> bytes_builder.append(<<0x60>>))
+    F64Eq -> Ok(builder |> bytes_builder.append(<<0x61>>))
+    F64Ne -> Ok(builder |> bytes_builder.append(<<0x62>>))
+    F64Lt -> Ok(builder |> bytes_builder.append(<<0x63>>))
+    F64Gt -> Ok(builder |> bytes_builder.append(<<0x64>>))
+    F64Le -> Ok(builder |> bytes_builder.append(<<0x65>>))
+    F64Ge -> Ok(builder |> bytes_builder.append(<<0x66>>))
+    I32Clz -> Ok(builder |> bytes_builder.append(<<0x67>>))
+    I32Ctz -> Ok(builder |> bytes_builder.append(<<0x68>>))
+    I32Popcnt -> Ok(builder |> bytes_builder.append(<<0x69>>))
+    I32Add -> Ok(builder |> bytes_builder.append(<<0x6A>>))
+    I32Sub -> Ok(builder |> bytes_builder.append(<<0x6B>>))
+    I32Mul -> Ok(builder |> bytes_builder.append(<<0x6C>>))
+    I32DivS -> Ok(builder |> bytes_builder.append(<<0x6D>>))
+    I32DivU -> Ok(builder |> bytes_builder.append(<<0x6E>>))
+    I32RemS -> Ok(builder |> bytes_builder.append(<<0x6F>>))
+    I32RemU -> Ok(builder |> bytes_builder.append(<<0x70>>))
+    I32And -> Ok(builder |> bytes_builder.append(<<0x71>>))
+    I32Or -> Ok(builder |> bytes_builder.append(<<0x72>>))
+    I32Xor -> Ok(builder |> bytes_builder.append(<<0x73>>))
+    I32Shl -> Ok(builder |> bytes_builder.append(<<0x74>>))
+    I32ShrS -> Ok(builder |> bytes_builder.append(<<0x75>>))
+    I32ShrU -> Ok(builder |> bytes_builder.append(<<0x76>>))
+    I32Rotl -> Ok(builder |> bytes_builder.append(<<0x77>>))
+    I32Rotr -> Ok(builder |> bytes_builder.append(<<0x78>>))
+    I64Clz -> Ok(builder |> bytes_builder.append(<<0x79>>))
+    I64Ctz -> Ok(builder |> bytes_builder.append(<<0x7A>>))
+    I64Popcnt -> Ok(builder |> bytes_builder.append(<<0x7B>>))
+    I64Add -> Ok(builder |> bytes_builder.append(<<0x7C>>))
+    I64Sub -> Ok(builder |> bytes_builder.append(<<0x7D>>))
+    I64Mul -> Ok(builder |> bytes_builder.append(<<0x7E>>))
+    I64DivS -> Ok(builder |> bytes_builder.append(<<0x7F>>))
+    I64DivU -> Ok(builder |> bytes_builder.append(<<0x80>>))
+    I64RemS -> Ok(builder |> bytes_builder.append(<<0x81>>))
+    I64RemU -> Ok(builder |> bytes_builder.append(<<0x82>>))
+    I64And -> Ok(builder |> bytes_builder.append(<<0x83>>))
+    I64Or -> Ok(builder |> bytes_builder.append(<<0x84>>))
+    I64Xor -> Ok(builder |> bytes_builder.append(<<0x85>>))
+    I64Shl -> Ok(builder |> bytes_builder.append(<<0x86>>))
+    I64ShrS -> Ok(builder |> bytes_builder.append(<<0x87>>))
+    I64ShrU -> Ok(builder |> bytes_builder.append(<<0x88>>))
+    I64Rotl -> Ok(builder |> bytes_builder.append(<<0x89>>))
+    I64Rotr -> Ok(builder |> bytes_builder.append(<<0x8A>>))
+    F32Abs -> Ok(builder |> bytes_builder.append(<<0x8B>>))
+    F32Neg -> Ok(builder |> bytes_builder.append(<<0x8C>>))
+    F32Ceil -> Ok(builder |> bytes_builder.append(<<0x8D>>))
+    F32Floor -> Ok(builder |> bytes_builder.append(<<0x8E>>))
+    F32Trunc -> Ok(builder |> bytes_builder.append(<<0x8F>>))
+    F32Nearest -> Ok(builder |> bytes_builder.append(<<0x90>>))
+    F32Sqrt -> Ok(builder |> bytes_builder.append(<<0x91>>))
+    F32Add -> Ok(builder |> bytes_builder.append(<<0x92>>))
+    F32Sub -> Ok(builder |> bytes_builder.append(<<0x93>>))
+    F32Mul -> Ok(builder |> bytes_builder.append(<<0x94>>))
+    F32Div -> Ok(builder |> bytes_builder.append(<<0x95>>))
+    F32Min -> Ok(builder |> bytes_builder.append(<<0x96>>))
+    F32Max -> Ok(builder |> bytes_builder.append(<<0x97>>))
+    F32Copysign -> Ok(builder |> bytes_builder.append(<<0x98>>))
+    F64Abs -> Ok(builder |> bytes_builder.append(<<0x99>>))
+    F64Neg -> Ok(builder |> bytes_builder.append(<<0x9A>>))
+    F64Ceil -> Ok(builder |> bytes_builder.append(<<0x9B>>))
+    F64Floor -> Ok(builder |> bytes_builder.append(<<0x9C>>))
+    F64Trunc -> Ok(builder |> bytes_builder.append(<<0x9D>>))
+    F64Nearest -> Ok(builder |> bytes_builder.append(<<0x9E>>))
+    F64Sqrt -> Ok(builder |> bytes_builder.append(<<0x9F>>))
+    F64Add -> Ok(builder |> bytes_builder.append(<<0xA0>>))
+    F64Sub -> Ok(builder |> bytes_builder.append(<<0xA1>>))
+    F64Mul -> Ok(builder |> bytes_builder.append(<<0xA2>>))
+    F64Div -> Ok(builder |> bytes_builder.append(<<0xA3>>))
+    F64Min -> Ok(builder |> bytes_builder.append(<<0xA4>>))
+    F64Max -> Ok(builder |> bytes_builder.append(<<0xA5>>))
+    F64Copysign -> Ok(builder |> bytes_builder.append(<<0xA6>>))
+    I32WrapI64 -> Ok(builder |> bytes_builder.append(<<0xA7>>))
+    I32TruncF32S -> Ok(builder |> bytes_builder.append(<<0xA8>>))
+    I32TruncF32U -> Ok(builder |> bytes_builder.append(<<0xA9>>))
+    I32TruncF64S -> Ok(builder |> bytes_builder.append(<<0xAA>>))
+    I32TruncF64U -> Ok(builder |> bytes_builder.append(<<0xAB>>))
+    I64Extend32S -> Ok(builder |> bytes_builder.append(<<0xC4>>))
+    I64ExtendI32S -> Ok(builder |> bytes_builder.append(<<0xAC>>))
+    I64ExtendI32U -> Ok(builder |> bytes_builder.append(<<0xAD>>))
+    I64TruncF32S -> Ok(builder |> bytes_builder.append(<<0xAE>>))
+    I64TruncF32U -> Ok(builder |> bytes_builder.append(<<0xAF>>))
+    I64TruncF64S -> Ok(builder |> bytes_builder.append(<<0xB0>>))
+    I64TruncF64U -> Ok(builder |> bytes_builder.append(<<0xB1>>))
+    F32ConvertI32S -> Ok(builder |> bytes_builder.append(<<0xB2>>))
+    F32ConvertI32U -> Ok(builder |> bytes_builder.append(<<0xB3>>))
+    F32ConvertI64S -> Ok(builder |> bytes_builder.append(<<0xB4>>))
+    F32ConvertI64U -> Ok(builder |> bytes_builder.append(<<0xB5>>))
+    F32DemoteF64 -> Ok(builder |> bytes_builder.append(<<0xB6>>))
+    F64ConvertI32S -> Ok(builder |> bytes_builder.append(<<0xB7>>))
+    F64ConvertI32U -> Ok(builder |> bytes_builder.append(<<0xB8>>))
+    F64ConvertI64S -> Ok(builder |> bytes_builder.append(<<0xB9>>))
+    F64ConvertI64U -> Ok(builder |> bytes_builder.append(<<0xBA>>))
+    F64PromoteF32 -> Ok(builder |> bytes_builder.append(<<0xBB>>))
+    I32ReinterpretF32 -> Ok(builder |> bytes_builder.append(<<0xBC>>))
+    I64ReinterpretF64 -> Ok(builder |> bytes_builder.append(<<0xBD>>))
+    F32ReinterpretI32 -> Ok(builder |> bytes_builder.append(<<0xBE>>))
+    F64ReinterpretI64 -> Ok(builder |> bytes_builder.append(<<0xBF>>))
+    I32Extend8S -> Ok(builder |> bytes_builder.append(<<0xC0>>))
+    I32Extend16S -> Ok(builder |> bytes_builder.append(<<0xC1>>))
+    I64Extend8S -> Ok(builder |> bytes_builder.append(<<0xC2>>))
+    I64Extend16S -> Ok(builder |> bytes_builder.append(<<0xC3>>))
   }
 }

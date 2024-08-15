@@ -3,26 +3,31 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import internal/binary/values
 import internal/finger_tree.{type FingerTree}
-import internal/structure/numbers
+import internal/structure/numbers.{type U32, unwrap_u32}
 import internal/structure/types.{
   type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
   type DefType, type ExternType, type FieldType, type FuncType, type GlobalType,
-  type HeapType, type Instruction, type InstructionType, type LocalType,
-  type MemType, type NumType, type PackedType, type RecType, type RefType,
-  type ResultType, type StorageType, type StructType, type SubType,
+  type HeapType, type Instruction, type InstructionType, type LocalIDX,
+  type LocalType, type MemType, type NumType, type PackedType, type RecType,
+  type RefType, type ResultType, type StorageType, type StructType, type SubType,
   type TableType, type TypeIDX, type ValType, type VecType, AnyHeapType,
   AnyRefType, ArrayCompositeType, ArrayHeapType, ArrayRefType, ArrayType,
-  BotHeapType, ConcreteHeapType, DefType, EqHeapType, EqRefType, ExternHeapType,
-  ExternRefType, F32ValType, F64ValType, FieldType, FuncCompositeType,
-  FuncExternType, FuncHeapType, FuncRefType, FuncType, FuncTypeBlockType,
-  GlobalExternType, GlobalType, HeapTypeRefType, I31HeapType, I31RefType,
-  I32ValType, I64ValType, LocalType, MemExternType, NoExternHeapType,
-  NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType,
-  RecType, RefTypeValType, ResultType, StructCompositeType, StructHeapType,
-  StructRefType, StructType, SubType, TableExternType, TableType, V128ValType,
-  ValTypeBlockType, ValTypeStorageType, VoidBlockType,
+  BotHeapType, BotValType, ConcreteHeapType, Const, DefType, DefTypeHeapType,
+  EqHeapType, EqRefType, ExternHeapType, ExternRefType, F32ValType, F64ValType,
+  FieldType, FuncCompositeType, FuncExternType, FuncHeapType, FuncRefType,
+  FuncType, FuncTypeBlockType, GlobalExternType, GlobalType, HeapTypeRefType,
+  I16StorageType, I31HeapType, I31RefType, I32ValType, I64ValType, I8StorageType,
+  LocalType, Loop, MemExternType, NoExternHeapType, NoExternRefType,
+  NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, RecType,
+  RefTypeValType, ResultType, StructCompositeType, StructHeapType, StructRefType,
+  StructType, SubType, TableExternType, TableType, V128ValType, ValTypeBlockType,
+  ValTypeStorageType, Var, VoidBlockType, unwrap_local_idx,
 }
-import internal/validation/types.{type Context, type TypeVisitor} as validation_types
+
+import internal/validation/types.{
+  type Context, type CtrlFrame, type TypeVisitor, type ValidationState, Context,
+  CtrlFrame, Stacks,
+} as validation_types
 
 pub fn visit_num_type(
   ctx: Context,
@@ -128,7 +133,8 @@ pub fn visit_val_type(
     | I64ValType
     | F32ValType
     | F64ValType
-    | V128ValType -> Ok(#(ctx, vt))
+    | V128ValType
+    | BotValType -> Ok(#(ctx, vt))
 
     RefTypeValType(rt) -> {
       use #(ctx, rt) <- result.map(visit_ref_type(ctx, rt, visitor))
@@ -484,14 +490,14 @@ pub fn visit_local_type(
 pub fn def_type_expand(dt: DefType) {
   let DefType(RecType(st), idx) = dt
   use _ <- result.map_error(do_def_type_expand(st, idx))
-  Error("Invalid def type")
+  "Invalid def type"
 }
 
 fn do_def_type_expand(st: FingerTree(SubType), idx: Int) {
   case idx {
     0 -> {
       use #(st, _) <- result.map(st |> finger_tree.shift)
-      Ok(st.ct)
+      st.ct
     }
     t if t > 0 -> {
       use #(_, rest) <- result.try(st |> finger_tree.shift)
@@ -499,4 +505,537 @@ fn do_def_type_expand(st: FingerTree(SubType), idx: Int) {
     }
     _ -> Error(Nil)
   }
+}
+
+pub fn is_num(ty: ValType) {
+  case ty {
+    I32ValType -> True
+    I64ValType -> True
+    F32ValType -> True
+    F64ValType -> True
+    _ -> False
+  }
+}
+
+pub fn is_vec(ty: ValType) {
+  case ty {
+    V128ValType -> True
+    _ -> False
+  }
+}
+
+pub fn is_ref(ty: ValType) {
+  case ty {
+    I32ValType -> False
+    I64ValType -> False
+    F32ValType -> False
+    F64ValType -> False
+    V128ValType -> False
+    _ -> True
+  }
+}
+
+pub fn unpack_field(t: FieldType) {
+  case t {
+    FieldType(I16StorageType, _) -> I32ValType
+    FieldType(I8StorageType, _) -> I32ValType
+    FieldType(ValTypeStorageType(vt), _) -> vt
+  }
+}
+
+pub fn comp_type_is_func(ct: CompositeType) {
+  case ct {
+    FuncCompositeType(_) -> True
+    _ -> False
+  }
+}
+
+pub fn comp_type_is_struct_type(ct: CompositeType) {
+  case ct {
+    StructCompositeType(_) -> True
+    _ -> False
+  }
+}
+
+pub fn comp_type_is_array_type(ct: CompositeType) {
+  case ct {
+    ArrayCompositeType(_) -> True
+    _ -> False
+  }
+}
+
+pub fn top_heap_type(t: HeapType) {
+  case t {
+    AnyHeapType
+    | EqHeapType
+    | I31HeapType
+    | StructHeapType
+    | ArrayHeapType
+    | NoneHeapType -> Ok(AnyHeapType)
+    FuncHeapType | NoFuncHeapType -> Ok(FuncHeapType)
+    ExternHeapType | NoExternHeapType -> Ok(ExternHeapType)
+    DefTypeHeapType(dt) -> {
+      use ct <- result.map(def_type_expand(dt))
+      case ct {
+        FuncCompositeType(_) -> FuncHeapType
+        _ -> AnyHeapType
+      }
+    }
+    ConcreteHeapType(_) | BotHeapType -> Error("Invalid heap type")
+  }
+}
+
+pub fn push_val(state: ValidationState, val: ValType) {
+  let #(ctx, stacks) = state
+  #(ctx, Stacks(..stacks, val_stack: stacks.val_stack |> finger_tree.push(val)))
+}
+
+pub fn pop_val(state: ValidationState) {
+  use #(frame, _) <- result.try(
+    { state.1 }.ctrl_stack
+    |> finger_tree.pop
+    |> result.replace_error("Invalid control frame state"),
+  )
+  let CtrlFrame(_, _, _, val_height, _, unreachable) = frame
+
+  let size = { state.1 }.val_stack |> finger_tree.size
+  case size, val_height, unreachable {
+    a, b, True if a == b -> Ok(#(BotValType, state))
+    a, b, False if a == b -> Error("Stack underflow")
+    _, _, _ -> {
+      use #(val, val_stack) <- result.map(
+        { state.1 }.val_stack
+        |> finger_tree.pop
+        |> result.replace_error("Stack underflow"),
+      )
+      #(val, #(state.0, Stacks(..state.1, val_stack: val_stack)))
+    }
+  }
+}
+
+pub fn pop_val_expect(state: ValidationState, expected: ValType) {
+  use #(val, state) <- result.try(pop_val(state))
+  case match_val_type(state, val, expected) {
+    Ok(_) -> Ok(#(val, state))
+    Error(_) -> Error("ValType mismatch")
+  }
+}
+
+pub fn pop_num(state: ValidationState) {
+  use #(num, state) <- result.try(
+    pop_val(state)
+    |> result.replace_error("Stack underflow"),
+  )
+  case is_num(num) {
+    True -> Ok(#(num, state))
+    False -> Error("ValType mismatch")
+  }
+}
+
+pub fn pop_ref(state: ValidationState) {
+  use #(num, state) <- result.try(
+    pop_val(state)
+    |> result.replace_error("Stack underflow"),
+  )
+  case is_ref(num) {
+    True -> Ok(#(num, state))
+    False -> Error("ValType mismatch")
+  }
+}
+
+pub fn push_vals(state: ValidationState, vals: FingerTree(ValType)) {
+  let #(ctx, stacks) = state
+  #(
+    ctx,
+    Stacks(..stacks, val_stack: stacks.val_stack |> finger_tree.append(vals)),
+  )
+}
+
+pub fn pop_vals(state: ValidationState, expected: FingerTree(ValType)) {
+  do_pop_vals(state, expected, finger_tree.new())
+}
+
+fn do_pop_vals(
+  state: ValidationState,
+  expected: FingerTree(ValType),
+  acc: FingerTree(ValType),
+) {
+  case expected |> finger_tree.pop {
+    Error(_) -> Ok(#(acc, state))
+    Ok(#(expected, rest_expected)) ->
+      case pop_val(state) {
+        Ok(#(actual, new_state)) -> {
+          case match_val_type(state, actual, expected) {
+            Ok(_) ->
+              do_pop_vals(
+                new_state,
+                rest_expected,
+                acc |> finger_tree.push(actual),
+              )
+            Error(_) -> Error("ValType mismatch")
+          }
+        }
+        Error(_) -> Error("Stack underflow")
+      }
+  }
+}
+
+pub fn get_local(state: ValidationState, idx: LocalIDX) {
+  let idx = idx |> unwrap_local_idx
+  use val <- result.map({ state.0 }.locals |> finger_tree.get(idx))
+  #(val, state)
+}
+
+pub fn set_local(state: ValidationState, idx: LocalIDX, val: LocalType) {
+  let idx = idx |> unwrap_local_idx
+  use locals <- result.map({ state.0 }.locals |> finger_tree.set(idx, val))
+  #(Context(..state.0, locals: locals), state.1)
+}
+
+pub fn reset_locals(state: ValidationState, height: Int) {
+  #(
+    Context(
+      ..state.0,
+      locals: { state.0 }.locals
+        |> finger_tree.map_index(fn(v, idx) {
+          case idx >= height {
+            True -> LocalType(False, v.t)
+            False -> v
+          }
+        }),
+    ),
+    state.1,
+  )
+}
+
+pub fn push_ctrl(
+  state: ValidationState,
+  opcode: Instruction,
+  in: FingerTree(ValType),
+  out: FingerTree(ValType),
+) {
+  let frame =
+    CtrlFrame(
+      opcode: opcode,
+      start_types: in,
+      end_types: out,
+      val_height: { state.1 }.val_stack |> finger_tree.size,
+      init_height: { state.1 }.init_stack |> finger_tree.size,
+      unreachable: False,
+    )
+
+  let #(ctx, stacks) = state
+  #(
+    ctx,
+    Stacks(..stacks, ctrl_stack: stacks.ctrl_stack |> finger_tree.push(frame)),
+  )
+}
+
+pub fn pop_ctrl(state: ValidationState) {
+  let #(ctx, stacks) = state
+  use #(frame, new_ctrl_stack) <- result.try(
+    stacks.ctrl_stack
+    |> finger_tree.pop
+    |> result.replace_error("Stack underflow"),
+  )
+  let state = #(ctx, Stacks(..stacks, ctrl_stack: new_ctrl_stack))
+  use #(_, state) <- result.try(state |> pop_vals(frame.end_types))
+  case { state.1 }.val_stack |> finger_tree.size == frame.init_height {
+    False -> Error("Stack underflow")
+    True -> Ok(reset_locals(state, frame.init_height))
+  }
+}
+
+pub fn label_types(frame: CtrlFrame) {
+  case frame.opcode {
+    Loop(_, _) -> frame.start_types
+    _ -> frame.end_types
+  }
+}
+
+pub fn unreachable(state: ValidationState) {
+  let #(ctx, stacks) = state
+  use #(last_frame, new_ctrl_stack) <- result.try(
+    stacks.ctrl_stack
+    |> finger_tree.pop
+    |> result.replace_error("Stack underflow"),
+  )
+  use #(new_val_stack, _) <- result.map(
+    stacks.val_stack
+    |> finger_tree.take(last_frame.val_height)
+    |> result.replace_error("Stack underflow"),
+  )
+  #(
+    ctx,
+    Stacks(
+      ..stacks,
+      val_stack: new_val_stack |> finger_tree.from_list,
+      ctrl_stack: new_ctrl_stack
+        |> finger_tree.push(CtrlFrame(..last_frame, unreachable: True)),
+    ),
+  )
+}
+
+pub fn match_vec(
+  state: ValidationState,
+  actual: FingerTree(u),
+  expected: FingerTree(u),
+  f: fn(ValidationState, u, u) -> Result(Nil, String),
+) {
+  case actual |> finger_tree.size, expected |> finger_tree.size {
+    a, b if a == b -> do_match_vec(state, actual, expected, f)
+    _, _ -> Error("Vector size mismatch")
+  }
+}
+
+fn do_match_vec(
+  state: ValidationState,
+  actual: FingerTree(u),
+  expected: FingerTree(u),
+  f: fn(ValidationState, u, u) -> Result(Nil, String),
+) {
+  case actual |> finger_tree.shift, expected |> finger_tree.shift {
+    Error(Nil), Error(Nil) -> Ok(Nil)
+    Ok(#(actual_val, new_actual)), Ok(#(expected_val, new_expected)) ->
+      case f(state, actual_val, expected_val) {
+        Ok(Nil) -> do_match_vec(state, new_actual, new_expected, f)
+        Error(_) -> Error("Vector element mismatch")
+      }
+    _, _ -> Error("Vector element mismatch")
+  }
+}
+
+pub fn match_val_type(
+  state: ValidationState,
+  actual: ValType,
+  expected: ValType,
+) {
+  case actual, expected {
+    RefTypeValType(rt1), RefTypeValType(rt2) -> match_ref_type(state, rt1, rt2)
+    a, b if a == b -> Ok(Nil)
+    BotValType, _ -> Ok(Nil)
+    _, _ -> Error("ValType mismatch")
+  }
+}
+
+fn normalize_ref_type(rt: RefType) {
+  case rt {
+    HeapTypeRefType(ht, null) -> HeapTypeRefType(ht, null)
+    AnyRefType -> HeapTypeRefType(AnyHeapType, True)
+    EqRefType -> HeapTypeRefType(EqHeapType, True)
+    I31RefType -> HeapTypeRefType(I31HeapType, True)
+    StructRefType -> HeapTypeRefType(StructHeapType, True)
+    ArrayRefType -> HeapTypeRefType(ArrayHeapType, True)
+    FuncRefType -> HeapTypeRefType(FuncHeapType, True)
+    ExternRefType -> HeapTypeRefType(ExternHeapType, True)
+    NoneRefType -> HeapTypeRefType(NoneHeapType, True)
+    NoFuncRefType -> HeapTypeRefType(NoFuncHeapType, True)
+    NoExternRefType -> HeapTypeRefType(NoExternHeapType, True)
+  }
+}
+
+pub fn match_ref_type(
+  state: ValidationState,
+  actual: RefType,
+  expected: RefType,
+) {
+  case actual |> normalize_ref_type, expected |> normalize_ref_type {
+    HeapTypeRefType(ht1, False), HeapTypeRefType(ht2, _)
+    | HeapTypeRefType(ht1, _), HeapTypeRefType(ht2, True)
+    -> match_heap_type(state, ht1, ht2)
+    _, _ -> Error("RefType mismatch")
+  }
+}
+
+pub fn match_heap_type(
+  state: ValidationState,
+  actual: HeapType,
+  expected: HeapType,
+) {
+  case actual, expected {
+    a, b if a == b -> Ok(Nil)
+    NoExternHeapType, NoExternHeapType | NoExternHeapType, ExternHeapType ->
+      Ok(Nil)
+    NoFuncHeapType, NoFuncHeapType | NoFuncHeapType, FuncHeapType -> Ok(Nil)
+    NoFuncHeapType, ConcreteHeapType(idx) -> {
+      let #(ctx, _) = state
+      use dt <- result.try(
+        ctx.types |> finger_tree.get(idx |> types.unwrap_type_idx),
+      )
+      case def_type_expand(dt) {
+        Ok(FuncCompositeType(_)) -> Ok(Nil)
+        _ -> Error("HeapType mismatch")
+      }
+    }
+    NoFuncHeapType, DefTypeHeapType(dt) -> {
+      case def_type_expand(dt) {
+        Ok(FuncCompositeType(_)) -> Ok(Nil)
+        _ -> Error("HeapType mismatch")
+      }
+    }
+    ConcreteHeapType(idx1), ConcreteHeapType(idx2) -> {
+      let #(ctx, _) = state
+      use dt1 <- result.try(
+        ctx.types |> finger_tree.get(idx1 |> types.unwrap_type_idx),
+      )
+      use dt2 <- result.try(
+        ctx.types |> finger_tree.get(idx2 |> types.unwrap_type_idx),
+      )
+      case def_type_expand(dt1), def_type_expand(dt2) {
+        Ok(FuncCompositeType(ft1)), Ok(FuncCompositeType(ft2)) ->
+          match_func_type(state, ft1, ft2)
+        Ok(StructCompositeType(st1)), Ok(StructCompositeType(st2)) ->
+          match_struct_type(state, st1, st2)
+        Ok(ArrayCompositeType(at1)), Ok(ArrayCompositeType(at2)) ->
+          match_array_type(state, at1, at2)
+        _, _ -> Error("HeapType mismatch")
+      }
+    }
+    DefTypeHeapType(dt1), ConcreteHeapType(idx2) -> {
+      let #(ctx, _) = state
+      use dt2 <- result.try(
+        ctx.types |> finger_tree.get(idx2 |> types.unwrap_type_idx),
+      )
+      case def_type_expand(dt1), def_type_expand(dt2) {
+        Ok(FuncCompositeType(ft1)), Ok(FuncCompositeType(ft2)) ->
+          match_func_type(state, ft1, ft2)
+        Ok(StructCompositeType(st1)), Ok(StructCompositeType(st2)) ->
+          match_struct_type(state, st1, st2)
+        Ok(ArrayCompositeType(at1)), Ok(ArrayCompositeType(at2)) ->
+          match_array_type(state, at1, at2)
+        _, _ -> Error("HeapType mismatch")
+      }
+    }
+    ConcreteHeapType(idx1), DefTypeHeapType(dt2) -> {
+      let #(ctx, _) = state
+      use dt1 <- result.try(
+        ctx.types |> finger_tree.get(idx1 |> types.unwrap_type_idx),
+      )
+      case def_type_expand(dt1), def_type_expand(dt2) {
+        Ok(FuncCompositeType(ft1)), Ok(FuncCompositeType(ft2)) ->
+          match_func_type(state, ft1, ft2)
+        Ok(StructCompositeType(st1)), Ok(StructCompositeType(st2)) ->
+          match_struct_type(state, st1, st2)
+        Ok(ArrayCompositeType(at1)), Ok(ArrayCompositeType(at2)) ->
+          match_array_type(state, at1, at2)
+        _, _ -> Error("HeapType mismatch")
+      }
+    }
+    DefTypeHeapType(dt1), DefTypeHeapType(dt2) -> {
+      case def_type_expand(dt1), def_type_expand(dt2) {
+        Ok(FuncCompositeType(ft1)), Ok(FuncCompositeType(ft2)) ->
+          match_func_type(state, ft1, ft2)
+        Ok(StructCompositeType(st1)), Ok(StructCompositeType(st2)) ->
+          match_struct_type(state, st1, st2)
+        Ok(ArrayCompositeType(at1)), Ok(ArrayCompositeType(at2)) ->
+          match_array_type(state, at1, at2)
+        _, _ -> Error("HeapType mismatch")
+      }
+    }
+    ConcreteHeapType(idx), b -> {
+      let #(ctx, _) = state
+      use dt <- result.try(
+        ctx.types |> finger_tree.get(idx |> types.unwrap_type_idx),
+      )
+      case def_type_expand(dt), b {
+        Ok(ArrayCompositeType(_)), ArrayHeapType
+        | Ok(ArrayCompositeType(_)), EqHeapType
+        | Ok(ArrayCompositeType(_)), AnyHeapType
+        | Ok(StructCompositeType(_)), StructHeapType
+        | Ok(StructCompositeType(_)), EqHeapType
+        | Ok(StructCompositeType(_)), AnyHeapType
+        | Ok(FuncCompositeType(_)), FuncHeapType
+        -> Ok(Nil)
+        _, _ -> Error("HeapType mismatch")
+      }
+    }
+    NoneHeapType, ArrayHeapType
+    | NoneHeapType, StructHeapType
+    | NoneHeapType, I31HeapType
+    | NoneHeapType, EqHeapType
+    | NoneHeapType, AnyHeapType
+    | ArrayHeapType, EqHeapType
+    | ArrayHeapType, AnyHeapType
+    | StructHeapType, EqHeapType
+    | StructHeapType, AnyHeapType
+    | I31HeapType, EqHeapType
+    | I31HeapType, AnyHeapType
+    | EqHeapType, AnyHeapType
+    -> Ok(Nil)
+
+    _, _ -> Error("HeapType mismatch")
+  }
+}
+
+pub fn match_func_type(state: ValidationState, ft1: FuncType, ft2: FuncType) {
+  match_result_type(state, ft1.rt, ft2.rt)
+}
+
+pub fn match_result_type(
+  state: ValidationState,
+  rt1: ResultType,
+  rt2: ResultType,
+) {
+  use _ <- result.try(match_vec(
+    state,
+    rt1.parameters,
+    rt2.parameters,
+    match_val_type,
+  ))
+  match_vec(state, rt1.result, rt2.result, match_val_type)
+}
+
+pub fn match_struct_type(
+  state: ValidationState,
+  st1: StructType,
+  st2: StructType,
+) {
+  case st1.ft |> finger_tree.size, st2.ft |> finger_tree.size {
+    a, b if a >= b -> do_match_field_types(state, st1.ft, st2.ft)
+    _, _ -> Error("StructType mismatch")
+  }
+}
+
+fn do_match_field_types(
+  state: ValidationState,
+  ft1: FingerTree(FieldType),
+  ft2: FingerTree(FieldType),
+) {
+  case ft1 |> finger_tree.shift, ft2 |> finger_tree.shift {
+    Ok(#(ft1, next_ft1)), Ok(#(ft2, next_ft2)) ->
+      case match_field_type(state, ft1, ft2) {
+        Ok(_) -> do_match_field_types(state, next_ft1, next_ft2)
+        Error(_) -> Error("StructType mismatch")
+      }
+    Ok(_), _ -> Ok(Nil)
+    _, _ -> Error("StructType mismatch")
+  }
+}
+
+pub fn match_field_type(state: ValidationState, ft1: FieldType, ft2: FieldType) {
+  case ft1, ft2 {
+    FieldType(st1, Const), FieldType(st2, Const)
+    | FieldType(st1, Var), FieldType(st2, Var)
+    -> match_storage_type(state, st1, st2)
+    _, _ -> Error("FieldType mismatch")
+  }
+}
+
+pub fn match_storage_type(
+  state: ValidationState,
+  st1: StorageType,
+  st2: StorageType,
+) {
+  case st1, st2 {
+    a, b if a == b -> Ok(Nil)
+    ValTypeStorageType(vt1), ValTypeStorageType(vt2) ->
+      match_val_type(state, vt1, vt2)
+    _, _ -> Error("StorageType mismatch")
+  }
+}
+
+pub fn match_array_type(state: ValidationState, at1: ArrayType, at2: ArrayType) {
+  let ArrayType(ft1) = at1
+  let ArrayType(ft2) = at2
+  match_field_type(state, ft1, ft2)
 }

@@ -22,11 +22,11 @@ import internal/structure/types.{
   AnyHeapType, AnyRefType, ArrayCompositeType, ArrayCopy, ArrayFill, ArrayGet,
   ArrayGetS, ArrayGetU, ArrayHeapType, ArrayInitData, ArrayInitElem, ArrayLen,
   ArrayNew, ArrayNewData, ArrayNewDefault, ArrayNewElem, ArrayNewFixed,
-  ArrayRefType, ArraySet, ArrayType, Block, Br, BrIf, BrOnCast, BrOnCastFail,
-  BrOnNonNull, BrOnNull, BrTable, Call, CallIndirect, CallRef, ConcreteHeapType,
-  Const, DataDrop, DataIDX, Drop, ElemDrop, ElemIDX, Else, End, EqHeapType,
-  EqRefType, ExternConvertAny, ExternHeapType, ExternRefType, F32Abs, F32Add,
-  F32Ceil, F32Const, F32ConvertI32S, F32ConvertI32U, F32ConvertI64S,
+  ArrayRefType, ArraySet, ArrayType, Block, BotValType, Br, BrIf, BrOnCast,
+  BrOnCastFail, BrOnNonNull, BrOnNull, BrTable, Call, CallIndirect, CallRef,
+  ConcreteHeapType, Const, DataDrop, DataIDX, Drop, ElemDrop, ElemIDX, Else, End,
+  EqHeapType, EqRefType, ExternConvertAny, ExternHeapType, ExternRefType, F32Abs,
+  F32Add, F32Ceil, F32Const, F32ConvertI32S, F32ConvertI32U, F32ConvertI64S,
   F32ConvertI64U, F32Copysign, F32DemoteF64, F32Div, F32Eq, F32Floor, F32Ge,
   F32Gt, F32Le, F32Load, F32Lt, F32Max, F32Min, F32Mul, F32Ne, F32Nearest,
   F32Neg, F32ReinterpretI32, F32Sqrt, F32Store, F32Sub, F32Trunc, F32ValType,
@@ -264,6 +264,7 @@ pub fn encode_val_type(builder: BytesBuilder, val_type: ValType) {
     F64ValType -> Ok(builder |> bytes_builder.append(<<0x7C>>))
     V128ValType -> Ok(builder |> bytes_builder.append(<<0x7B>>))
     RefTypeValType(rt) -> encode_ref_type(builder, rt)
+    BotValType -> Error("Cannot encode BotValType")
   }
 }
 

@@ -1,5 +1,6 @@
 import gleam/list
 import gleam/order.{type Order}
+import gleam/result
 
 type Digits(u) {
   None
@@ -424,5 +425,97 @@ fn do_take(
         Error(_) -> Error("Not enough items")
       }
     }
+  }
+}
+
+pub fn get(tree: FingerTree(v), n: Int) -> Result(v, String) {
+  do_get(tree, n)
+  |> result.replace_error("Invalid index")
+}
+
+fn do_get(tree: FingerTree(v), n: Int) {
+  case tree, n {
+    _, n if n < 0 -> Error(0)
+    Empty, _ -> Error(0)
+    Single(v), n if n == 1 -> Ok(v)
+    Single(_), _ -> Error(1)
+    Deep(s, _, _, _), n if n >= s -> Error(s)
+    Deep(_, l, t, r), n -> {
+      use count_l <- result.try_recover(do_get_digits(l, n))
+      use count_t <- result.try_recover(do_get(t, n - count_l))
+      use count_r <- result.try_recover(do_get_digits(r, n - count_l - count_t))
+      Error(count_l + count_t + count_r)
+    }
+  }
+}
+
+fn do_get_digits(digits: Digits(v), n: Int) {
+  case digits, n {
+    _, n if n < 0 -> Error(0)
+    None, _ -> Error(0)
+    One(v), 0 -> Ok(v)
+    One(_), _ -> Error(1)
+    Two(v1, _), 0 -> Ok(v1)
+    Two(_, v2), 1 -> Ok(v2)
+    Two(_, _), _ -> Error(2)
+    Three(v1, _, _), 0 -> Ok(v1)
+    Three(_, v2, _), 1 -> Ok(v2)
+    Three(_, _, v3), 2 -> Ok(v3)
+    Three(_, _, _), _ -> Error(3)
+    Four(v1, _, _, _), 0 -> Ok(v1)
+    Four(_, v2, _, _), 1 -> Ok(v2)
+    Four(_, _, v3, _), 2 -> Ok(v3)
+    Four(_, _, _, v4), 3 -> Ok(v4)
+    Four(_, _, _, _), _ -> Error(4)
+  }
+}
+
+pub fn set(tree: FingerTree(v), n: Int, v: v) -> Result(FingerTree(v), String) {
+  do_set(tree, n, v)
+  |> result.replace_error("Invalid index")
+}
+
+fn do_set(tree: FingerTree(v), n: Int, v: v) {
+  case tree, n {
+    _, n if n < 0 -> Error(0)
+    Empty, _ -> Error(0)
+    Single(_), 0 -> Ok(Single(v))
+    Single(_), _ -> Error(1)
+    Deep(s, _, _, _), n if n >= s -> Error(s)
+    Deep(s, l, t, r), n -> {
+      case do_set_digits(l, n, v) {
+        Ok(l) -> Ok(Deep(s, l, t, r))
+        Error(count_l) ->
+          case do_set(t, n - count_l, v) {
+            Ok(t) -> Ok(Deep(s, l, t, r))
+            Error(count_t) ->
+              case do_set_digits(r, n - count_l - count_t, v) {
+                Ok(r) -> Ok(Deep(s, l, t, r))
+                Error(count_r) -> Error(count_l + count_t + count_r)
+              }
+          }
+      }
+    }
+  }
+}
+
+fn do_set_digits(digits: Digits(v), n: Int, v: v) {
+  case digits, n {
+    _, n if n < 0 -> Error(0)
+    None, _ -> Error(0)
+    One(_), 0 -> Ok(One(v))
+    One(_), _ -> Error(1)
+    Two(_, v1), 0 -> Ok(Two(v, v1))
+    Two(v1, _), 1 -> Ok(Two(v1, v))
+    Two(_, _), _ -> Error(2)
+    Three(_, v1, v2), 0 -> Ok(Three(v, v1, v2))
+    Three(v1, _, v2), 1 -> Ok(Three(v1, v, v2))
+    Three(v1, v2, _), 2 -> Ok(Three(v1, v2, v))
+    Three(_, _, _), _ -> Error(3)
+    Four(_, v1, v2, v3), 0 -> Ok(Four(v, v1, v2, v3))
+    Four(v1, _, v2, v3), 1 -> Ok(Four(v1, v, v2, v3))
+    Four(v1, v2, _, v3), 2 -> Ok(Four(v1, v2, v, v3))
+    Four(v1, v2, v3, _), 3 -> Ok(Four(v1, v2, v3, v))
+    Four(_, _, _, _), _ -> Error(4)
   }
 }

@@ -21,35 +21,49 @@ import internal/structure/types.{
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#contexts
 pub type Context {
   Context(
+    return_type: FingerTree(ValType),
     types: FingerTree(DefType),
-    funcs: FingerTree(DefType),
+    locals: FingerTree(LocalType),
+    globals: FingerTree(GlobalType),
+    funcs: FingerTree(FuncType),
     tables: FingerTree(TableType),
     mems: FingerTree(MemType),
-    globals: FingerTree(GlobalType),
-    elems: FingerTree(RefType),
-    datas: FingerTree(Bool),
-    locals: FingerTree(LocalType),
-    labels: FingerTree(ResultType),
-    return: Option(ResultType),
-    refs: FingerTree(FuncIDX),
   )
 }
 
 pub fn new_context() -> Context {
   Context(
+    return_type: finger_tree.new(),
     types: finger_tree.new(),
+    locals: finger_tree.new(),
+    globals: finger_tree.new(),
     funcs: finger_tree.new(),
     tables: finger_tree.new(),
     mems: finger_tree.new(),
-    globals: finger_tree.new(),
-    elems: finger_tree.new(),
-    datas: finger_tree.new(),
-    locals: finger_tree.new(),
-    labels: finger_tree.new(),
-    return: None,
-    refs: finger_tree.new(),
   )
 }
+
+pub type CtrlFrame {
+  CtrlFrame(
+    opcode: Instruction,
+    start_types: FingerTree(ValType),
+    end_types: FingerTree(ValType),
+    val_height: Int,
+    init_height: Int,
+    unreachable: Bool,
+  )
+}
+
+pub type Stacks {
+  Stacks(
+    val_stack: FingerTree(ValType),
+    init_stack: FingerTree(Int),
+    ctrl_stack: FingerTree(CtrlFrame),
+  )
+}
+
+pub type ValidationState =
+  #(Context, Stacks)
 
 pub fn ref_type_difference(rt1: RefType, rt2: RefType) {
   case rt2 {

@@ -97,6 +97,7 @@ pub type HeapType {
   ArrayHeapType
   NoneHeapType
   ConcreteHeapType(idx: TypeIDX)
+  DefTypeHeapType(dt: DefType)
   BotHeapType
 }
 
@@ -171,6 +172,7 @@ pub type ValType {
   F32ValType
   F64ValType
   RefTypeValType(rt: RefType)
+  BotValType
 }
 
 /// Please see: https://webassembly.github.io/gc/core/binary/instructions.html#control-instructions
@@ -1863,4 +1865,12 @@ pub fn data_count_section(mod: Module, count: U32) {
         ),
       )
   }
+}
+
+pub fn unwrap_local_idx(idx: LocalIDX) {
+  idx.id |> numbers.unwrap_u32
+}
+
+pub fn unwrap_type_idx(idx: TypeIDX) {
+  idx.id |> numbers.unwrap_u32
 }

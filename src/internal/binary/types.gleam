@@ -1,3 +1,4 @@
+import builder/memory
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/option.{None, Some}
 import gleam/result
@@ -13,39 +14,40 @@ import internal/structure/numbers.{
 }
 import internal/structure/types.{
   type ArrayType, type BlockType, type CompositeType, type DataIDX, type ElemIDX,
-  type FieldIDX, type FieldType, type FuncIDX, type FuncType, type GlobalIDX,
-  type GlobalType, type HeapType, type Instruction, type LabelIDX,
-  type LaneIDX16, type LaneIDX2, type LaneIDX4, type LaneIDX8, type Limits,
-  type LocalIDX, type MemArg, type MemType, type Mut, type RecType, type RefType,
-  type ResultType, type StorageType, type StructType, type SubType,
-  type TableIDX, type TableType, type TypeIDX, type ValType, AnyConvertExtern,
-  AnyHeapType, AnyRefType, ArrayCompositeType, ArrayCopy, ArrayFill, ArrayGet,
-  ArrayGetS, ArrayGetU, ArrayHeapType, ArrayInitData, ArrayInitElem, ArrayLen,
-  ArrayNew, ArrayNewData, ArrayNewDefault, ArrayNewElem, ArrayNewFixed,
-  ArrayRefType, ArraySet, ArrayType, Block, BotValType, Br, BrIf, BrOnCast,
-  BrOnCastFail, BrOnNonNull, BrOnNull, BrTable, Call, CallIndirect, CallRef,
-  ConcreteHeapType, Const, DataDrop, DataIDX, Drop, ElemDrop, ElemIDX, Else, End,
-  EqHeapType, EqRefType, ExternConvertAny, ExternHeapType, ExternRefType, F32Abs,
-  F32Add, F32Ceil, F32Const, F32ConvertI32S, F32ConvertI32U, F32ConvertI64S,
-  F32ConvertI64U, F32Copysign, F32DemoteF64, F32Div, F32Eq, F32Floor, F32Ge,
-  F32Gt, F32Le, F32Load, F32Lt, F32Max, F32Min, F32Mul, F32Ne, F32Nearest,
-  F32Neg, F32ReinterpretI32, F32Sqrt, F32Store, F32Sub, F32Trunc, F32ValType,
-  F32x4Abs, F32x4Add, F32x4Ceil, F32x4ConvertI32x4S, F32x4ConvertI32x4U,
-  F32x4DemoteF64x2Zero, F32x4Div, F32x4Eq, F32x4ExtractLane, F32x4Floor, F32x4Ge,
-  F32x4Gt, F32x4Le, F32x4Lt, F32x4Max, F32x4Min, F32x4Mul, F32x4Ne, F32x4Nearest,
-  F32x4Neg, F32x4Pmax, F32x4Pmin, F32x4ReplaceLane, F32x4Splat, F32x4Sqrt,
-  F32x4Sub, F32x4Trunc, F64Abs, F64Add, F64Ceil, F64Const, F64ConvertI32S,
-  F64ConvertI32U, F64ConvertI64S, F64ConvertI64U, F64Copysign, F64Div, F64Eq,
-  F64Floor, F64Ge, F64Gt, F64Le, F64Load, F64Lt, F64Max, F64Min, F64Mul, F64Ne,
-  F64Nearest, F64Neg, F64PromoteF32, F64ReinterpretI64, F64Sqrt, F64Store,
-  F64Sub, F64Trunc, F64ValType, F64x2Abs, F64x2Add, F64x2Ceil,
-  F64x2ConvertLowI32x4S, F64x2ConvertLowI32x4U, F64x2Div, F64x2Eq,
-  F64x2ExtractLane, F64x2Floor, F64x2Ge, F64x2Gt, F64x2Le, F64x2Lt, F64x2Max,
-  F64x2Min, F64x2Mul, F64x2Ne, F64x2Nearest, F64x2Neg, F64x2Pmax, F64x2Pmin,
-  F64x2PromoteLowF32x4, F64x2ReplaceLane, F64x2Splat, F64x2Sqrt, F64x2Sub,
-  F64x2Trunc, FieldIDX, FieldType, FuncCompositeType, FuncHeapType, FuncIDX,
-  FuncRefType, FuncType, FuncTypeBlockType, GlobalGet, GlobalIDX, GlobalSet,
-  GlobalType, HeapTypeRefType, I16StorageType, I16x8Abs, I16x8Add, I16x8AddSatS,
+  type Expr, type FieldIDX, type FieldType, type FuncIDX, type FuncType,
+  type GlobalIDX, type GlobalType, type HeapType, type Instruction,
+  type LabelIDX, type LaneIDX16, type LaneIDX2, type LaneIDX4, type LaneIDX8,
+  type Limits, type LocalIDX, type MemArg, type MemIDX, type MemType, type Mut,
+  type RecType, type RefType, type ResultType, type StorageType, type StructType,
+  type SubType, type TableIDX, type TableType, type TypeIDX, type ValType,
+  AnyConvertExtern, AnyHeapType, AnyRefType, ArrayCompositeType, ArrayCopy,
+  ArrayFill, ArrayGet, ArrayGetS, ArrayGetU, ArrayHeapType, ArrayInitData,
+  ArrayInitElem, ArrayLen, ArrayNew, ArrayNewData, ArrayNewDefault, ArrayNewElem,
+  ArrayNewFixed, ArrayRefType, ArraySet, ArrayType, Block, BotValType, Br, BrIf,
+  BrOnCast, BrOnCastFail, BrOnNonNull, BrOnNull, BrTable, Call, CallIndirect,
+  CallRef, ConcreteHeapType, Const, DataDrop, DataIDX, Drop, ElemDrop, ElemIDX,
+  Else, End, EqHeapType, EqRefType, Expr, ExternConvertAny, ExternHeapType,
+  ExternRefType, F32Abs, F32Add, F32Ceil, F32Const, F32ConvertI32S,
+  F32ConvertI32U, F32ConvertI64S, F32ConvertI64U, F32Copysign, F32DemoteF64,
+  F32Div, F32Eq, F32Floor, F32Ge, F32Gt, F32Le, F32Load, F32Lt, F32Max, F32Min,
+  F32Mul, F32Ne, F32Nearest, F32Neg, F32ReinterpretI32, F32Sqrt, F32Store,
+  F32Sub, F32Trunc, F32ValType, F32x4Abs, F32x4Add, F32x4Ceil,
+  F32x4ConvertI32x4S, F32x4ConvertI32x4U, F32x4DemoteF64x2Zero, F32x4Div,
+  F32x4Eq, F32x4ExtractLane, F32x4Floor, F32x4Ge, F32x4Gt, F32x4Le, F32x4Lt,
+  F32x4Max, F32x4Min, F32x4Mul, F32x4Ne, F32x4Nearest, F32x4Neg, F32x4Pmax,
+  F32x4Pmin, F32x4ReplaceLane, F32x4Splat, F32x4Sqrt, F32x4Sub, F32x4Trunc,
+  F64Abs, F64Add, F64Ceil, F64Const, F64ConvertI32S, F64ConvertI32U,
+  F64ConvertI64S, F64ConvertI64U, F64Copysign, F64Div, F64Eq, F64Floor, F64Ge,
+  F64Gt, F64Le, F64Load, F64Lt, F64Max, F64Min, F64Mul, F64Ne, F64Nearest,
+  F64Neg, F64PromoteF32, F64ReinterpretI64, F64Sqrt, F64Store, F64Sub, F64Trunc,
+  F64ValType, F64x2Abs, F64x2Add, F64x2Ceil, F64x2ConvertLowI32x4S,
+  F64x2ConvertLowI32x4U, F64x2Div, F64x2Eq, F64x2ExtractLane, F64x2Floor,
+  F64x2Ge, F64x2Gt, F64x2Le, F64x2Lt, F64x2Max, F64x2Min, F64x2Mul, F64x2Ne,
+  F64x2Nearest, F64x2Neg, F64x2Pmax, F64x2Pmin, F64x2PromoteLowF32x4,
+  F64x2ReplaceLane, F64x2Splat, F64x2Sqrt, F64x2Sub, F64x2Trunc, FieldIDX,
+  FieldType, FuncCompositeType, FuncHeapType, FuncIDX, FuncRefType, FuncType,
+  FuncTypeBlockType, GlobalGet, GlobalIDX, GlobalSet, GlobalType,
+  HeapTypeRefType, I16StorageType, I16x8Abs, I16x8Add, I16x8AddSatS,
   I16x8AddSatU, I16x8AllTrue, I16x8AvgrU, I16x8Bitmask, I16x8Eq,
   I16x8ExtaddPairwiseI8x16S, I16x8ExtaddPairwiseI8x16U, I16x8ExtendHighI8x16S,
   I16x8ExtendHighI8x16U, I16x8ExtendLowI8x16S, I16x8ExtendLowI8x16U,
@@ -92,7 +94,7 @@ import internal/structure/types.{
   I8x16MinS, I8x16MinU, I8x16NarrowI16x8S, I8x16NarrowI16x8U, I8x16Ne, I8x16Neg,
   I8x16Popcnt, I8x16ReplaceLane, I8x16Shl, I8x16ShrS, I8x16ShrU, I8x16Shuffle,
   I8x16Splat, I8x16Sub, I8x16SubSatS, I8x16SubSatU, I8x16Swizzle, If, LabelIDX,
-  Limits, LocalGet, LocalIDX, LocalSet, LocalTee, Loop, MemArg, MemType,
+  Limits, LocalGet, LocalIDX, LocalSet, LocalTee, Loop, MemArg, MemIDX, MemType,
   MemoryCopy, MemoryFill, MemoryGrow, MemoryInit, MemorySize, NoExternHeapType,
   NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, Nop,
   RecType, RefAsNonNull, RefCast, RefEq, RefFunc, RefI31, RefIsNull, RefNull,
@@ -490,6 +492,15 @@ pub fn encode_type_idx(builder: BytesBuilder, type_idx: TypeIDX) {
   Ok(builder |> encode_u32(type_idx.id))
 }
 
+pub fn encode_mem_idx(builder: BytesBuilder, mem_idx: MemIDX) {
+  Ok(builder |> encode_u32(mem_idx.id))
+}
+
+pub fn decode_mem_idx(bits: BitArray) {
+  use #(idx, rest) <- result.map(decode_u32(bits))
+  #(MemIDX(idx), rest)
+}
+
 pub fn decode_local_idx(bits: BitArray) {
   use #(idx, rest) <- result.map(decode_u32(bits))
   #(LocalIDX(idx), rest)
@@ -584,6 +595,11 @@ pub fn decode_global_type(rest: BitArray) {
   #(GlobalType(vt, mutability), rest)
 }
 
+pub fn encode_global_type(builder: BytesBuilder, global_type: GlobalType) {
+  use builder <- result.try(builder |> encode_val_type(global_type.vt))
+  builder |> encode_mut(global_type.mut)
+}
+
 pub fn decode_block_type(bits: BitArray) {
   case bits {
     <<0x40, rest:bits>> -> Ok(#(VoidBlockType, rest))
@@ -619,7 +635,7 @@ pub fn decode_expression(bits: BitArray) {
 
 fn do_decode_expression(bits: BitArray, acc: FingerTree(Instruction)) {
   case decode_instruction(bits) {
-    Ok(#(End, rest)) -> Ok(#(acc, rest))
+    Ok(#(End, rest)) -> Ok(#(Expr(acc), rest))
     Ok(#(Else, _)) -> Error("Invalid Else nesting")
     Ok(#(If(block_type, _, _), rest)) -> {
       use #(if_, rest) <- result.map(do_decode_if(
@@ -627,7 +643,7 @@ fn do_decode_expression(bits: BitArray, acc: FingerTree(Instruction)) {
         block_type,
         finger_tree.new(),
       ))
-      #(acc |> finger_tree.push(if_), rest)
+      #(Expr(acc |> finger_tree.push(if_)), rest)
     }
     Ok(#(t1, rest)) -> do_decode_expression(rest, acc |> finger_tree.push(t1))
     _ -> Error("Invalid expression")
@@ -640,7 +656,7 @@ fn do_decode_if(
   t: FingerTree(Instruction),
 ) {
   case decode_instruction(bits) {
-    Ok(#(End, rest)) -> Ok(#(If(block_type, t, None), rest))
+    Ok(#(End, rest)) -> Ok(#(If(block_type, Expr(t), None), rest))
     Ok(#(Else, rest)) -> do_decode_else(rest, block_type, t, finger_tree.new())
     Ok(#(t1, rest)) -> do_decode_if(rest, block_type, t |> finger_tree.push(t1))
     Error(e) -> Error(e)
@@ -654,7 +670,7 @@ fn do_decode_else(
   e: FingerTree(Instruction),
 ) {
   case decode_instruction(bits) {
-    Ok(#(End, rest)) -> Ok(#(If(block_type, t, Some(e)), rest))
+    Ok(#(End, rest)) -> Ok(#(If(block_type, Expr(t), Some(Expr(e))), rest))
     Ok(#(Else, _)) -> Error("Invalid Else nesting")
     Ok(#(t1, rest)) ->
       do_decode_else(rest, block_type, t, e |> finger_tree.push(t1))
@@ -1670,9 +1686,9 @@ fn decode_instruction(bits: BitArray) {
 
 pub fn encode_expression(
   builder: BytesBuilder,
-  expr: FingerTree(Instruction),
+  expr: Expr,
 ) -> Result(BytesBuilder, String) {
-  do_encode_expression(builder, expr)
+  do_encode_expression(builder, expr.insts)
 }
 
 fn do_encode_expression(

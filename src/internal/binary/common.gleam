@@ -1,5 +1,7 @@
 import gleam/bytes_builder.{type BytesBuilder}
+import gleam/option.{type Option, None, Some}
 import gleam/result
+import gleam/string
 import internal/binary/values.{decode_u32, encode_u32}
 import internal/finger_tree.{type FingerTree}
 import internal/structure/numbers.{u32, unwrap_u32}
@@ -50,4 +52,32 @@ fn do_decode_vec(
       do_decode_vec(rest, size - 1, acc |> finger_tree.push(val), decode_fn)
     }
   }
+}
+
+pub fn encode_option(
+  builder: BytesBuilder,
+  val: Option(u),
+  encode_fn: fn(BytesBuilder, u) -> Result(BytesBuilder, String),
+) {
+  case val {
+    Some(u) -> encode_fn(builder, u)
+    None -> Ok(builder)
+  }
+}
+
+pub fn wrap_fold(f: fn(u, w) -> Result(u, v)) {
+  fn(acc: Result(u, v), next: w) {
+    case acc {
+      Ok(u) -> f(u, next)
+      Error(v) -> Error(v)
+    }
+  }
+}
+
+pub fn encode_string(builder: BytesBuilder, string: String) {
+  let size = string |> string.byte_size
+  use size <- result.map(size |> u32)
+  builder
+  |> encode_u32(size)
+  |> bytes_builder.append_string(string)
 }

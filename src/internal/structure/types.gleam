@@ -876,13 +876,9 @@ pub type Instruction {
   DataDrop(idx: DataIDX)
   Nop
   Unreachable
-  Block(bt: BlockType, instructions: FingerTree(Instruction))
-  Loop(bt: BlockType, instructions: FingerTree(Instruction))
-  If(
-    bt: BlockType,
-    instructions: FingerTree(Instruction),
-    else_instructions: Option(FingerTree(Instruction)),
-  )
+  Block(bt: BlockType, instructions: Expr)
+  Loop(bt: BlockType, instructions: Expr)
+  If(bt: BlockType, instructions: Expr, else_instructions: Option(Expr))
   Br(label: LabelIDX)
   BrIf(label: LabelIDX)
   BrTable(labels: FingerTree(LabelIDX), default: LabelIDX)
@@ -1533,9 +1529,9 @@ pub fn def_type_expand(dt: DefType) {
 
 pub type Import {
   FuncImport(mod: String, name: String, type_idx: TypeIDX)
-  TableImport(mod: String, name: String, type_idx: TableType)
-  MemImport(mod: String, name: String, type_idx: MemType)
-  GlobalImport(mod: String, name: String, type_idx: GlobalType)
+  TableImport(mod: String, name: String, table_type: TableType)
+  MemImport(mod: String, name: String, mem_type: MemType)
+  GlobalImport(mod: String, name: String, global_type: GlobalType)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
@@ -1550,7 +1546,7 @@ pub type Local {
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#tables
 pub type Table {
-  Table(type_: TableType, init: Expr)
+  Table(type_: TableType, init: Option(Expr))
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#memories
@@ -1649,222 +1645,6 @@ pub type Data {
     offset: Option(Expr),
     init: BitArray,
   )
-}
-
-pub opaque type Module {
-  Module(
-    has_type: Bool,
-    has_import: Bool,
-    has_func: Bool,
-    has_table: Bool,
-    has_mem: Bool,
-    has_global: Bool,
-    has_export: Bool,
-    has_start: Bool,
-    has_elem: Bool,
-    has_code: Bool,
-    has_data: Bool,
-    has_data_count: Bool,
-    sections: FingerTree(Section),
-  )
-}
-
-/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#modules
-pub type Section {
-  CustomSection(name: String, bytes: BitArray)
-  TypeSection(types: FingerTree(RecType))
-  ImportSection(imports: FingerTree(Import))
-  FuncSection(funcs: FingerTree(TypeIDX))
-  TableSection(tables: FingerTree(Table))
-  MemSection(mems: FingerTree(MemType))
-  GlobalSection(globals: FingerTree(Global))
-  ExportSection(exports: FingerTree(Export))
-  StartSection(start: Option(FuncIDX))
-  ElemSection(elems: FingerTree(Elem))
-  CodeSection(codes: FingerTree(Code))
-  DataSection(data: FingerTree(Data))
-  DataCountSection(count: U32)
-}
-
-pub fn module_new() {
-  Module(
-    has_type: False,
-    has_import: False,
-    has_func: False,
-    has_table: False,
-    has_mem: False,
-    has_global: False,
-    has_export: False,
-    has_start: False,
-    has_elem: False,
-    has_code: False,
-    has_data: False,
-    has_data_count: False,
-    sections: finger_tree.new(),
-  )
-}
-
-pub fn custom_section(mod: Module, name: String, bytes: BitArray) {
-  Module(
-    ..mod,
-    sections: mod.sections |> finger_tree.push(CustomSection(name, bytes)),
-  )
-}
-
-pub fn type_section(mod: Module, types: FingerTree(RecType)) {
-  case mod {
-    Module(has_type: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(TypeSection(types)),
-        ),
-      )
-  }
-}
-
-pub fn import_section(mod: Module, imports: FingerTree(Import)) {
-  case mod {
-    Module(has_import: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(ImportSection(imports)),
-        ),
-      )
-  }
-}
-
-pub fn func_section(mod: Module, funcs: FingerTree(TypeIDX)) {
-  case mod {
-    Module(has_func: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(FuncSection(funcs)),
-        ),
-      )
-  }
-}
-
-pub fn table_section(mod: Module, tables: FingerTree(Table)) {
-  case mod {
-    Module(has_table: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(TableSection(tables)),
-        ),
-      )
-  }
-}
-
-pub fn mem_section(mod: Module, mems: FingerTree(MemType)) {
-  case mod {
-    Module(has_mem: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(MemSection(mems)),
-        ),
-      )
-  }
-}
-
-pub fn global_section(mod: Module, globals: FingerTree(Global)) {
-  case mod {
-    Module(has_global: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(GlobalSection(globals)),
-        ),
-      )
-  }
-}
-
-pub fn export_section(mod: Module, exports: FingerTree(Export)) {
-  case mod {
-    Module(has_export: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(ExportSection(exports)),
-        ),
-      )
-  }
-}
-
-pub fn start_section(mod: Module, start: Option(FuncIDX)) {
-  case mod {
-    Module(has_start: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(StartSection(start)),
-        ),
-      )
-  }
-}
-
-pub fn elem_section(mod: Module, elems: FingerTree(Elem)) {
-  case mod {
-    Module(has_elem: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(ElemSection(elems)),
-        ),
-      )
-  }
-}
-
-pub fn code_section(mod: Module, codes: FingerTree(Code)) {
-  case mod {
-    Module(has_code: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(CodeSection(codes)),
-        ),
-      )
-  }
-}
-
-pub fn data_section(mod: Module, data: FingerTree(Data)) {
-  case mod {
-    Module(has_data: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(DataSection(data)),
-        ),
-      )
-  }
-}
-
-pub fn data_count_section(mod: Module, count: U32) {
-  case mod {
-    Module(has_data_count: True, ..) -> Error("Section already exists")
-    mod ->
-      Ok(
-        Module(
-          ..mod,
-          sections: mod.sections |> finger_tree.push(DataCountSection(count)),
-        ),
-      )
-  }
 }
 
 pub fn unwrap_local_idx(idx: LocalIDX) {

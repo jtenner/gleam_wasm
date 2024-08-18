@@ -335,6 +335,56 @@ fn filter_digit(acc: FingerTree(v), item: v, f: fn(v) -> Bool) -> FingerTree(v) 
   }
 }
 
+pub fn try_map(
+  tree: FingerTree(v),
+  f: fn(v) -> Result(u, String),
+) -> Result(FingerTree(u), String) {
+  case tree {
+    Empty -> Ok(Empty)
+    Single(v) -> {
+      use result <- result.map(f(v))
+      Single(result)
+    }
+    Deep(s, l, t, r) -> {
+      use l <- result.try(l |> try_map_digits(f))
+      use t <- result.try(t |> try_map(f))
+      use r <- result.map(r |> try_map_digits(f))
+      Deep(s, l, t, r)
+    }
+  }
+}
+
+fn try_map_digits(
+  digits: Digits(v),
+  f: fn(v) -> Result(u, String),
+) -> Result(Digits(u), String) {
+  case digits {
+    None -> Ok(None)
+    One(v) -> {
+      use v <- result.map(f(v))
+      One(v)
+    }
+    Two(v1, v2) -> {
+      use v1 <- result.try(f(v1))
+      use v2 <- result.map(f(v2))
+      Two(v1, v2)
+    }
+    Three(v1, v2, v3) -> {
+      use v1 <- result.try(f(v1))
+      use v2 <- result.try(f(v2))
+      use v3 <- result.map(f(v3))
+      Three(v1, v2, v3)
+    }
+    Four(v1, v2, v3, v4) -> {
+      use v1 <- result.try(f(v1))
+      use v2 <- result.try(f(v2))
+      use v3 <- result.try(f(v3))
+      use v4 <- result.map(f(v4))
+      Four(v1, v2, v3, v4)
+    }
+  }
+}
+
 pub fn map(tree: FingerTree(v), f: fn(v) -> u) -> FingerTree(u) {
   case tree {
     Empty -> Empty

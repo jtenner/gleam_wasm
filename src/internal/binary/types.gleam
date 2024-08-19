@@ -232,6 +232,7 @@ pub fn decode_ref_type(bits: BitArray) {
 
 pub fn encode_ref_type(builder: BytesBuilder, ref_type: RefType) {
   case ref_type {
+    // (ref null NoFunc)
     NoFuncRefType -> Ok(builder |> bytes_builder.append(<<0x73>>))
     NoExternRefType -> Ok(builder |> bytes_builder.append(<<0x72>>))
     NoneRefType -> Ok(builder |> bytes_builder.append(<<0x71>>))
@@ -417,7 +418,10 @@ pub fn encode_rec_type(builder: BytesBuilder, rec_type: RecType) {
       let assert Ok(#(st, _)) = rec_type.st |> finger_tree.shift
       builder |> encode_sub_type(st)
     }
-    t if t > 1 -> builder |> common.encode_vec(rec_type.st, encode_sub_type)
+    t if t > 1 ->
+      builder
+      |> bytes_builder.append(<<0x4E>>)
+      |> common.encode_vec(rec_type.st, encode_sub_type)
     _ -> Error("Invalid recursive type")
   }
 }

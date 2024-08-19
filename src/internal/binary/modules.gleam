@@ -4,28 +4,33 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import internal/binary/common
 import internal/binary/types.{
-  encode_expression, encode_func_idx, encode_global_idx, encode_global_type,
-  encode_locals, encode_mem_idx, encode_mem_type, encode_rec_type,
-  encode_ref_type, encode_table_idx, encode_table_type, encode_type_idx,
+  decode_expression, decode_func_idx, decode_global_idx, decode_global_type,
+  decode_mem_idx, decode_mem_type, decode_rec_type, decode_table_idx,
+  decode_table_type, decode_type_idx, encode_expression, encode_func_idx,
+  encode_global_idx, encode_global_type, encode_locals, encode_mem_idx,
+  encode_mem_type, encode_rec_type, encode_ref_type, encode_table_idx,
+  encode_table_type, encode_type_idx,
 }
 import internal/binary/values.{encode_u32}
-
 import internal/finger_tree.{type FingerTree}
 import internal/structure/modules.{
   type BinaryModule, type CodeSection, type CustomSection, type DataCountSection,
   type DataSection, type ElementSection, type ExportSection,
   type FunctionSection, type GlobalSection, type ImportSection,
   type MemorySection, type StartSection, type TableSection, type TypeSection,
-  CustomSection,
+  CustomSection, ElementSection, ExportSection, FunctionSection, GlobalSection,
+  ImportSection, MemorySection, StartSection, TableSection, TypeSection,
+  binary_module_new,
 }
 import internal/structure/numbers
 import internal/structure/types.{
   type Code, type Data, type DataMode, type Elem, type Export, type Expr,
-  type Global, type Import, type RecType, type RefType, type Table, ActiveData,
-  ActiveElemMode, Data, DeclarativeElemMode, Elem, Expr, FuncExport,
-  FuncHeapType, FuncImport, FuncRefType, GlobalExport, GlobalImport,
+  type FuncIDX, type Global, type Import, type RecType, type RefType, type Table,
+  ActiveData, ActiveElemMode, Data, DeclarativeElemMode, Elem, Expr, FuncExport,
+  FuncHeapType, FuncImport, FuncRefType, Global, GlobalExport, GlobalImport,
   HeapTypeRefType, I32Const, MemExport, MemImport, PassiveData, PassiveElemMode,
-  RefFunc, Table, TableExport, TableIDX, TableImport,
+  RefFunc, RefNull, Table, TableExport, TableIDX, TableImport,
+  ref_type_get_heap_type,
 } as structure_types
 
 pub fn encode_module(module: BinaryModule) {
@@ -83,23 +88,267 @@ pub fn encode_module(module: BinaryModule) {
   builder |> bytes_builder.to_bit_array
 }
 
-pub fn decode_custom_sections(bits: BitArray) {
-  case bits {
-    <<0x00>> -> {
-      use #(size, bits) <- result.try(values.decode_u32(bits))
-      let size = size |> numbers.unwrap_u32
-      let start_length = bits |> bit_array.byte_size
-      use #(name, bits) <- result.try(values.decode_string(bits))
-      use #(data_size, bits) <- result.try(values.decode_u32(bits))
-      let data_size = data_size |> numbers.unwrap_u32
-      use #(data, bits) <- result.try(common.decode_bytes(bits, data_size))
-      let end_length = bits |> bit_array.byte_size
-      case size == { end_length - start_length } {
-        True -> Ok(#(CustomSection(name, bits), bits))
-        False -> Error("Bytelength mismatch")
-      }
+pub fn decode_module(bits: BitArray) {
+  todo
+}
+
+// /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
+// pub type Elem {
+//   Elem(type_: RefType, init: FingerTree(Expr), mode: ElemMode)
+// }
+// 
+// /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
+// pub type ElemMode {
+//   PassiveElemMode
+//   ActiveElemMode(table: TableIDX, offset: Expr)
+//   DeclarativeElemMode
+// }
+
+fn func_idx_to_expr(expr: FuncIDX) {
+  Expr([RefFunc(expr)] |> finger_tree.from_list)
+}
+
+pub fn decode_elememt(bits: BitArray) {
+  use #(elem_type, rest) <- result.try(values.decode_u32(bits))
+  let elem_type = elem_type |> numbers.unwrap_u32
+  case elem_type {
+    0 -> {
+      use #(expr, rest) <- result.try(decode_expression(rest))
+      use #(idx, rest) <- result.map(common.decode_vec(rest, decode_func_idx))
+      let assert Ok(zero) = numbers.u32(0x00)
+      let table_idx_zero = TableIDX(zero)
+
+      #(
+        Elem(
+          HeapTypeRefType(FuncHeapType, False),
+          idx |> finger_tree.map(func_idx_to_expr),
+          ActiveElemMode(table_idx_zero, expr),
+        ),
+        rest,
+      )
     }
-    _ -> Error("Not a custom section")
+    1 -> {
+      use #(_, rest) <- result.try(common.expect_decode_byte(rest, 0x00))
+      use #(idx, rest) <- result.map(common.decode_vec(rest, decode_func_idx))
+      #(
+        Elem(
+          HeapTypeRefType(FuncHeapType, False),
+          idx |> finger_tree.map(func_idx_to_expr),
+          PassiveElemMode,
+        ),
+        rest,
+      )
+    }
+    2 -> {
+      use #(table_idx, rest) <- result.try(decode_table_idx(rest))
+      use #(expr, rest) <- result.try(decode_expression(rest))
+      use #(idx, rest) <- result.map(common.decode_vec(rest, decode_func_idx))
+
+      #(
+        Elem(
+          HeapTypeRefType(FuncHeapType, False),
+          idx |> finger_tree.map(func_idx_to_expr),
+          ActiveElemMode(table_idx, expr),
+        ),
+        rest,
+      )
+    }
+    3 -> {
+      todo
+    }
+    4 -> {
+      todo
+    }
+    5 -> {
+      todo
+    }
+    6 -> {
+      todo
+    }
+    7 -> {
+      todo
+    }
+    _ -> todo
+  }
+}
+
+fn do_decode_element_segment(bits: BitArray) {
+  use #(elems, rest) <- result.map(common.decode_vec(bits, decode_elememt))
+  #(ElementSection(elems), rest)
+}
+
+pub fn decode_elememt_section(bits: BitArray) {
+  common.decode_section(bits, 0x09, do_decode_element_segment)
+}
+
+fn do_decode_start_section(bits: BitArray) {
+  use #(start_idx, rest) <- result.map(decode_func_idx(bits))
+  #(StartSection(start_idx), rest)
+}
+
+pub fn decode_start_section(bits: BitArray) {
+  common.decode_section(bits, 0x08, do_decode_start_section)
+}
+
+fn decode_export(bits: BitArray) {
+  use #(name, rest) <- result.try(common.decode_string(bits))
+  case rest {
+    <<0, rest:bits>> -> {
+      use #(func_idx, rest) <- result.map(decode_func_idx(rest))
+      #(FuncExport(name, func_idx), rest)
+    }
+    <<1, rest:bits>> -> {
+      use #(table_idx, rest) <- result.map(decode_table_idx(rest))
+      #(TableExport(name, table_idx), rest)
+    }
+    <<2, rest:bits>> -> {
+      use #(mem_idx, rest) <- result.map(decode_mem_idx(rest))
+      #(MemExport(name, mem_idx), rest)
+    }
+    <<3, rest:bits>> -> {
+      use #(global_idx, rest) <- result.map(decode_global_idx(rest))
+      #(GlobalExport(name, global_idx), rest)
+    }
+    _ -> Error("expected export")
+  }
+}
+
+fn do_decode_export_section(bits: BitArray) {
+  use #(exports, rest) <- result.map(common.decode_vec(bits, decode_export))
+  #(ExportSection(exports), rest)
+}
+
+pub fn decode_export_section(bits: BitArray) {
+  common.decode_section(bits, 7, do_decode_export_section)
+}
+
+fn decode_global(bits: BitArray) {
+  use #(gt, rest) <- result.try(decode_global_type(bits))
+  use #(expr, rest) <- result.map(decode_expression(rest))
+  #(Global(gt, expr), rest)
+}
+
+fn do_decode_global_section(bits: BitArray) {
+  use #(globals, rest) <- result.map(common.decode_vec(bits, decode_global))
+  #(GlobalSection(globals), rest)
+}
+
+pub fn decode_global_section(bits: BitArray) {
+  common.decode_section(bits, 6, do_decode_global_section)
+}
+
+fn do_decode_memory_section(bits: BitArray) {
+  use #(mems, rest) <- result.map(common.decode_vec(bits, decode_mem_type))
+  #(MemorySection(mems), rest)
+}
+
+pub fn decode_memory_section(bits: BitArray) {
+  common.decode_section(bits, 5, do_decode_memory_section)
+}
+
+fn decode_table(bits: BitArray) {
+  case bits {
+    <<0x40, 0x00, rest:bits>> -> {
+      use #(tt, rest) <- result.try(decode_table_type(rest))
+      use #(expr, rest) <- result.map(decode_expression(rest))
+      #(Table(tt, Some(expr)), rest)
+    }
+    _ -> {
+      use #(tt, rest) <- result.map(decode_table_type(bits))
+      let ht = ref_type_get_heap_type(tt.t)
+      let expr = RefNull(ht)
+      let expr = finger_tree.from_list([expr])
+      let expr = Some(Expr(expr))
+      #(Table(tt, expr), rest)
+    }
+  }
+}
+
+fn do_decode_table_section(bits: BitArray) {
+  use #(types, rest) <- result.map(common.decode_vec(bits, decode_table))
+  #(TableSection(types), rest)
+}
+
+pub fn decode_table_section(bits: BitArray) {
+  common.decode_section(bits, 4, do_decode_table_section)
+}
+
+fn do_decode_function_section(bits: BitArray) {
+  use #(indices, rest) <- result.map(common.decode_vec(bits, decode_type_idx))
+  #(FunctionSection(indices), rest)
+}
+
+pub fn decode_function_section(bits: BitArray) {
+  common.decode_section(bits, 3, do_decode_function_section)
+}
+
+fn decode_import(bits: BitArray) {
+  use #(mod, rest) <- result.try(common.decode_string(bits))
+  use #(name, rest) <- result.try(common.decode_string(rest))
+  case rest {
+    <<0x00, rest:bits>> -> {
+      use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+      #(FuncImport(mod, name, type_idx), rest)
+    }
+    <<0x01, rest:bits>> -> {
+      use #(tt, rest) <- result.map(decode_table_type(rest))
+      #(TableImport(mod, name, tt), rest)
+    }
+    <<0x02, rest:bits>> -> {
+      use #(mt, rest) <- result.map(decode_mem_type(rest))
+      #(MemImport(mod, name, mt), rest)
+    }
+    <<0x03, rest:bits>> -> {
+      use #(gt, rest) <- result.map(decode_global_type(rest))
+      #(GlobalImport(mod, name, gt), rest)
+    }
+    _ -> Error("Invalid import")
+  }
+}
+
+fn do_decode_import_section(bits: BitArray) {
+  use #(imports, rest) <- result.map(common.decode_vec(bits, decode_import))
+  #(Some(ImportSection(imports)), rest)
+}
+
+pub fn decode_import_section(bits: BitArray) {
+  common.decode_section(bits, 2, do_decode_import_section)
+}
+
+fn do_decode_type_section(bits: BitArray) {
+  use #(types, left) <- result.map(common.decode_vec(bits, decode_rec_type))
+  #(Some(TypeSection(types)), left)
+}
+
+pub fn decode_type_section(bits: BitArray) {
+  common.decode_section(bits, 1, do_decode_type_section)
+}
+
+pub fn decode_custom_sections(bits: BitArray) {
+  do_decode_custom_sections(bits, finger_tree.new())
+}
+
+fn decode_custom_section(bits: BitArray) {
+  use #(name, rest) <- result.try(common.decode_string(bits))
+  use #(data_size, rest) <- result.try(values.decode_u32(rest))
+  let data_size = data_size |> numbers.unwrap_u32
+  use #(data, rest) <- result.try(common.decode_bytes(rest, data_size))
+  case rest {
+    <<>> -> Ok(#(CustomSection(name, data), rest))
+    _ -> Error("Invalid custom section")
+  }
+}
+
+fn do_decode_custom_sections(bits: BitArray, acc: FingerTree(CustomSection)) {
+  use #(section, rest) <- result.try(common.decode_section(
+    bits,
+    0x00,
+    decode_custom_section,
+  ))
+  case section {
+    Some(section) ->
+      do_decode_custom_sections(rest, acc |> finger_tree.push(section))
+    None -> Ok(#(Some(acc), rest))
   }
 }
 

@@ -1,4 +1,4 @@
-import gleam/option.{type Option}
+import gleam/option.{type Option, None}
 import internal/finger_tree.{type FingerTree}
 import internal/structure/numbers.{type U32}
 import internal/structure/types.{
@@ -33,6 +33,36 @@ pub type BinaryModule {
     custom_11: Option(FingerTree(CustomSection)),
     data_count: Option(DataCountSection),
     custom_12: Option(FingerTree(CustomSection)),
+  )
+}
+
+pub fn binary_module_new() {
+  BinaryModule(
+    custom_0: None,
+    types: None,
+    custom_1: None,
+    imports: None,
+    custom_2: None,
+    functions: None,
+    custom_3: None,
+    tables: None,
+    custom_4: None,
+    memories: None,
+    custom_5: None,
+    globals: None,
+    custom_6: None,
+    exports: None,
+    custom_7: None,
+    start: None,
+    custom_8: None,
+    elements: None,
+    custom_9: None,
+    code: None,
+    custom_10: None,
+    data: None,
+    custom_11: None,
+    data_count: None,
+    custom_12: None,
   )
 }
 

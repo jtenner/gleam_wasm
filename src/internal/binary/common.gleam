@@ -1,3 +1,4 @@
+import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -86,6 +87,49 @@ pub fn decode_bytes(bits: BitArray, size: Int) {
   let size = size * 8
   case bits {
     <<bits:bits-size(size), rest:bits>> -> Ok(#(bits, rest))
-    _ -> Error("byte length mismatch")
+    _ -> Error("Byte length mismatch")
+  }
+}
+
+pub fn decode_string(val: BitArray) -> Result(#(String, BitArray), String) {
+  use #(byte_length, rest) <- result.try(decode_u32(val))
+  let byte_length = byte_length |> unwrap_u32
+  let byte_length = byte_length * 8
+  case rest {
+    <<str:bits-size(byte_length), rest:bits>> -> {
+      case str |> bit_array.to_string {
+        Ok(str) -> Ok(#(str, rest))
+        Error(_) -> Error("Invalid utf8")
+      }
+    }
+    _ -> Error("Byte length mismatch")
+  }
+}
+
+pub fn decode_section(
+  bits: BitArray,
+  section_id: Int,
+  decode_section_fn: fn(BitArray) -> Result(#(u, BitArray), String),
+) {
+  case bits {
+    <<id, rest:bits>> if id == section_id -> {
+      use #(size, rest) <- result.try(decode_u32(rest))
+      let size = size |> unwrap_u32
+      use #(section_bytes, rest) <- result.try(decode_bytes(rest, size))
+      use #(section, left) <- result.try(decode_section_fn(section_bytes))
+
+      case left {
+        <<>> -> Ok(#(Some(section), rest))
+        _ -> Error("Invalid section")
+      }
+    }
+    _ -> Ok(#(None, bits))
+  }
+}
+
+pub fn expect_decode_byte(bits: BitArray, val: Int) {
+  case bits {
+    <<first, rest:bits>> if first == val -> Ok(#(first, rest))
+    _ -> Error("Invalid byte")
   }
 }

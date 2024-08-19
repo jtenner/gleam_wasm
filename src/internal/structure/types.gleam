@@ -1536,12 +1536,12 @@ pub type Import {
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
 pub type Func {
-  Func(type_: U32, locals: FingerTree(Local), body: Expr)
+  Func(type_: U32, locals: FingerTree(Locals), body: Expr)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
-pub type Local {
-  Local(type_: ValType)
+pub type Locals {
+  Locals(count: U32, type_: ValType)
 }
 
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#tables
@@ -1567,7 +1567,7 @@ pub type Elem {
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
 pub type ElemMode {
   PassiveElemMode
-  ActiveElemMode(table: U32, offset: Expr)
+  ActiveElemMode(table: TableIDX, offset: Expr)
   DeclarativeElemMode
 }
 
@@ -1630,12 +1630,12 @@ pub fn globals(exports: FingerTree(Export)) -> FingerTree(Export) {
 }
 
 pub type Code {
-  Code(size: U32, locals: FingerTree(FingerTree(Local)), body: Expr)
+  Code(size: U32, locals: FingerTree(Locals), body: Expr)
 }
 
 pub type DataMode {
-  Active
-  Passive
+  ActiveData
+  PassiveData
 }
 
 pub type Data {

@@ -3,27 +3,30 @@ import gleam/bytes_builder.{type BytesBuilder}
 import gleam/option.{type Option, None, Some}
 import gleam/result
 
+import builder/i32
 import internal/binary/common
 import internal/binary/types.{
   encode_expression, encode_func_idx, encode_global_idx, encode_global_type,
-  encode_mem_idx, encode_mem_type, encode_rec_type, encode_table_idx,
-  encode_table_type, encode_type_idx,
+  encode_locals, encode_mem_idx, encode_mem_type, encode_rec_type,
+  encode_ref_type, encode_table_idx, encode_table_type, encode_type_idx,
 } as binary_types
 import internal/binary/values.{encode_u32}
 
 import internal/finger_tree.{type FingerTree}
 import internal/structure/modules.{
-  type BinaryModule, type CustomSection, type ElementSection, type ExportSection,
+  type BinaryModule, type CodeSection, type CustomSection, type DataCountSection,
+  type DataSection, type ElementSection, type ExportSection,
   type FunctionSection, type GlobalSection, type ImportSection,
   type MemorySection, type StartSection, type TableSection, type TypeSection,
 }
-import internal/structure/numbers.{u32}
+import internal/structure/numbers
 import internal/structure/types.{
-  type Elem, type Export, type Expr, type Global, type Import, type RecType,
-  type RefType, type Table, ActiveElemMode, DeclarativeElemMode, Elem,
-  FuncExport, FuncImport, FuncRefType, GlobalExport, GlobalImport,
-  HeapTypeRefType, MemExport, MemImport, PassiveElemMode, RefFunc, Table,
-  TableExport, TableImport,
+  type Code, type Data, type DataMode, type Elem, type Export, type Expr,
+  type Global, type Import, type RecType, type RefType, type Table, ActiveData,
+  ActiveElemMode, Data, DeclarativeElemMode, Elem, Expr, FuncExport,
+  FuncHeapType, FuncImport, FuncRefType, GlobalExport, GlobalImport,
+  HeapTypeRefType, I32Const, MemExport, MemImport, PassiveData, PassiveElemMode,
+  RefFunc, Table, TableExport, TableIDX, TableImport,
 } as structure_types
 
 pub fn encode_module(module: BinaryModule) {
@@ -47,6 +50,10 @@ pub fn encode_module(module: BinaryModule) {
   use builder <- result.try(encode_custom_sections(builder, module.custom_8))
   use builder <- result.try(encode_element_section(builder, module.elements))
   use builder <- result.try(encode_custom_sections(builder, module.custom_9))
+  use builder <- result.try(encode_code_section(builder, module.code))
+  use builder <- result.try(encode_custom_sections(builder, module.custom_10))
+  use builder <- result.try(encode_data_section(builder, module.data))
+  use builder <- result.try(encode_custom_sections(builder, module.custom_11))
 }
 
 pub fn encode_custom_sections(
@@ -62,7 +69,7 @@ pub fn encode_custom_sections(
 
 pub fn encode_custom_section(builder: BytesBuilder, section: CustomSection) {
   let size = bit_array.byte_size(section.data)
-  let assert Ok(size) = u32(size)
+  let assert Ok(size) = numbers.u32(size)
   builder
   |> bytes_builder.append(<<0x00>>)
   |> encode_u32(size)
@@ -75,7 +82,9 @@ pub fn encode_type_section(builder: BytesBuilder, section: Option(TypeSection)) 
       use section_builder <- result.try(
         builder |> common.encode_vec(section.types, encode_rec_type),
       )
-      use size <- result.map(section_builder |> bytes_builder.byte_size |> u32)
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
       section_builder
       |> bytes_builder.append(<<0x01>>)
       |> encode_u32(size)
@@ -120,7 +129,9 @@ pub fn encode_import_section(
         bytes_builder.new() |> common.encode_vec(section.imports, encode_import),
       )
 
-      use size <- result.map(section_builder |> bytes_builder.byte_size |> u32)
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
       builder
       |> bytes_builder.append(<<0x01>>)
       |> encode_u32(size)
@@ -141,7 +152,9 @@ pub fn encode_function_section(
         bytes_builder.new()
         |> common.encode_vec(function_section.funcs, encode_type_idx),
       )
-      use size <- result.map(section_builder |> bytes_builder.byte_size |> u32)
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
 
       builder
       |> bytes_builder.append(<<3>>)
@@ -176,7 +189,9 @@ pub fn encode_table_section(
         bytes_builder.new()
         |> common.encode_vec(table_section.tables, encode_table),
       )
-      use size <- result.map(section_builder |> bytes_builder.byte_size |> u32)
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
       builder
       |> bytes_builder.append(<<4>>)
       |> encode_u32(size)
@@ -196,7 +211,9 @@ pub fn encode_memory_section(
         bytes_builder.new()
         |> common.encode_vec(memory_section.mts, encode_mem_type),
       )
-      use size <- result.map(section_builder |> bytes_builder.byte_size |> u32)
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
       builder
       |> bytes_builder.append(<<5>>)
       |> encode_u32(size)
@@ -221,7 +238,9 @@ pub fn encode_global_section(
         bytes_builder.new()
         |> common.encode_vec(global_section.globals, encode_global),
       )
-      use size <- result.map(section_builder |> bytes_builder.byte_size |> u32)
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
       builder
       |> bytes_builder.append(<<6>>)
       |> encode_u32(size)
@@ -263,7 +282,9 @@ pub fn encode_export_section(
         bytes_builder.new()
         |> common.encode_vec(export_section.exports, encode_export),
       )
-      use size <- result.map(section_builder |> bytes_builder.byte_size |> u32)
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
       builder
       |> bytes_builder.append(<<7>>)
       |> encode_u32(size)
@@ -286,39 +307,117 @@ pub fn encode_start_section(
   }
 }
 
-pub fn encode_element(builder: BytesBuilder, element: Elem) {
+pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
   let Elem(type_, init, mode) = element
+  let assert Ok(zero) = numbers.u32(0x00)
+  let table_idx_zero = TableIDX(zero)
 
-  case mode {
-    ActiveElemMode(idx, offset) -> {
-      let idx = idx |> unwrap_u32
-      case type_, idx {
-        HeapTypeRefType(FuncHeapType), 0 -> {
-          // if the index is 0, and the heap type is FuncHeapType
-          use builder <- result.try(
-            builder
-            |> bytes_builder.append(<<0x00>>)
-            |> encode_expression(offset),
-          )
-          use init <- result.try(
-            init |> finger_tree.try_map(expression_to_func_idx),
-          )
-          builder
-          |> common.encode_vec(init, encode_func_idx)
-        }
-      }
+  case type_, mode {
+    // Type: 0
+    // this segment initializes the first table with the given function indexes at offset [Expr]
+    // [Active with func idx] 0x00 Offset Expr, init:FuncIDX*
+    HeapTypeRefType(FuncHeapType, False), ActiveElemMode(table_idx, offset)
+      if table_idx == table_idx_zero
+    -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x00>>)
+        |> encode_expression(offset),
+      )
+      use init <- result.try(finger_tree.try_map(init, expression_to_func_idx))
+      builder
+      |> common.encode_vec(init, encode_func_idx)
     }
-    PassiveElemMode -> {
-      case type_ {
-        HeapTypeRefType(FuncHeapType) -> {
-          use init <- result.try(
-            init |> finger_tree.try_map(expression_to_func_idx),
-          )
-          builder
-          |> bytes_builder.append(<<0x01, 0x00>>)
-          |> common.encode_vec(init, encode_func_idx)
-        }
-      }
+
+    // Type: 1
+    // this segment can only be used with a `table.init` instruction with an array of function indexes
+    // [Passive with func idx] 0x01 0x00 init:FuncIDX*
+    HeapTypeRefType(FuncHeapType, False), PassiveElemMode -> {
+      use init <- result.try(finger_tree.try_map(init, expression_to_func_idx))
+      builder
+      |> bytes_builder.append(<<0x01, 0x00>>)
+      |> common.encode_vec(init, encode_func_idx)
+    }
+
+    // Note: because it's implied table index is 0, variant 4 must be tried as a special case first
+    // Type: 4
+    // this segment initializes the first table with the given expressions at offset [Expr]
+    // [Active with function expressions] 0x04 Offset Expr, init:Expr*
+    HeapTypeRefType(FuncHeapType, False), ActiveElemMode(table_idx, offset)
+      if table_idx == table_idx_zero
+    -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x04>>)
+        |> encode_expression(offset),
+      )
+      builder |> common.encode_vec(init, encode_expression)
+    }
+
+    // Type: 2
+    // this segment initializes the table at index [x] with the given function indexes at offset [Expr]
+    // [Active with func idx] 0x02 x:TableIDX offset:Expr 0x00 init:FuncIDX*
+    HeapTypeRefType(FuncHeapType, False), ActiveElemMode(table_idx, offset) -> {
+      use init <- result.try(finger_tree.try_map(init, expression_to_func_idx))
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x02>>)
+        |> encode_table_idx(table_idx),
+      )
+      use builder <- result.try(builder |> encode_expression(offset))
+      builder
+      |> bytes_builder.append(<<0x00>>)
+      |> common.encode_vec(init, encode_func_idx)
+    }
+
+    // Type: 3
+    // this segment pre-initializes an array of function indexes for future use
+    // [Declarative with func idx] 0x03 0x00 init:FuncIDX*
+    HeapTypeRefType(FuncHeapType, False), DeclarativeElemMode -> {
+      use init <- result.try(finger_tree.try_map(init, expression_to_func_idx))
+      builder
+      |> bytes_builder.append(<<0x03, 0x00>>)
+      |> common.encode_vec(init, encode_func_idx)
+    }
+
+    // Type: 5
+    // this segment can only be used with a `table.init` instruction with an array of expressions of
+    // the given reftype
+    // [Passive with reftype expressions] 0x05 rt:Reftype init:Expr*
+    type_, PassiveElemMode -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x05>>)
+        |> encode_ref_type(type_),
+      )
+      builder |> common.encode_vec(init, encode_expression)
+    }
+
+    // Type: 6
+    // this segment initializes the given table with the given expressions of the given reftype at
+    // the provided offset
+    // [Active with reftype expressions] 0x06 x:TableIDX offset:Expr rt:Reftype init:Expr*
+    type_, ActiveElemMode(table_idx, offset) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x06>>)
+        |> encode_table_idx(table_idx),
+      )
+      use builder <- result.try(builder |> encode_expression(offset))
+      use builder <- result.try(builder |> encode_ref_type(type_))
+      builder |> common.encode_vec(init, encode_expression)
+    }
+
+    // Type: 7
+    // this segment pre-initializes an array of expressions of the given reftype for future use
+    // [Declarative with reftype expressions] 0x07 rt:Reftype init:Expr*
+    type_, DeclarativeElemMode -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x07>>)
+        |> encode_ref_type(type_),
+      )
+      builder |> common.encode_vec(init, encode_expression)
     }
   }
 }
@@ -333,5 +432,153 @@ fn expression_to_func_idx(expr: Expr) {
   case inst, rest |> finger_tree.size {
     RefFunc(idx), 0 -> Ok(idx)
     _, _ -> Error("expected RefFunc")
+  }
+}
+
+pub fn encode_element_section(
+  builder: BytesBuilder,
+  element_section: Option(ElementSection),
+) {
+  case element_section {
+    Some(element_section) -> {
+      use section_builder <- result.try(
+        bytes_builder.new()
+        |> common.encode_vec(element_section.elems, encode_element_segment),
+      )
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
+      builder
+      |> bytes_builder.append(<<0x09>>)
+      |> encode_u32(size)
+      |> bytes_builder.append_builder(section_builder)
+    }
+    None -> Ok(builder)
+  }
+}
+
+fn encode_code_segment(builder: BytesBuilder, code: Code) {
+  use code_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(code.locals, encode_locals),
+  )
+  use code_builder <- result.try(code_builder |> encode_expression(code.body))
+  use size <- result.map(code_builder |> bytes_builder.byte_size |> numbers.u32)
+  builder
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(code_builder)
+}
+
+pub fn encode_code_section(
+  builder: BytesBuilder,
+  code_section: Option(CodeSection),
+) {
+  case code_section {
+    Some(code_section) -> {
+      use section_builder <- result.try(
+        bytes_builder.new()
+        |> common.encode_vec(code_section.codes, encode_code_segment),
+      )
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
+      builder
+      |> bytes_builder.append(<<0x0A>>)
+      |> encode_u32(size)
+      |> bytes_builder.append_builder(section_builder)
+    }
+    None -> Ok(builder)
+  }
+}
+
+fn encode_data_segment(builder: BytesBuilder, data: Data) {
+  let Data(mode, mem, offset, init) = data
+  use size <- result.try(init |> bit_array.byte_size |> numbers.u32)
+
+  case mode {
+    // type: 1
+    PassiveData -> {
+      Ok(
+        builder
+        |> bytes_builder.append(<<0x01>>)
+        |> encode_u32(size)
+        |> bytes_builder.append(init),
+      )
+    }
+    ActiveData -> {
+      let offset = case offset {
+        Some(offset) -> offset
+        None -> {
+          let assert Ok(offset) = numbers.i32(0)
+          Expr(finger_tree.from_list([I32Const(offset)]))
+        }
+      }
+      case mem {
+        // type: 0
+        None -> {
+          use builder <- result.map(
+            builder
+            |> bytes_builder.append(<<0x00>>)
+            |> encode_expression(offset),
+          )
+          builder
+          |> encode_u32(size)
+          |> bytes_builder.append(init)
+        }
+        // type: 2
+        Some(mem) -> {
+          use builder <- result.try(
+            builder
+            |> bytes_builder.append(<<0x02>>)
+            |> encode_mem_idx(mem),
+          )
+          use builder <- result.map(
+            builder
+            |> encode_expression(offset),
+          )
+          builder
+          |> encode_u32(size)
+          |> bytes_builder.append(init)
+        }
+      }
+    }
+  }
+}
+
+pub fn encode_data_section(
+  builder: BytesBuilder,
+  data_section: Option(DataSection),
+) {
+  case data_section {
+    Some(data_section) -> {
+      use section_builder <- result.try(
+        bytes_builder.new()
+        |> common.encode_vec(data_section.data, encode_data_segment),
+      )
+      use size <- result.map(
+        section_builder |> bytes_builder.byte_size |> numbers.u32,
+      )
+      builder
+      |> bytes_builder.append(<<0x0B>>)
+      |> encode_u32(size)
+      |> bytes_builder.append_builder(section_builder)
+    }
+    None -> Ok(builder)
+  }
+}
+
+pub fn encode_data_count_section(
+  builder: BytesBuilder,
+  data_count_section: Option(DataCountSection),
+) {
+  case data_count_section {
+    Some(data_count_section) -> {
+      Ok(
+        builder
+        |> bytes_builder.append(<<0x0D>>)
+        |> encode_u32(data_count_section.count),
+      )
+    }
+    None -> Ok(builder)
   }
 }

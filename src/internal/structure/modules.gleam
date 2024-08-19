@@ -37,7 +37,7 @@ pub type BinaryModule {
 }
 
 pub type CustomSection {
-  CustomSection(data: BitArray)
+  CustomSection(name: String, data: BitArray)
 }
 
 pub type TypeSection {

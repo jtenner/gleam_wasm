@@ -1,3 +1,4 @@
+import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/int
 import gleam/result
@@ -660,9 +661,19 @@ pub fn encode_s33(builder: BytesBuilder, val: S33) {
   do_encode_signed(builder, val |> unwrap_s33)
 }
 
-pub fn decode_string(val: BitArray) -> Result(List(Int), String) {
+pub fn decode_string(val: BitArray) -> Result(#(String, BitArray), String) {
   use #(byte_length, rest) <- result.try(decode_u32(val))
-  do_decode_string(rest, byte_length |> unwrap_u32, finger_tree.new())
+  let byte_length = byte_length |> unwrap_u32
+  let byte_length = byte_length * 8
+  case rest {
+    <<str:bits-size(byte_length), rest:bits>> -> {
+      case str |> bit_array.to_string {
+        Ok(str) -> Ok(#(str, rest))
+        Error(_) -> Error("Invalid utf8")
+      }
+    }
+    _ -> Error("byte length mismatch")
+  }
 }
 
 fn do_decode_string(

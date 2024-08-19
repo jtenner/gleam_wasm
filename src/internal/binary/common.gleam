@@ -81,3 +81,11 @@ pub fn encode_string(builder: BytesBuilder, string: String) {
   |> encode_u32(size)
   |> bytes_builder.append_string(string)
 }
+
+pub fn decode_bytes(bits: BitArray, size: Int) {
+  let size = size * 8
+  case bits {
+    <<bits:bits-size(size), rest:bits>> -> Ok(#(bits, rest))
+    _ -> Error("byte length mismatch")
+  }
+}

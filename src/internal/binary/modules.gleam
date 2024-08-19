@@ -2,14 +2,12 @@ import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/option.{type Option, None, Some}
 import gleam/result
-
-import builder/i32
 import internal/binary/common
 import internal/binary/types.{
   encode_expression, encode_func_idx, encode_global_idx, encode_global_type,
   encode_locals, encode_mem_idx, encode_mem_type, encode_rec_type,
   encode_ref_type, encode_table_idx, encode_table_type, encode_type_idx,
-} as binary_types
+}
 import internal/binary/values.{encode_u32}
 
 import internal/finger_tree.{type FingerTree}
@@ -18,6 +16,7 @@ import internal/structure/modules.{
   type DataSection, type ElementSection, type ExportSection,
   type FunctionSection, type GlobalSection, type ImportSection,
   type MemorySection, type StartSection, type TableSection, type TypeSection,
+  CustomSection,
 }
 import internal/structure/numbers
 import internal/structure/types.{
@@ -32,28 +31,76 @@ import internal/structure/types.{
 pub fn encode_module(module: BinaryModule) {
   let builder = bytes_builder.new()
   use builder <- result.try(encode_custom_sections(builder, module.custom_0))
-  use builder <- result.try(encode_type_section(builder, module.types))
+  use builder <- result.try(
+    builder |> common.encode_option(module.types, encode_type_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_1))
-  use builder <- result.try(encode_import_section(builder, module.imports))
+  use builder <- result.try(
+    builder |> common.encode_option(module.imports, encode_import_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_2))
-  use builder <- result.try(encode_function_section(builder, module.functions))
+  use builder <- result.try(
+    builder |> common.encode_option(module.functions, encode_function_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_3))
-  use builder <- result.try(encode_table_section(builder, module.tables))
+  use builder <- result.try(
+    builder |> common.encode_option(module.tables, encode_table_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_4))
-  use builder <- result.try(encode_memory_section(builder, module.memories))
+  use builder <- result.try(
+    builder |> common.encode_option(module.memories, encode_memory_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_5))
-  use builder <- result.try(encode_global_section(builder, module.globals))
+  use builder <- result.try(
+    builder |> common.encode_option(module.globals, encode_global_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_6))
-  use builder <- result.try(encode_export_section(builder, module.exports))
+  use builder <- result.try(
+    builder |> common.encode_option(module.exports, encode_export_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_7))
-  use builder <- result.try(encode_start_section(builder, module.start))
+  use builder <- result.try(
+    builder |> common.encode_option(module.start, encode_start_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_8))
-  use builder <- result.try(encode_element_section(builder, module.elements))
+  use builder <- result.try(
+    builder |> common.encode_option(module.elements, encode_element_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_9))
-  use builder <- result.try(encode_code_section(builder, module.code))
+  use builder <- result.try(
+    builder |> common.encode_option(module.code, encode_code_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_10))
-  use builder <- result.try(encode_data_section(builder, module.data))
+  use builder <- result.try(
+    builder |> common.encode_option(module.data, encode_data_section),
+  )
   use builder <- result.try(encode_custom_sections(builder, module.custom_11))
+  use builder <- result.try(
+    builder
+    |> common.encode_option(module.data_count, encode_data_count_section),
+  )
+  use builder <- result.map(encode_custom_sections(builder, module.custom_12))
+  builder |> bytes_builder.to_bit_array
+}
+
+pub fn decode_custom_sections(bits: BitArray) {
+  case bits {
+    <<0x00>> -> {
+      use #(size, bits) <- result.try(values.decode_u32(bits))
+      let size = size |> numbers.unwrap_u32
+      let start_length = bits |> bit_array.byte_size
+      use #(name, bits) <- result.try(values.decode_string(bits))
+      use #(data_size, bits) <- result.try(values.decode_u32(bits))
+      let data_size = data_size |> numbers.unwrap_u32
+      use #(data, bits) <- result.try(common.decode_bytes(bits, data_size))
+      let end_length = bits |> bit_array.byte_size
+      case size == { end_length - start_length } {
+        True -> Ok(#(CustomSection(name, bits), bits))
+        False -> Error("Bytelength mismatch")
+      }
+    }
+    _ -> Error("Not a custom section")
+  }
 }
 
 pub fn encode_custom_sections(
@@ -76,22 +123,17 @@ pub fn encode_custom_section(builder: BytesBuilder, section: CustomSection) {
   |> bytes_builder.append(section.data)
 }
 
-pub fn encode_type_section(builder: BytesBuilder, section: Option(TypeSection)) {
-  case section {
-    Some(section) -> {
-      use section_builder <- result.try(
-        builder |> common.encode_vec(section.types, encode_rec_type),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      section_builder
-      |> bytes_builder.append(<<0x01>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-    None -> Ok(builder)
-  }
+pub fn encode_type_section(builder: BytesBuilder, section: TypeSection) {
+  use section_builder <- result.try(
+    builder |> common.encode_vec(section.types, encode_rec_type),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  section_builder
+  |> bytes_builder.append(<<0x01>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 pub fn encode_import(builder: BytesBuilder, import_: Import) {
@@ -119,49 +161,36 @@ pub fn encode_import(builder: BytesBuilder, import_: Import) {
   }
 }
 
-pub fn encode_import_section(
-  builder: BytesBuilder,
-  section: Option(ImportSection),
-) {
-  case section {
-    Some(section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new() |> common.encode_vec(section.imports, encode_import),
-      )
+pub fn encode_import_section(builder: BytesBuilder, section: ImportSection) {
+  use section_builder <- result.try(
+    bytes_builder.new() |> common.encode_vec(section.imports, encode_import),
+  )
 
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      builder
-      |> bytes_builder.append(<<0x01>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-    None -> Ok(builder)
-  }
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  builder
+  |> bytes_builder.append(<<0x01>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 pub fn encode_function_section(
   builder: BytesBuilder,
-  function_section: Option(FunctionSection),
+  function_section: FunctionSection,
 ) {
-  case function_section {
-    None -> Ok(builder)
-    Some(function_section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new()
-        |> common.encode_vec(function_section.funcs, encode_type_idx),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(function_section.funcs, encode_type_idx),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
 
-      builder
-      |> bytes_builder.append(<<3>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-  }
+  builder
+  |> bytes_builder.append(<<3>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 pub fn encode_table(builder: BytesBuilder, table: Table) {
@@ -178,48 +207,35 @@ pub fn encode_table(builder: BytesBuilder, table: Table) {
   }
 }
 
-pub fn encode_table_section(
-  builder: BytesBuilder,
-  table_section: Option(TableSection),
-) {
-  case table_section {
-    None -> Ok(builder)
-    Some(table_section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new()
-        |> common.encode_vec(table_section.tables, encode_table),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      builder
-      |> bytes_builder.append(<<4>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-  }
+pub fn encode_table_section(builder: BytesBuilder, table_section: TableSection) {
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(table_section.tables, encode_table),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  builder
+  |> bytes_builder.append(<<4>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 pub fn encode_memory_section(
   builder: BytesBuilder,
-  memory_section: Option(MemorySection),
+  memory_section: MemorySection,
 ) {
-  case memory_section {
-    None -> Ok(builder)
-    Some(memory_section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new()
-        |> common.encode_vec(memory_section.mts, encode_mem_type),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      builder
-      |> bytes_builder.append(<<5>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-  }
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(memory_section.mts, encode_mem_type),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  builder
+  |> bytes_builder.append(<<5>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 pub fn encode_global(builder: BytesBuilder, global: Global) {
@@ -229,24 +245,19 @@ pub fn encode_global(builder: BytesBuilder, global: Global) {
 
 pub fn encode_global_section(
   builder: BytesBuilder,
-  global_section: Option(GlobalSection),
+  global_section: GlobalSection,
 ) {
-  case global_section {
-    None -> Ok(builder)
-    Some(global_section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new()
-        |> common.encode_vec(global_section.globals, encode_global),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      builder
-      |> bytes_builder.append(<<6>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-  }
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(global_section.globals, encode_global),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  builder
+  |> bytes_builder.append(<<6>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 pub fn encode_export(builder: BytesBuilder, export_: Export) {
@@ -273,38 +284,25 @@ pub fn encode_export(builder: BytesBuilder, export_: Export) {
 
 pub fn encode_export_section(
   builder: BytesBuilder,
-  export_section: Option(ExportSection),
+  export_section: ExportSection,
 ) {
-  case export_section {
-    None -> Ok(builder)
-    Some(export_section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new()
-        |> common.encode_vec(export_section.exports, encode_export),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      builder
-      |> bytes_builder.append(<<7>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-  }
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(export_section.exports, encode_export),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  builder
+  |> bytes_builder.append(<<7>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
-pub fn encode_start_section(
-  builder: BytesBuilder,
-  start_section: Option(StartSection),
-) {
-  case start_section {
-    None -> Ok(builder)
-    Some(start_section) -> {
-      builder
-      |> bytes_builder.append(<<8>>)
-      |> encode_func_idx(start_section.start)
-    }
-  }
+pub fn encode_start_section(builder: BytesBuilder, start_section: StartSection) {
+  builder
+  |> bytes_builder.append(<<8>>)
+  |> encode_func_idx(start_section.start)
 }
 
 pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
@@ -437,24 +435,19 @@ fn expression_to_func_idx(expr: Expr) {
 
 pub fn encode_element_section(
   builder: BytesBuilder,
-  element_section: Option(ElementSection),
+  element_section: ElementSection,
 ) {
-  case element_section {
-    Some(element_section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new()
-        |> common.encode_vec(element_section.elems, encode_element_segment),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      builder
-      |> bytes_builder.append(<<0x09>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-    None -> Ok(builder)
-  }
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(element_section.elems, encode_element_segment),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  builder
+  |> bytes_builder.append(<<0x09>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 fn encode_code_segment(builder: BytesBuilder, code: Code) {
@@ -469,26 +462,18 @@ fn encode_code_segment(builder: BytesBuilder, code: Code) {
   |> bytes_builder.append_builder(code_builder)
 }
 
-pub fn encode_code_section(
-  builder: BytesBuilder,
-  code_section: Option(CodeSection),
-) {
-  case code_section {
-    Some(code_section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new()
-        |> common.encode_vec(code_section.codes, encode_code_segment),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      builder
-      |> bytes_builder.append(<<0x0A>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-    None -> Ok(builder)
-  }
+pub fn encode_code_section(builder: BytesBuilder, code_section: CodeSection) {
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(code_section.codes, encode_code_segment),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  builder
+  |> bytes_builder.append(<<0x0A>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 fn encode_data_segment(builder: BytesBuilder, data: Data) {
@@ -545,40 +530,27 @@ fn encode_data_segment(builder: BytesBuilder, data: Data) {
   }
 }
 
-pub fn encode_data_section(
-  builder: BytesBuilder,
-  data_section: Option(DataSection),
-) {
-  case data_section {
-    Some(data_section) -> {
-      use section_builder <- result.try(
-        bytes_builder.new()
-        |> common.encode_vec(data_section.data, encode_data_segment),
-      )
-      use size <- result.map(
-        section_builder |> bytes_builder.byte_size |> numbers.u32,
-      )
-      builder
-      |> bytes_builder.append(<<0x0B>>)
-      |> encode_u32(size)
-      |> bytes_builder.append_builder(section_builder)
-    }
-    None -> Ok(builder)
-  }
+pub fn encode_data_section(builder: BytesBuilder, data_section: DataSection) {
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_vec(data_section.data, encode_data_segment),
+  )
+  use size <- result.map(
+    section_builder |> bytes_builder.byte_size |> numbers.u32,
+  )
+  builder
+  |> bytes_builder.append(<<0x0B>>)
+  |> encode_u32(size)
+  |> bytes_builder.append_builder(section_builder)
 }
 
 pub fn encode_data_count_section(
   builder: BytesBuilder,
-  data_count_section: Option(DataCountSection),
+  data_count_section: DataCountSection,
 ) {
-  case data_count_section {
-    Some(data_count_section) -> {
-      Ok(
-        builder
-        |> bytes_builder.append(<<0x0D>>)
-        |> encode_u32(data_count_section.count),
-      )
-    }
-    None -> Ok(builder)
-  }
+  Ok(
+    builder
+    |> bytes_builder.append(<<0x0C>>)
+    |> encode_u32(data_count_section.count),
+  )
 }

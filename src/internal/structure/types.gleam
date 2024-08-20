@@ -1630,7 +1630,7 @@ pub fn globals(exports: FingerTree(Export)) -> FingerTree(Export) {
 }
 
 pub type Code {
-  Code(size: U32, locals: FingerTree(Locals), body: Expr)
+  Code(locals: FingerTree(Locals), body: Expr)
 }
 
 pub type DataMode {

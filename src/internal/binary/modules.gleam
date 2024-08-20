@@ -5,11 +5,11 @@ import gleam/result
 import internal/binary/common
 import internal/binary/types.{
   decode_expression, decode_func_idx, decode_global_idx, decode_global_type,
-  decode_mem_idx, decode_mem_type, decode_rec_type, decode_table_idx,
-  decode_table_type, decode_type_idx, encode_expression, encode_func_idx,
-  encode_global_idx, encode_global_type, encode_locals, encode_mem_idx,
-  encode_mem_type, encode_rec_type, encode_ref_type, encode_table_idx,
-  encode_table_type, encode_type_idx,
+  decode_mem_idx, decode_mem_type, decode_rec_type, decode_ref_type,
+  decode_table_idx, decode_table_type, decode_type_idx, decode_val_type,
+  encode_expression, encode_func_idx, encode_global_idx, encode_global_type,
+  encode_locals, encode_mem_idx, encode_mem_type, encode_rec_type,
+  encode_ref_type, encode_table_idx, encode_table_type, encode_type_idx,
 }
 import internal/binary/values.{encode_u32}
 import internal/finger_tree.{type FingerTree}
@@ -18,19 +18,19 @@ import internal/structure/modules.{
   type DataSection, type ElementSection, type ExportSection,
   type FunctionSection, type GlobalSection, type ImportSection,
   type MemorySection, type StartSection, type TableSection, type TypeSection,
-  CustomSection, ElementSection, ExportSection, FunctionSection, GlobalSection,
-  ImportSection, MemorySection, StartSection, TableSection, TypeSection,
-  binary_module_new,
+  CodeSection, CustomSection, DataSection, ElementSection, ExportSection,
+  FunctionSection, GlobalSection, ImportSection, MemorySection, StartSection,
+  TableSection, TypeSection, binary_module_new,
 }
 import internal/structure/numbers
 import internal/structure/types.{
   type Code, type Data, type DataMode, type Elem, type Export, type Expr,
   type FuncIDX, type Global, type Import, type RecType, type RefType, type Table,
-  ActiveData, ActiveElemMode, Data, DeclarativeElemMode, Elem, Expr, FuncExport,
-  FuncHeapType, FuncImport, FuncRefType, Global, GlobalExport, GlobalImport,
-  HeapTypeRefType, I32Const, MemExport, MemImport, PassiveData, PassiveElemMode,
-  RefFunc, RefNull, Table, TableExport, TableIDX, TableImport,
-  ref_type_get_heap_type,
+  ActiveData, ActiveElemMode, Code, Data, DeclarativeElemMode, Elem, Expr,
+  FuncExport, FuncHeapType, FuncImport, FuncRefType, Global, GlobalExport,
+  GlobalImport, HeapTypeRefType, I32Const, Locals, MemExport, MemImport,
+  PassiveData, PassiveElemMode, RefFunc, RefNull, Table, TableExport, TableIDX,
+  TableImport, ref_type_get_heap_type,
 } as structure_types
 
 pub fn encode_module(module: BinaryModule) {
@@ -92,17 +92,73 @@ pub fn decode_module(bits: BitArray) {
   todo
 }
 
-// /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
-// pub type Elem {
-//   Elem(type_: RefType, init: FingerTree(Expr), mode: ElemMode)
-// }
-// 
-// /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
-// pub type ElemMode {
-//   PassiveElemMode
-//   ActiveElemMode(table: TableIDX, offset: Expr)
-//   DeclarativeElemMode
-// }
+pub fn decode_data(bits: BitArray) {
+  use #(data_type, rest) <- result.try(values.decode_u32(bits))
+  case data_type |> numbers.unwrap_u32 {
+    0 -> {
+      use #(offset, rest) <- result.try(decode_expression(rest))
+      use #(size, rest) <- result.try(values.decode_u32(rest))
+      let size = size |> numbers.unwrap_u32
+      use #(data, rest) <- result.map(common.decode_bytes(rest, size))
+      #(Data(ActiveData, None, Some(offset), data), rest)
+    }
+    1 -> {
+      use #(size, rest) <- result.try(values.decode_u32(rest))
+      let size = size |> numbers.unwrap_u32
+      use #(data, rest) <- result.map(common.decode_bytes(rest, size))
+      #(Data(PassiveData, None, None, data), rest)
+    }
+    2 -> {
+      use #(offset, rest) <- result.try(decode_expression(rest))
+      use #(mem_idx, rest) <- result.try(decode_mem_idx(rest))
+      use #(size, rest) <- result.try(values.decode_u32(rest))
+      let size = size |> numbers.unwrap_u32
+      use #(data, rest) <- result.map(common.decode_bytes(rest, size))
+      #(Data(ActiveData, Some(mem_idx), Some(offset), data), rest)
+    }
+    _ -> Error("Invalid data type")
+  }
+}
+
+fn do_decode_data_section(bits: BitArray) {
+  use #(data, rest) <- result.map(common.decode_vec(bits, decode_data))
+  #(DataSection(data), rest)
+}
+
+pub fn decode_data_section(bits: BitArray) {
+  common.decode_section(bits, 0x0B, do_decode_data_section)
+}
+
+fn decode_locals(bits: BitArray) {
+  use #(count, rest) <- result.try(values.decode_u32(bits))
+  use #(vt, rest) <- result.map(decode_val_type(rest))
+  #(Locals(count, vt), rest)
+}
+
+pub fn decode_code_segment(bits: BitArray) {
+  use #(size, rest) <- result.try(values.decode_u32(bits))
+  let size = size |> numbers.unwrap_u32
+  use #(code_bytes, rest) <- result.try(common.decode_bytes(rest, size))
+  use #(locals, code_bytes) <- result.try(common.decode_vec(
+    code_bytes,
+    decode_locals,
+  ))
+  use #(body, code_bytes) <- result.try(decode_expression(code_bytes))
+
+  case code_bytes {
+    <<>> -> Ok(#(Code(locals, body), rest))
+    _ -> Error("Invalid code segment")
+  }
+}
+
+fn do_decode_code_section(bits: BitArray) {
+  use #(codes, rest) <- result.map(common.decode_vec(bits, decode_code_segment))
+  #(CodeSection(codes), rest)
+}
+
+pub fn decode_code_section(bits: BitArray) {
+  common.decode_section(bits, 0x0A, do_decode_code_section)
+}
 
 fn func_idx_to_expr(expr: FuncIDX) {
   Expr([RefFunc(expr)] |> finger_tree.from_list)
@@ -154,21 +210,50 @@ pub fn decode_elememt(bits: BitArray) {
       )
     }
     3 -> {
-      todo
+      use #(_, rest) <- result.try(common.expect_decode_byte(rest, 0x00))
+      use #(idx, rest) <- result.map(common.decode_vec(rest, decode_func_idx))
+
+      #(
+        Elem(
+          HeapTypeRefType(FuncHeapType, False),
+          idx |> finger_tree.map(func_idx_to_expr),
+          DeclarativeElemMode,
+        ),
+        rest,
+      )
     }
     4 -> {
-      todo
+      use #(offset, rest) <- result.try(decode_expression(rest))
+      use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
+      let assert Ok(zero) = numbers.u32(0x00)
+      let table_idx_zero = TableIDX(zero)
+      #(
+        Elem(
+          HeapTypeRefType(FuncHeapType, False),
+          init,
+          ActiveElemMode(table_idx_zero, offset),
+        ),
+        rest,
+      )
     }
     5 -> {
-      todo
+      use #(rt, rest) <- result.try(decode_ref_type(rest))
+      use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
+      #(Elem(rt, init, DeclarativeElemMode), rest)
     }
     6 -> {
-      todo
+      use #(table_idx, rest) <- result.try(decode_table_idx(rest))
+      use #(offset, rest) <- result.try(decode_expression(rest))
+      use #(rt, rest) <- result.try(decode_ref_type(rest))
+      use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
+      #(Elem(rt, init, ActiveElemMode(table_idx, offset)), rest)
     }
     7 -> {
-      todo
+      use #(rt, rest) <- result.try(decode_ref_type(rest))
+      use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
+      #(Elem(rt, init, PassiveElemMode), rest)
     }
-    _ -> todo
+    _ -> Error("Invalid element segment type")
   }
 }
 

@@ -1,5 +1,7 @@
 import builder/memory
+import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
+import gleam/io
 import gleam/option.{None, Some}
 import gleam/result
 import internal/binary/common
@@ -18,11 +20,11 @@ import internal/structure/types.{
   type GlobalIDX, type GlobalType, type HeapType, type Instruction,
   type LabelIDX, type LaneIDX16, type LaneIDX2, type LaneIDX4, type LaneIDX8,
   type Limits, type LocalIDX, type Locals, type MemArg, type MemIDX,
-  type MemType, type Mut, type RecType, type RefType, type ResultType,
-  type StorageType, type StructType, type SubType, type TableIDX, type TableType,
-  type TypeIDX, type ValType, AnyConvertExtern, AnyHeapType, AnyRefType,
-  ArrayCompositeType, ArrayCopy, ArrayFill, ArrayGet, ArrayGetS, ArrayGetU,
-  ArrayHeapType, ArrayInitData, ArrayInitElem, ArrayLen, ArrayNew, ArrayNewData,
+  type MemType, type Mut, type RecType, type RefType, type StorageType,
+  type StructType, type SubType, type TableIDX, type TableType, type TypeIDX,
+  type ValType, AnyConvertExtern, AnyHeapType, AnyRefType, ArrayCompositeType,
+  ArrayCopy, ArrayFill, ArrayGet, ArrayGetS, ArrayGetU, ArrayHeapType,
+  ArrayInitData, ArrayInitElem, ArrayLen, ArrayNew, ArrayNewData,
   ArrayNewDefault, ArrayNewElem, ArrayNewFixed, ArrayRefType, ArraySet,
   ArrayType, Block, BotValType, Br, BrIf, BrOnCast, BrOnCastFail, BrOnNonNull,
   BrOnNull, BrTable, Call, CallIndirect, CallRef, ConcreteHeapType, Const,
@@ -98,7 +100,7 @@ import internal/structure/types.{
   MemType, MemoryCopy, MemoryFill, MemoryGrow, MemoryInit, MemorySize,
   NoExternHeapType, NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType,
   NoneRefType, Nop, RecType, RefAsNonNull, RefCast, RefEq, RefFunc, RefI31,
-  RefIsNull, RefNull, RefTest, RefTypeValType, ResultType, Return, ReturnCall,
+  RefIsNull, RefNull, RefTest, RefTypeValType, Return, ReturnCall,
   ReturnCallIndirect, ReturnCallRef, Select, SelectT, StructCompositeType,
   StructGet, StructGetS, StructGetU, StructHeapType, StructNew, StructNewDefault,
   StructRefType, StructSet, StructType, SubType, TableCopy, TableFill, TableGet,
@@ -243,13 +245,34 @@ pub fn encode_ref_type(builder: BytesBuilder, ref_type: RefType) {
     I31RefType -> Ok(builder |> bytes_builder.append(<<0x6C>>))
     StructRefType -> Ok(builder |> bytes_builder.append(<<0x6B>>))
     ArrayRefType -> Ok(builder |> bytes_builder.append(<<0x6A>>))
-    HeapTypeRefType(ht, null) -> {
-      case null {
-        False -> builder |> bytes_builder.append(<<0x64>>)
-        True -> builder |> bytes_builder.append(<<0x63>>)
-      }
+    HeapTypeRefType(NoFuncHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x73>>))
+    HeapTypeRefType(NoExternHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x72>>))
+    HeapTypeRefType(NoneHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x71>>))
+    HeapTypeRefType(FuncHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x70>>))
+    HeapTypeRefType(ExternHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x6F>>))
+    HeapTypeRefType(AnyHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x6E>>))
+    HeapTypeRefType(EqHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x6D>>))
+    HeapTypeRefType(I31HeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x6C>>))
+    HeapTypeRefType(StructHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x6B>>))
+    HeapTypeRefType(ArrayHeapType, True) ->
+      Ok(builder |> bytes_builder.append(<<0x6A>>))
+    HeapTypeRefType(ht, True) ->
+      builder
+      |> bytes_builder.append(<<0x63>>)
       |> encode_heap_type(ht)
-    }
+    HeapTypeRefType(ht, False) ->
+      builder
+      |> bytes_builder.append(<<0x64>>)
+      |> encode_heap_type(ht)
   }
 }
 
@@ -279,26 +302,24 @@ pub fn encode_val_type(builder: BytesBuilder, val_type: ValType) {
   }
 }
 
-pub fn decode_result_type(bits: BitArray) {
-  use #(parameters, rest) <- result.try(common.decode_vec(bits, decode_val_type))
-  use #(results, rest) <- result.map(common.decode_vec(rest, decode_val_type))
-  #(ResultType(parameters, results), rest)
+pub fn encode_result_type(
+  builder: BytesBuilder,
+  result_type: FingerTree(ValType),
+) {
+  builder |> common.encode_vec(result_type, encode_val_type)
 }
 
 pub fn encode_func_type(builder: BytesBuilder, func_type: FuncType) {
-  builder |> encode_result_type(func_type.rt)
-}
-
-pub fn encode_result_type(builder: BytesBuilder, result_type: ResultType) {
   use builder <- result.try(
-    builder |> common.encode_vec(result_type.parameters, encode_val_type),
+    builder |> common.encode_vec(func_type.parameters, encode_val_type),
   )
-  builder |> common.encode_vec(result_type.result, encode_val_type)
+  builder |> common.encode_vec(func_type.results, encode_val_type)
 }
 
 pub fn decode_func_type(bits: BitArray) {
-  use #(rt, rest) <- result.map(decode_result_type(bits))
-  #(FuncType(rt), rest)
+  use #(parameters, rest) <- result.try(common.decode_vec(bits, decode_val_type))
+  use #(results, rest) <- result.map(common.decode_vec(rest, decode_val_type))
+  #(FuncType(parameters, results), rest)
 }
 
 pub fn decode_array_type(bits: BitArray) {
@@ -382,11 +403,11 @@ pub fn decode_comp_type(bits: BitArray) {
   }
 }
 
-pub fn encode_comp_type(builder: BytesBuilder, comp_type: CompositeType) {
+pub fn encode_composite_type(builder: BytesBuilder, comp_type: CompositeType) {
   case comp_type {
     FuncCompositeType(ft) ->
       builder
-      |> bytes_builder.append(<<0x5E>>)
+      |> bytes_builder.append(<<0x60>>)
       |> encode_func_type(ft)
     StructCompositeType(st) ->
       builder
@@ -394,7 +415,7 @@ pub fn encode_comp_type(builder: BytesBuilder, comp_type: CompositeType) {
       |> encode_struct_type(st)
     ArrayCompositeType(at) ->
       builder
-      |> bytes_builder.append(<<0x60>>)
+      |> bytes_builder.append(<<0x5E>>)
       |> encode_array_type(at)
   }
 }
@@ -414,10 +435,11 @@ pub fn decode_rec_type(bits: BitArray) {
 
 pub fn encode_rec_type(builder: BytesBuilder, rec_type: RecType) {
   case rec_type.st |> finger_tree.size {
-    1 -> {
-      let assert Ok(#(st, _)) = rec_type.st |> finger_tree.shift
-      builder |> encode_sub_type(st)
-    }
+    1 ->
+      case rec_type.st |> finger_tree.shift {
+        Ok(#(st, _)) -> encode_sub_type(builder, st)
+        Error(_) -> Error("Invalid recursive type")
+      }
     t if t > 1 ->
       builder
       |> bytes_builder.append(<<0x4E>>)
@@ -446,25 +468,24 @@ pub fn decode_sub_type(bits: BitArray) {
 }
 
 pub fn encode_sub_type(builder: BytesBuilder, sub_type: SubType) {
-  case sub_type.t |> finger_tree.size {
-    0 -> builder |> encode_comp_type(sub_type.ct)
-    _ ->
-      case sub_type.final {
-        True -> {
-          let builder = builder |> bytes_builder.append(<<0x50>>)
-          use builder <- result.try(
-            builder |> common.encode_vec(sub_type.t, encode_type_idx),
-          )
-          builder |> encode_comp_type(sub_type.ct)
-        }
-        False -> {
-          let builder = builder |> bytes_builder.append(<<0x4F>>)
-          use builder <- result.try(
-            builder |> common.encode_vec(sub_type.t, encode_type_idx),
-          )
-          builder |> encode_comp_type(sub_type.ct)
-        }
-      }
+  case sub_type.final, sub_type.t |> finger_tree.size {
+    True, 0 -> builder |> encode_composite_type(sub_type.ct)
+    True, _ -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x4F>>)
+        |> common.encode_vec(sub_type.t, encode_type_idx),
+      )
+      builder |> encode_composite_type(sub_type.ct)
+    }
+    False, _ -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x50>>)
+        |> common.encode_vec(sub_type.t, encode_type_idx),
+      )
+      builder |> encode_composite_type(sub_type.ct)
+    }
   }
 }
 
@@ -574,10 +595,20 @@ pub fn decode_limits(bits: BitArray) {
 }
 
 pub fn encode_limits(builder: BytesBuilder, limits: Limits) {
-  let builder = builder |> encode_u32(limits.min)
   case limits.max {
-    Some(max) -> Ok(builder |> encode_u32(max))
-    None -> Ok(builder)
+    Some(max) ->
+      Ok(
+        builder
+        |> bytes_builder.append(<<0x01>>)
+        |> encode_u32(limits.min)
+        |> encode_u32(max),
+      )
+    None ->
+      Ok(
+        builder
+        |> bytes_builder.append(<<0x00>>)
+        |> encode_u32(limits.min),
+      )
   }
 }
 
@@ -1712,7 +1743,7 @@ fn do_encode_expression(
       use builder <- result.try(encode_instruction(builder, inst))
       do_encode_expression(builder, rest)
     }
-    Error(_) -> Ok(builder)
+    Error(_) -> Ok(builder |> bytes_builder.append(<<0x0B>>))
   }
 }
 
@@ -2000,7 +2031,7 @@ fn encode_instruction(
       builder
       |> bytes_builder.append(<<0xfb>>)
       |> encode_u32(op)
-      |> encode_heap_type(rt |> types.ref_type_get_heap_type)
+      |> encode_heap_type(rt |> types.ref_type_unwrap_heap_type)
     }
     RefCast(rt) -> {
       let op = case rt |> types.ref_type_is_nullable {
@@ -2011,7 +2042,7 @@ fn encode_instruction(
       builder
       |> bytes_builder.append(<<0xfb>>)
       |> encode_u32(op)
-      |> encode_heap_type(rt |> types.ref_type_get_heap_type)
+      |> encode_heap_type(rt |> types.ref_type_unwrap_heap_type)
     }
     BrOnCast(label_idx, rt1, rt2) -> {
       use op <- result.try(u32(24))
@@ -2030,9 +2061,9 @@ fn encode_instruction(
       )
       use builder <- result.try(
         builder
-        |> encode_heap_type(rt1 |> types.ref_type_get_heap_type),
+        |> encode_heap_type(rt1 |> types.ref_type_unwrap_heap_type),
       )
-      builder |> encode_heap_type(rt2 |> types.ref_type_get_heap_type)
+      builder |> encode_heap_type(rt2 |> types.ref_type_unwrap_heap_type)
     }
     BrOnCastFail(label_idx, rt1, rt2) -> {
       use op <- result.try(u32(25))
@@ -2051,9 +2082,9 @@ fn encode_instruction(
       )
       use builder <- result.try(
         builder
-        |> encode_heap_type(rt1 |> types.ref_type_get_heap_type),
+        |> encode_heap_type(rt1 |> types.ref_type_unwrap_heap_type),
       )
-      builder |> encode_heap_type(rt2 |> types.ref_type_get_heap_type)
+      builder |> encode_heap_type(rt2 |> types.ref_type_unwrap_heap_type)
     }
     AnyConvertExtern -> {
       use op <- result.map(u32(26))

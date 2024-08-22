@@ -1,89 +1,89 @@
-import builder/func_builder.{type FuncBuilder}
+import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn return(func: FuncBuilder) {
+pub fn return(func: ExpressionBuilder) {
   todo
 }
 
-pub fn return_call(func: FuncBuilder) {
+pub fn return_call(func: ExpressionBuilder) {
   todo
 }
 
-pub fn return_call_indirect(func: FuncBuilder) {
+pub fn return_call_indirect(func: ExpressionBuilder) {
   todo
 }
 
-pub fn return_call_ref(func: FuncBuilder) {
+pub fn return_call_ref(func: ExpressionBuilder) {
   todo
 }
 
-pub fn select(func: FuncBuilder) {
+pub fn select(func: ExpressionBuilder) {
   todo
 }
 
-pub fn select_t(func: FuncBuilder) {
+pub fn select_t(func: ExpressionBuilder) {
   todo
 }
 
-pub fn unreachable(func: FuncBuilder) {
+pub fn unreachable(func: ExpressionBuilder) {
   todo
 }
 
-pub fn nop(func: FuncBuilder) {
+pub fn nop(func: ExpressionBuilder) {
   todo
 }
 
-pub fn loop(func: FuncBuilder) {
+pub fn loop(func: ExpressionBuilder) {
   todo
 }
 
-pub fn if_(func: FuncBuilder) {
+pub fn if_(func: ExpressionBuilder) {
   todo
 }
 
-pub fn block(func: FuncBuilder) {
+pub fn block(func: ExpressionBuilder) {
   todo
 }
 
-pub fn br(func: FuncBuilder) {
+pub fn br(func: ExpressionBuilder) {
   todo
 }
 
-pub fn br_if(func: FuncBuilder) {
+pub fn br_if(func: ExpressionBuilder) {
   todo
 }
 
-pub fn br_on_cast(func: FuncBuilder) {
+pub fn br_on_cast(func: ExpressionBuilder) {
   todo
 }
 
-pub fn br_on_cast_fail(func: FuncBuilder) {
+pub fn br_on_cast_fail(func: ExpressionBuilder) {
   todo
 }
 
-pub fn br_on_non_null(func: FuncBuilder) {
+pub fn br_on_non_null(func: ExpressionBuilder) {
   todo
 }
 
-pub fn br_on_null(func: FuncBuilder) {
+pub fn br_on_null(func: ExpressionBuilder) {
   todo
 }
 
-pub fn br_table(func: FuncBuilder) {
+pub fn br_table(func: ExpressionBuilder) {
   todo
 }
 
-pub fn call(func: FuncBuilder) {
+pub fn call(func: ExpressionBuilder) {
   todo
 }
 
-pub fn call_indirect(func: FuncBuilder) {
+pub fn call_indirect(func: ExpressionBuilder) {
   todo
 }
 
-pub fn call_ref(func: FuncBuilder) {
+pub fn call_ref(func: ExpressionBuilder) {
   todo
 }
 
-pub fn drop(func: FuncBuilder) {
+pub fn drop(func: ExpressionBuilder) {
   todo
 }

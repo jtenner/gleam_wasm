@@ -1,109 +1,109 @@
-import builder/func_builder.{type FuncBuilder}
+import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn abs(func: FuncBuilder) {
+pub fn abs(func: ExpressionBuilder) {
   todo
 }
 
-pub fn add(func: FuncBuilder) {
+pub fn add(func: ExpressionBuilder) {
   todo
 }
 
-pub fn ceil(func: FuncBuilder) {
+pub fn ceil(func: ExpressionBuilder) {
   todo
 }
 
-pub fn convert_i32x4_s(func: FuncBuilder) {
+pub fn convert_i32x4_s(func: ExpressionBuilder) {
   todo
 }
 
-pub fn convert_i32x4_u(func: FuncBuilder) {
+pub fn convert_i32x4_u(func: ExpressionBuilder) {
   todo
 }
 
-pub fn demote_f64x2_zero(func: FuncBuilder) {
+pub fn demote_f64x2_zero(func: ExpressionBuilder) {
   todo
 }
 
-pub fn div(func: FuncBuilder) {
+pub fn div(func: ExpressionBuilder) {
   todo
 }
 
-pub fn eq(func: FuncBuilder) {
+pub fn eq(func: ExpressionBuilder) {
   todo
 }
 
-pub fn extract_lane(func: FuncBuilder) {
+pub fn extract_lane(func: ExpressionBuilder) {
   todo
 }
 
-pub fn floor(func: FuncBuilder) {
+pub fn floor(func: ExpressionBuilder) {
   todo
 }
 
-pub fn ge(func: FuncBuilder) {
+pub fn ge(func: ExpressionBuilder) {
   todo
 }
 
-pub fn gt(func: FuncBuilder) {
+pub fn gt(func: ExpressionBuilder) {
   todo
 }
 
-pub fn le(func: FuncBuilder) {
+pub fn le(func: ExpressionBuilder) {
   todo
 }
 
-pub fn lt(func: FuncBuilder) {
+pub fn lt(func: ExpressionBuilder) {
   todo
 }
 
-pub fn max(func: FuncBuilder) {
+pub fn max(func: ExpressionBuilder) {
   todo
 }
 
-pub fn min(func: FuncBuilder) {
+pub fn min(func: ExpressionBuilder) {
   todo
 }
 
-pub fn mul(func: FuncBuilder) {
+pub fn mul(func: ExpressionBuilder) {
   todo
 }
 
-pub fn ne(func: FuncBuilder) {
+pub fn ne(func: ExpressionBuilder) {
   todo
 }
 
-pub fn nearest(func: FuncBuilder) {
+pub fn nearest(func: ExpressionBuilder) {
   todo
 }
 
-pub fn neg(func: FuncBuilder) {
+pub fn neg(func: ExpressionBuilder) {
   todo
 }
 
-pub fn pmax(func: FuncBuilder) {
+pub fn pmax(func: ExpressionBuilder) {
   todo
 }
 
-pub fn pmin(func: FuncBuilder) {
+pub fn pmin(func: ExpressionBuilder) {
   todo
 }
 
-pub fn replace_lane(func: FuncBuilder) {
+pub fn replace_lane(func: ExpressionBuilder) {
   todo
 }
 
-pub fn splat(func: FuncBuilder) {
+pub fn splat(func: ExpressionBuilder) {
   todo
 }
 
-pub fn sqrt(func: FuncBuilder) {
+pub fn sqrt(func: ExpressionBuilder) {
   todo
 }
 
-pub fn sub(func: FuncBuilder) {
+pub fn sub(func: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc(func: FuncBuilder) {
+pub fn trunc(func: ExpressionBuilder) {
   todo
 }

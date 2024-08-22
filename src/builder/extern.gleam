@@ -1,5 +1,5 @@
-import builder/func_builder.{type FuncBuilder}
+import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn convert_any(func: FuncBuilder) {
+pub fn convert_any(func: ExpressionBuilder) {
   todo
 }

@@ -1,5 +1,5 @@
-import builder/func_builder.{type FuncBuilder}
+import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn drop(func: FuncBuilder) {
+pub fn drop(func: ExpressionBuilder) {
   todo
 }

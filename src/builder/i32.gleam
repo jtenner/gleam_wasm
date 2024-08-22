@@ -1,221 +1,225 @@
-import builder/func_builder.{type FuncBuilder}
+import builder/expression_builder.{type ExpressionBuilder}
+import internal/structure/numbers.{type I32}
+import internal/structure/types.{I32Add, I32Const}
 
-pub fn get_s(func: FuncBuilder) {
+pub fn get_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn get_u(func: FuncBuilder) {
+pub fn get_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn add(func: FuncBuilder) {
+pub fn add(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I32Add)
+}
+
+pub fn and(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn and(func: FuncBuilder) {
+pub fn clz(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn clz(func: FuncBuilder) {
+pub fn const_(builder: ExpressionBuilder, val: I32) {
+  builder
+  |> expression_builder.push(I32Const(val))
+}
+
+pub fn ctz(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn const_(func: FuncBuilder) {
+pub fn div_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn ctz(func: FuncBuilder) {
+pub fn div_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn div_s(func: FuncBuilder) {
+pub fn eq(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn div_u(func: FuncBuilder) {
+pub fn eqz(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn eq(func: FuncBuilder) {
+pub fn extend16_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn eqz(func: FuncBuilder) {
+pub fn extend8_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extend16_s(func: FuncBuilder) {
+pub fn ge_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extend8_s(func: FuncBuilder) {
+pub fn ge_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn ge_s(func: FuncBuilder) {
+pub fn gt_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn ge_u(func: FuncBuilder) {
+pub fn gt_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn gt_s(func: FuncBuilder) {
+pub fn le_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn gt_u(func: FuncBuilder) {
+pub fn le_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn le_s(func: FuncBuilder) {
+pub fn load(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn le_u(func: FuncBuilder) {
+pub fn load16_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load(func: FuncBuilder) {
+pub fn load16_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load16_s(func: FuncBuilder) {
+pub fn load8_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load16_u(func: FuncBuilder) {
+pub fn load8_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load8_s(func: FuncBuilder) {
+pub fn lt_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load8_u(func: FuncBuilder) {
+pub fn lt_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn lt_s(func: FuncBuilder) {
+pub fn mul(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn lt_u(func: FuncBuilder) {
+pub fn ne(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn mul(func: FuncBuilder) {
+pub fn or(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn ne(func: FuncBuilder) {
+pub fn popcnt(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn or(func: FuncBuilder) {
+pub fn reinterpret_f32(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn popcnt(func: FuncBuilder) {
+pub fn reinterpret_f64(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn reinterpret_f32(func: FuncBuilder) {
+pub fn rem_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn reinterpret_f64(func: FuncBuilder) {
+pub fn rem_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn rem_s(func: FuncBuilder) {
+pub fn rotl(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn rem_u(func: FuncBuilder) {
+pub fn rotr(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn rotl(func: FuncBuilder) {
+pub fn shl(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn rotr(func: FuncBuilder) {
+pub fn shr_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn shl(func: FuncBuilder) {
+pub fn shr_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn shr_s(func: FuncBuilder) {
+pub fn store(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn shr_u(func: FuncBuilder) {
+pub fn store16_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store(func: FuncBuilder) {
+pub fn store16_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store16_s(func: FuncBuilder) {
+pub fn store8_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store16_u(func: FuncBuilder) {
+pub fn store8_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store8_s(func: FuncBuilder) {
+pub fn sub(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store8_u(func: FuncBuilder) {
+pub fn trunc_f32_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn sub(func: FuncBuilder) {
+pub fn trunc_f32_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc_f32_s(func: FuncBuilder) {
+pub fn trunc_f64_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc_f32_u(func: FuncBuilder) {
+pub fn trunc_f64_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc_f64_s(func: FuncBuilder) {
+pub fn trunc_sat_f32_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc_f64_u(func: FuncBuilder) {
+pub fn trunc_sat_f32_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc_sat_f32_s(func: FuncBuilder) {
+pub fn trunc_sat_f64_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc_sat_f32_u(func: FuncBuilder) {
+pub fn trunc_sat_f64_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc_sat_f64_s(func: FuncBuilder) {
+pub fn wrap_i64(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn trunc_sat_f64_u(func: FuncBuilder) {
-  todo
-}
-
-pub fn wrap_i64(func: FuncBuilder) {
-  todo
-}
-
-pub fn xor(func: FuncBuilder) {
+pub fn xor(builder: ExpressionBuilder) {
   todo
 }

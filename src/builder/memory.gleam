@@ -1,21 +1,21 @@
-import builder/func_builder.{type FuncBuilder}
+import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn copy(func: FuncBuilder) {
+pub fn copy(func: ExpressionBuilder) {
   todo
 }
 
-pub fn fill(func: FuncBuilder) {
+pub fn fill(func: ExpressionBuilder) {
   todo
 }
 
-pub fn grow(func: FuncBuilder) {
+pub fn grow(func: ExpressionBuilder) {
   todo
 }
 
-pub fn init(func: FuncBuilder) {
+pub fn init(func: ExpressionBuilder) {
   todo
 }
 
-pub fn size(func: FuncBuilder) {
+pub fn size(func: ExpressionBuilder) {
   todo
 }

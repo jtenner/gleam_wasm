@@ -1,33 +1,35 @@
-import builder/func_builder.{type FuncBuilder}
+import builder/expression_builder.{type ExpressionBuilder}
+import internal/structure/types.{type HeapType, RefNull}
 
-pub fn as_non_null(func: FuncBuilder) {
+pub fn as_non_null(func: ExpressionBuilder) {
   todo
 }
 
-pub fn cast(func: FuncBuilder) {
+pub fn cast(func: ExpressionBuilder) {
   todo
 }
 
-pub fn eq(func: FuncBuilder) {
+pub fn eq(func: ExpressionBuilder) {
   todo
 }
 
-pub fn func(func: FuncBuilder) {
+pub fn func(func: ExpressionBuilder) {
   todo
 }
 
-pub fn i31(func: FuncBuilder) {
+pub fn i31(func: ExpressionBuilder) {
   todo
 }
 
-pub fn is_null(func: FuncBuilder) {
+pub fn is_null(func: ExpressionBuilder) {
   todo
 }
 
-pub fn null(func: FuncBuilder) {
-  todo
+pub fn null(builder: ExpressionBuilder, ht: HeapType) {
+  builder
+  |> expression_builder.push(RefNull(ht))
 }
 
-pub fn test_(func: FuncBuilder) {
+pub fn test_(func: ExpressionBuilder) {
   todo
 }

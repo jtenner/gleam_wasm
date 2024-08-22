@@ -7,21 +7,20 @@ import internal/structure/numbers.{type U32, unwrap_u32}
 import internal/structure/types.{
   type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
   type DefType, type ExternType, type FieldType, type FuncType, type GlobalType,
-  type HeapType, type Instruction, type InstructionType, type LocalIDX,
-  type LocalType, type MemType, type NumType, type PackedType, type RecType,
-  type RefType, type ResultType, type StorageType, type StructType, type SubType,
-  type TableType, type TypeIDX, type ValType, type VecType, AnyHeapType,
-  AnyRefType, ArrayCompositeType, ArrayHeapType, ArrayRefType, ArrayType,
-  BotHeapType, BotValType, ConcreteHeapType, Const, DefType, DefTypeHeapType,
-  EqHeapType, EqRefType, ExternHeapType, ExternRefType, F32ValType, F64ValType,
-  FieldType, FuncCompositeType, FuncExternType, FuncHeapType, FuncRefType,
-  FuncType, FuncTypeBlockType, GlobalExternType, GlobalType, HeapTypeRefType,
-  I16StorageType, I31HeapType, I31RefType, I32ValType, I64ValType, I8StorageType,
-  LocalType, Loop, MemExternType, NoExternHeapType, NoExternRefType,
-  NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, RecType,
-  RefTypeValType, ResultType, StructCompositeType, StructHeapType, StructRefType,
-  StructType, SubType, TableExternType, TableType, V128ValType, ValTypeBlockType,
-  ValTypeStorageType, Var, VoidBlockType, unwrap_local_idx,
+  type HeapType, type Instruction, type LocalIDX, type LocalType, type MemType,
+  type NumType, type PackedType, type RecType, type RefType, type StorageType,
+  type StructType, type SubType, type TableType, type TypeIDX, type ValType,
+  type VecType, AnyHeapType, AnyRefType, ArrayCompositeType, ArrayHeapType,
+  ArrayRefType, ArrayType, BotHeapType, BotValType, ConcreteHeapType, Const,
+  DefType, DefTypeHeapType, EqHeapType, EqRefType, ExternHeapType, ExternRefType,
+  F32ValType, F64ValType, FieldType, FuncCompositeType, FuncExternType,
+  FuncHeapType, FuncRefType, FuncType, FuncTypeBlockType, GlobalExternType,
+  GlobalType, HeapTypeRefType, I16StorageType, I31HeapType, I31RefType,
+  I32ValType, I64ValType, I8StorageType, LocalType, Loop, MemExternType,
+  NoExternHeapType, NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType,
+  NoneRefType, RecType, RefTypeValType, StructCompositeType, StructHeapType,
+  StructRefType, StructType, SubType, TableExternType, TableType, V128ValType,
+  ValTypeBlockType, ValTypeStorageType, Var, VoidBlockType, unwrap_local_idx,
 }
 
 import internal/validation/types.{
@@ -160,27 +159,13 @@ fn do_visit_val_types(
 
 pub fn visit_result_type(
   ctx: Context,
-  ty: ResultType,
+  ty: FingerTree(ValType),
   visitor: TypeVisitor,
-) -> Result(#(Context, ResultType), String) {
-  use #(ctx, rt) <- result.try(case visitor.result_types {
+) -> Result(#(Context, FingerTree(ValType)), String) {
+  case visitor.result_type {
     Some(f) -> f(ctx, ty)
     None -> Ok(#(ctx, ty))
-  })
-
-  use #(ctx, parameters) <- result.try(do_visit_val_types(
-    ctx,
-    rt.parameters,
-    finger_tree.new(),
-    visitor,
-  ))
-  use #(ctx, result) <- result.map(do_visit_val_types(
-    ctx,
-    rt.result,
-    finger_tree.new(),
-    visitor,
-  ))
-  #(ctx, ResultType(parameters, result))
+  }
 }
 
 /// This type means something needs to be calculated based on the stack
@@ -194,9 +179,14 @@ pub fn visit_func_type(
     None -> Ok(#(ctx, ty))
   })
 
-  use #(ctx, rt) <- result.map(visit_result_type(ctx, ft.rt, visitor))
+  use #(ctx, parameters) <- result.try(visit_result_type(
+    ctx,
+    ft.parameters,
+    visitor,
+  ))
+  use #(ctx, results) <- result.map(visit_result_type(ctx, ft.results, visitor))
 
-  #(ctx, FuncType(rt))
+  #(ctx, FuncType(parameters, results))
 }
 
 pub fn visit_struct_type(
@@ -968,21 +958,20 @@ pub fn match_heap_type(
 }
 
 pub fn match_func_type(state: ValidationState, ft1: FuncType, ft2: FuncType) {
-  match_result_type(state, ft1.rt, ft2.rt)
+  use _ <- result.try(
+    state
+    |> match_result_type(ft1.parameters, ft2.parameters),
+  )
+  state
+  |> match_result_type(ft1.results, ft2.results)
 }
 
 pub fn match_result_type(
   state: ValidationState,
-  rt1: ResultType,
-  rt2: ResultType,
+  rt1: FingerTree(ValType),
+  rt2: FingerTree(ValType),
 ) {
-  use _ <- result.try(match_vec(
-    state,
-    rt1.parameters,
-    rt2.parameters,
-    match_val_type,
-  ))
-  match_vec(state, rt1.result, rt2.result, match_val_type)
+  match_vec(state, rt1, rt2, match_val_type)
 }
 
 pub fn match_struct_type(

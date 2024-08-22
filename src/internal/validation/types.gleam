@@ -8,10 +8,10 @@ import internal/structure/types.{
   type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
   type DefType, type ExternType, type FieldType, type FuncIDX, type FuncType,
   type GlobalType, type HeapType, type Instruction, type LocalType, type MemType,
-  type NumType, type PackedType, type RecType, type RefType, type ResultType,
-  type StorageType, type StructType, type SubType, type TableType, type TypeIDX,
-  type ValType, type VecType, AnyHeapType, AnyRefType, ArrayHeapType,
-  ArrayRefType, ConcreteHeapType, DefType, EqHeapType, EqRefType, ExternHeapType,
+  type NumType, type PackedType, type RecType, type RefType, type StorageType,
+  type StructType, type SubType, type TableType, type TypeIDX, type ValType,
+  type VecType, AnyHeapType, AnyRefType, ArrayHeapType, ArrayRefType,
+  ConcreteHeapType, DefType, EqHeapType, EqRefType, ExternHeapType,
   ExternRefType, FuncCompositeType, FuncHeapType, FuncRefType, FuncTypeBlockType,
   HeapTypeRefType, I31HeapType, I31RefType, NoExternHeapType, NoExternRefType,
   NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, RecType,
@@ -145,7 +145,6 @@ pub const type_validator = TypeVisitor(
   // value types within are valid which is handled by validating the
   // valtype
   None,
-  result_types: None,
   func_type: // FuncTypes are valid it their result types are valid
   None,
   struct_type: // Struct types are valid if their field types are valid
@@ -203,10 +202,8 @@ type ValTypeVisitor =
   fn(Context, ValType) -> Result(#(Context, ValType), String)
 
 type ResultTypeVisitor =
-  fn(Context, ResultType) -> Result(#(Context, ResultType), String)
-
-type ResultTypesVisitor =
-  fn(Context, ResultType) -> Result(#(Context, ResultType), String)
+  fn(Context, FingerTree(ValType)) ->
+    Result(#(Context, FingerTree(ValType)), String)
 
 type FuncTypeVisitor =
   fn(Context, FuncType) -> Result(#(Context, FuncType), String)
@@ -273,7 +270,6 @@ pub type TypeVisitor {
     val_type: Option(ValTypeVisitor),
     block_type: Option(BlockTypeVisitor),
     result_type: Option(ResultTypeVisitor),
-    result_types: Option(ResultTypesVisitor),
     func_type: Option(FuncTypeVisitor),
     struct_type: Option(StructTypeVisitor),
     array_type: Option(ArrayTypeVisitor),
@@ -323,10 +319,6 @@ pub fn on_val_type(v: TypeVisitor, vs: ValTypeVisitor) {
 
 pub fn on_result_type(v: TypeVisitor, vs: ResultTypeVisitor) {
   TypeVisitor(..v, result_type: Some(vs))
-}
-
-pub fn on_result_types(v: TypeVisitor, vs: ResultTypesVisitor) {
-  TypeVisitor(..v, result_types: Some(vs))
 }
 
 pub fn on_func_type(v: TypeVisitor, vs: FuncTypeVisitor) {
@@ -404,7 +396,6 @@ pub fn visitor_new() {
     val_type: None,
     block_type: None,
     result_type: None,
-    result_types: None,
     func_type: None,
     struct_type: None,
     array_type: None,

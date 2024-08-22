@@ -2,7 +2,7 @@ import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import internal/binary/common
+import internal/binary/common.{encode_bytes_builder_vec}
 import internal/binary/types.{
   decode_expression, decode_func_idx, decode_global_idx, decode_global_type,
   decode_mem_idx, decode_mem_type, decode_rec_type, decode_ref_type,
@@ -18,78 +18,170 @@ import internal/structure/modules.{
   type DataSection, type ElementSection, type ExportSection,
   type FunctionSection, type GlobalSection, type ImportSection,
   type MemorySection, type StartSection, type TableSection, type TypeSection,
-  CodeSection, CustomSection, DataSection, ElementSection, ExportSection,
-  FunctionSection, GlobalSection, ImportSection, MemorySection, StartSection,
-  TableSection, TypeSection, binary_module_new,
+  BinaryModule, CodeSection, CustomSection, DataCountSection, DataSection,
+  ElementSection, ExportSection, FunctionSection, GlobalSection, ImportSection,
+  MemorySection, StartSection, TableSection, TypeSection, binary_module_new,
 }
 import internal/structure/numbers
 import internal/structure/types.{
-  type Code, type Data, type DataMode, type Elem, type Export, type Expr,
-  type FuncIDX, type Global, type Import, type RecType, type RefType, type Table,
-  ActiveData, ActiveElemMode, Code, Data, DeclarativeElemMode, Elem, Expr,
-  FuncExport, FuncHeapType, FuncImport, FuncRefType, Global, GlobalExport,
-  GlobalImport, HeapTypeRefType, I32Const, Locals, MemExport, MemImport,
-  PassiveData, PassiveElemMode, RefFunc, RefNull, Table, TableExport, TableIDX,
-  TableImport, ref_type_get_heap_type,
+  type Code, type Data, type Elem, type Export, type Expr, type FuncIDX,
+  type Global, type Import, type RecType, type RefType, type Table, ActiveData,
+  ActiveElemMode, Code, DeclarativeElemMode, Elem, Expr, FuncExport,
+  FuncHeapType, FuncImport, FuncRefType, Global, GlobalExport, GlobalImport,
+  HeapTypeRefType, I32Const, Locals, MemExport, MemImport, PassiveData,
+  PassiveElemMode, RefFunc, RefNull, Table, TableExport, TableIDX, TableImport,
+  ref_type_unwrap_heap_type,
 } as structure_types
 
+/// Encode a binary module, returning either a BitArray or an Error
 pub fn encode_module(module: BinaryModule) {
   let builder = bytes_builder.new()
+
+  // Each section can be prepended with an unlimited number of custom sections
   use builder <- result.try(encode_custom_sections(builder, module.custom_0))
+  // The type section has id 0x01, and is always first if it exists in the module
   use builder <- result.try(
     builder |> common.encode_option(module.types, encode_type_section),
   )
+
+  // The next section is always the import section if it exists with id 0x02
   use builder <- result.try(encode_custom_sections(builder, module.custom_1))
   use builder <- result.try(
     builder |> common.encode_option(module.imports, encode_import_section),
   )
+
+  // The next section is always the function section if it exists with id 0x03
   use builder <- result.try(encode_custom_sections(builder, module.custom_2))
   use builder <- result.try(
     builder |> common.encode_option(module.functions, encode_function_section),
   )
+
+  // The next section is always the table section if it exists with id 0x04
   use builder <- result.try(encode_custom_sections(builder, module.custom_3))
   use builder <- result.try(
     builder |> common.encode_option(module.tables, encode_table_section),
   )
+
+  // The next section is always the memory section if it exists with id 0x05
   use builder <- result.try(encode_custom_sections(builder, module.custom_4))
   use builder <- result.try(
     builder |> common.encode_option(module.memories, encode_memory_section),
   )
+
+  // The next section is always the global section if it exists with id 0x06
   use builder <- result.try(encode_custom_sections(builder, module.custom_5))
   use builder <- result.try(
     builder |> common.encode_option(module.globals, encode_global_section),
   )
+
+  // The next section is always the export section if it exists with id 0x07
   use builder <- result.try(encode_custom_sections(builder, module.custom_6))
   use builder <- result.try(
     builder |> common.encode_option(module.exports, encode_export_section),
   )
+
+  // The next section is always the start section if it exists with id 0x08
   use builder <- result.try(encode_custom_sections(builder, module.custom_7))
   use builder <- result.try(
     builder |> common.encode_option(module.start, encode_start_section),
   )
+
+  // The next section is always the element section if it exists with id 0x09
   use builder <- result.try(encode_custom_sections(builder, module.custom_8))
   use builder <- result.try(
     builder |> common.encode_option(module.elements, encode_element_section),
   )
+
+  // The next section is always the code section if it exists with id 0x0a
   use builder <- result.try(encode_custom_sections(builder, module.custom_9))
   use builder <- result.try(
     builder |> common.encode_option(module.code, encode_code_section),
   )
+
+  // The next section is always the data section if it exists with id 0x0b
   use builder <- result.try(encode_custom_sections(builder, module.custom_10))
   use builder <- result.try(
     builder |> common.encode_option(module.data, encode_data_section),
   )
+
+  // The next section is always the custom section if it exists with id 0x0c
   use builder <- result.try(encode_custom_sections(builder, module.custom_11))
   use builder <- result.try(
     builder
     |> common.encode_option(module.data_count, encode_data_count_section),
   )
+
+  // The last sections, according to the Wasm Spec, are always custom sections
   use builder <- result.map(encode_custom_sections(builder, module.custom_12))
   builder |> bytes_builder.to_bit_array
 }
 
 pub fn decode_module(bits: BitArray) {
-  todo
+  use #(custom_0, rest) <- result.try(decode_custom_sections(bits))
+  use #(types, rest) <- result.try(decode_type_section(rest))
+  use #(custom_1, rest) <- result.try(decode_custom_sections(rest))
+  use #(imports, rest) <- result.try(decode_import_section(rest))
+  use #(custom_2, rest) <- result.try(decode_custom_sections(rest))
+  use #(functions, rest) <- result.try(decode_function_section(rest))
+  use #(custom_3, rest) <- result.try(decode_custom_sections(rest))
+  use #(tables, rest) <- result.try(decode_table_section(rest))
+  use #(custom_4, rest) <- result.try(decode_custom_sections(rest))
+  use #(memories, rest) <- result.try(decode_memory_section(rest))
+  use #(custom_5, rest) <- result.try(decode_custom_sections(rest))
+  use #(globals, rest) <- result.try(decode_global_section(rest))
+  use #(custom_6, rest) <- result.try(decode_custom_sections(rest))
+  use #(exports, rest) <- result.try(decode_export_section(rest))
+  use #(custom_7, rest) <- result.try(decode_custom_sections(rest))
+  use #(start, rest) <- result.try(decode_start_section(rest))
+  use #(custom_8, rest) <- result.try(decode_custom_sections(rest))
+  use #(elements, rest) <- result.try(decode_elememt_section(rest))
+  use #(custom_9, rest) <- result.try(decode_custom_sections(rest))
+  use #(code, rest) <- result.try(decode_code_section(rest))
+  use #(custom_10, rest) <- result.try(decode_custom_sections(rest))
+  use #(data, rest) <- result.try(decode_data_section(rest))
+  use #(custom_11, rest) <- result.try(decode_custom_sections(rest))
+  use #(data_count, rest) <- result.try(decode_data_count_section(rest))
+  use #(custom_12, rest) <- result.map(decode_custom_sections(rest))
+  #(
+    BinaryModule(
+      custom_0,
+      types,
+      custom_1,
+      imports,
+      custom_2,
+      functions,
+      custom_3,
+      tables,
+      custom_4,
+      memories,
+      custom_5,
+      globals,
+      custom_6,
+      exports,
+      custom_7,
+      start,
+      custom_8,
+      elements,
+      custom_9,
+      code,
+      custom_10,
+      data,
+      custom_11,
+      data_count,
+      custom_12,
+    ),
+    rest,
+  )
+}
+
+pub fn decode_data_count_section(bits: BitArray) {
+  case bits {
+    <<0x0C, rest:bits>> -> {
+      use #(count, rest) <- result.map(values.decode_u32(rest))
+      #(Some(DataCountSection(count)), rest)
+    }
+    _ -> Ok(#(None, bits))
+  }
 }
 
 pub fn decode_data(bits: BitArray) {
@@ -97,24 +189,21 @@ pub fn decode_data(bits: BitArray) {
   case data_type |> numbers.unwrap_u32 {
     0 -> {
       use #(offset, rest) <- result.try(decode_expression(rest))
-      use #(size, rest) <- result.try(values.decode_u32(rest))
-      let size = size |> numbers.unwrap_u32
-      use #(data, rest) <- result.map(common.decode_bytes(rest, size))
-      #(Data(ActiveData, None, Some(offset), data), rest)
+      use #(data, rest) <- result.map(common.decode_byte_vec(rest))
+      let assert Ok(mem_idx) = numbers.u32(0)
+      let mem_idx = structure_types.MemIDX(mem_idx)
+
+      #(ActiveData(mem_idx, offset, data), rest)
     }
     1 -> {
-      use #(size, rest) <- result.try(values.decode_u32(rest))
-      let size = size |> numbers.unwrap_u32
-      use #(data, rest) <- result.map(common.decode_bytes(rest, size))
-      #(Data(PassiveData, None, None, data), rest)
+      use #(data, rest) <- result.map(common.decode_byte_vec(rest))
+      #(PassiveData(data), rest)
     }
     2 -> {
-      use #(offset, rest) <- result.try(decode_expression(rest))
       use #(mem_idx, rest) <- result.try(decode_mem_idx(rest))
-      use #(size, rest) <- result.try(values.decode_u32(rest))
-      let size = size |> numbers.unwrap_u32
-      use #(data, rest) <- result.map(common.decode_bytes(rest, size))
-      #(Data(ActiveData, Some(mem_idx), Some(offset), data), rest)
+      use #(offset, rest) <- result.try(decode_expression(rest))
+      use #(data, rest) <- result.map(common.decode_byte_vec(rest))
+      #(ActiveData(mem_idx, offset, data), rest)
     }
     _ -> Error("Invalid data type")
   }
@@ -340,7 +429,7 @@ fn decode_table(bits: BitArray) {
     }
     _ -> {
       use #(tt, rest) <- result.map(decode_table_type(bits))
-      let ht = ref_type_get_heap_type(tt.t)
+      let ht = ref_type_unwrap_heap_type(tt.t)
       let expr = RefNull(ht)
       let expr = finger_tree.from_list([expr])
       let expr = Some(Expr(expr))
@@ -393,7 +482,7 @@ fn decode_import(bits: BitArray) {
 
 fn do_decode_import_section(bits: BitArray) {
   use #(imports, rest) <- result.map(common.decode_vec(bits, decode_import))
-  #(Some(ImportSection(imports)), rest)
+  #(ImportSection(imports), rest)
 }
 
 pub fn decode_import_section(bits: BitArray) {
@@ -402,7 +491,7 @@ pub fn decode_import_section(bits: BitArray) {
 
 fn do_decode_type_section(bits: BitArray) {
   use #(types, left) <- result.map(common.decode_vec(bits, decode_rec_type))
-  #(Some(TypeSection(types)), left)
+  #(TypeSection(types), left)
 }
 
 pub fn decode_type_section(bits: BitArray) {
@@ -443,31 +532,31 @@ pub fn encode_custom_sections(
 ) {
   case sections {
     Some(sections) ->
-      Ok(finger_tree.fold(sections, builder, encode_custom_section))
+      finger_tree.try_fold(sections, builder, encode_custom_section)
     None -> Ok(builder)
   }
 }
 
 pub fn encode_custom_section(builder: BytesBuilder, section: CustomSection) {
-  let size = bit_array.byte_size(section.data)
-  let assert Ok(size) = numbers.u32(size)
+  use section_builder <- result.try(
+    bytes_builder.new()
+    |> common.encode_string(section.name),
+  )
+  use section_builder <- result.try(
+    section_builder |> common.encode_byte_vec(section.data),
+  )
   builder
   |> bytes_builder.append(<<0x00>>)
-  |> encode_u32(size)
-  |> bytes_builder.append(section.data)
+  |> encode_bytes_builder_vec(section_builder)
 }
 
 pub fn encode_type_section(builder: BytesBuilder, section: TypeSection) {
   use section_builder <- result.try(
-    builder |> common.encode_vec(section.types, encode_rec_type),
+    bytes_builder.new() |> common.encode_vec(section.types, encode_rec_type),
   )
-  use size <- result.map(
-    section_builder |> bytes_builder.byte_size |> numbers.u32,
-  )
-  section_builder
+  builder
   |> bytes_builder.append(<<0x01>>)
-  |> encode_u32(size)
-  |> bytes_builder.append_builder(section_builder)
+  |> encode_bytes_builder_vec(section_builder)
 }
 
 pub fn encode_import(builder: BytesBuilder, import_: Import) {
@@ -475,22 +564,30 @@ pub fn encode_import(builder: BytesBuilder, import_: Import) {
     FuncImport(mod, name, type_idx) -> {
       use builder <- result.try(builder |> common.encode_string(mod))
       use builder <- result.try(builder |> common.encode_string(name))
-      builder |> encode_type_idx(type_idx)
+      builder
+      |> bytes_builder.append(<<0x00>>)
+      |> encode_type_idx(type_idx)
     }
     TableImport(mod, name, table_type) -> {
       use builder <- result.try(builder |> common.encode_string(mod))
       use builder <- result.try(builder |> common.encode_string(name))
-      builder |> encode_table_type(table_type)
+      builder
+      |> bytes_builder.append(<<0x01>>)
+      |> encode_table_type(table_type)
     }
     MemImport(mod, name, mem_type) -> {
       use builder <- result.try(builder |> common.encode_string(mod))
       use builder <- result.try(builder |> common.encode_string(name))
-      builder |> encode_mem_type(mem_type)
+      builder
+      |> bytes_builder.append(<<0x02>>)
+      |> encode_mem_type(mem_type)
     }
     GlobalImport(mod, name, global_type) -> {
       use builder <- result.try(builder |> common.encode_string(mod))
       use builder <- result.try(builder |> common.encode_string(name))
-      builder |> encode_global_type(global_type)
+      builder
+      |> bytes_builder.append(<<0x03>>)
+      |> encode_global_type(global_type)
     }
   }
 }
@@ -499,14 +596,9 @@ pub fn encode_import_section(builder: BytesBuilder, section: ImportSection) {
   use section_builder <- result.try(
     bytes_builder.new() |> common.encode_vec(section.imports, encode_import),
   )
-
-  use size <- result.map(
-    section_builder |> bytes_builder.byte_size |> numbers.u32,
-  )
   builder
-  |> bytes_builder.append(<<0x01>>)
-  |> encode_u32(size)
-  |> bytes_builder.append_builder(section_builder)
+  |> bytes_builder.append(<<0x02>>)
+  |> encode_bytes_builder_vec(section_builder)
 }
 
 pub fn encode_function_section(
@@ -517,14 +609,10 @@ pub fn encode_function_section(
     bytes_builder.new()
     |> common.encode_vec(function_section.funcs, encode_type_idx),
   )
-  use size <- result.map(
-    section_builder |> bytes_builder.byte_size |> numbers.u32,
-  )
 
   builder
-  |> bytes_builder.append(<<3>>)
-  |> encode_u32(size)
-  |> bytes_builder.append_builder(section_builder)
+  |> bytes_builder.append(<<0x03>>)
+  |> encode_bytes_builder_vec(section_builder)
 }
 
 pub fn encode_table(builder: BytesBuilder, table: Table) {
@@ -546,13 +634,9 @@ pub fn encode_table_section(builder: BytesBuilder, table_section: TableSection) 
     bytes_builder.new()
     |> common.encode_vec(table_section.tables, encode_table),
   )
-  use size <- result.map(
-    section_builder |> bytes_builder.byte_size |> numbers.u32,
-  )
   builder
-  |> bytes_builder.append(<<4>>)
-  |> encode_u32(size)
-  |> bytes_builder.append_builder(section_builder)
+  |> bytes_builder.append(<<0x04>>)
+  |> encode_bytes_builder_vec(section_builder)
 }
 
 pub fn encode_memory_section(
@@ -811,55 +895,32 @@ pub fn encode_code_section(builder: BytesBuilder, code_section: CodeSection) {
 }
 
 fn encode_data_segment(builder: BytesBuilder, data: Data) {
-  let Data(mode, mem, offset, init) = data
-  use size <- result.try(init |> bit_array.byte_size |> numbers.u32)
-
-  case mode {
-    // type: 1
-    PassiveData -> {
-      Ok(
+  // let Data(mode, mem, offset, init) = data
+  // use size <- result.try(init |> bit_array.byte_size |> numbers.u32)
+  use index_zero <- result.try(numbers.u32(0))
+  let index_zero = structure_types.MemIDX(index_zero)
+  case data {
+    ActiveData(mem, offset, init) if mem == index_zero -> {
+      use builder <- result.try(
         builder
-        |> bytes_builder.append(<<0x01>>)
-        |> encode_u32(size)
-        |> bytes_builder.append(init),
+        |> bytes_builder.append(<<0x00>>)
+        |> encode_expression(offset),
       )
+      builder |> common.encode_byte_vec(init)
     }
-    ActiveData -> {
-      let offset = case offset {
-        Some(offset) -> offset
-        None -> {
-          let assert Ok(offset) = numbers.i32(0)
-          Expr(finger_tree.from_list([I32Const(offset)]))
-        }
-      }
-      case mem {
-        // type: 0
-        None -> {
-          use builder <- result.map(
-            builder
-            |> bytes_builder.append(<<0x00>>)
-            |> encode_expression(offset),
-          )
-          builder
-          |> encode_u32(size)
-          |> bytes_builder.append(init)
-        }
-        // type: 2
-        Some(mem) -> {
-          use builder <- result.try(
-            builder
-            |> bytes_builder.append(<<0x02>>)
-            |> encode_mem_idx(mem),
-          )
-          use builder <- result.map(
-            builder
-            |> encode_expression(offset),
-          )
-          builder
-          |> encode_u32(size)
-          |> bytes_builder.append(init)
-        }
-      }
+    PassiveData(init) -> {
+      builder
+      |> bytes_builder.append(<<0x01>>)
+      |> common.encode_byte_vec(init)
+    }
+    ActiveData(mem, offset, init) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x02>>)
+        |> encode_mem_idx(mem),
+      )
+      use builder <- result.try(builder |> encode_expression(offset))
+      builder |> common.encode_byte_vec(init)
     }
   }
 }

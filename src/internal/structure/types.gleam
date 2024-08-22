@@ -10,6 +10,7 @@ pub fn unwrap_lane_16(val: LaneIDX16) {
   val.val
 }
 
+/// Create a lane index that indexes 16 lanes
 pub fn lane_16(val: Int) {
   case val |> between(#(0, 15)) {
     True -> Ok(LaneIDX16(val))
@@ -17,6 +18,7 @@ pub fn lane_16(val: Int) {
   }
 }
 
+/// This type is used to describe lane indexes with a range of [0, 15]
 pub opaque type LaneIDX16 {
   LaneIDX16(val: Int)
 }
@@ -25,6 +27,7 @@ pub fn unwrap_lane_2(val: LaneIDX2) {
   val.val
 }
 
+/// Create a lane index that indexes 2 lanes
 pub fn lane_2(val: Int) {
   case val |> between(#(0, 1)) {
     True -> Ok(LaneIDX2(val))
@@ -32,6 +35,7 @@ pub fn lane_2(val: Int) {
   }
 }
 
+/// This type is used to describe lane indexes with a range of [0, 1]
 pub opaque type LaneIDX2 {
   LaneIDX2(val: Int)
 }
@@ -40,6 +44,7 @@ pub fn unwrap_lane_4(val: LaneIDX4) {
   val.val
 }
 
+/// Create a lane index that indexes 4 lanes
 pub fn lane_4(val: Int) {
   case val |> between(#(0, 3)) {
     True -> Ok(LaneIDX4(val))
@@ -47,6 +52,7 @@ pub fn lane_4(val: Int) {
   }
 }
 
+/// This type is used to describe lane indexes with a range of [0, 3]
 pub opaque type LaneIDX4 {
   LaneIDX4(val: Int)
 }
@@ -55,6 +61,7 @@ pub fn unwrap_lane_8(val: LaneIDX8) {
   val.val
 }
 
+/// Create a lane index that indexes 8 lanes
 pub fn lane_8(val: Int) {
   case val |> between(#(0, 7)) {
     True -> Ok(LaneIDX8(val))
@@ -62,10 +69,12 @@ pub fn lane_8(val: Int) {
   }
 }
 
+/// This type is used to describe lane indexes with a range of [0, 7]
 pub opaque type LaneIDX8 {
   LaneIDX8(val: Int)
 }
 
+/// This type is used to describe a number type, namely the primary wasm number types
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#number-types
 pub type NumType {
   I32NumType
@@ -74,8 +83,10 @@ pub type NumType {
   F64NumType
 }
 
+/// A bool is always an I32
 pub const bool = I32NumType
 
+/// This type is used to describe a SIMD vector type
 /// pleasae see: https://webassembly.github.io/gc/core/syntax/types.html#vector-types
 pub type VecType {
   VecType
@@ -101,6 +112,7 @@ pub type HeapType {
   BotHeapType
 }
 
+/// This is a collection of all the abstract classifications of RefTypes
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#heap-types
 pub type AbstractHeapType {
   FuncAbstractHeapType
@@ -115,6 +127,7 @@ pub type AbstractHeapType {
   NoneAbstractHeapType
 }
 
+/// A refrence type describes a refrence to an object that may or may not be nullable
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#reference-types
 pub type RefType {
   HeapTypeRefType(ht: HeapType, null: Bool)
@@ -141,6 +154,7 @@ pub type RefType {
   NoExternRefType
 }
 
+/// This function is used to check if a refrence type is nullable
 pub fn ref_type_is_nullable(rt: RefType) {
   case rt {
     HeapTypeRefType(_, null) -> null
@@ -148,7 +162,8 @@ pub fn ref_type_is_nullable(rt: RefType) {
   }
 }
 
-pub fn ref_type_get_heap_type(rt: RefType) {
+/// This function is used to unwrap the heap type from a refrence type
+pub fn ref_type_unwrap_heap_type(rt: RefType) {
   case rt {
     HeapTypeRefType(ht, _) -> ht
     AnyRefType -> AnyHeapType
@@ -164,6 +179,7 @@ pub fn ref_type_get_heap_type(rt: RefType) {
   }
 }
 
+/// ValTypes are used to describe the shape of values on the WASM stack, locals, and globals
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#value-types
 pub type ValType {
   V128ValType
@@ -175,6 +191,8 @@ pub type ValType {
   BotValType
 }
 
+/// A block type describes the shape of control flow sections inside wasm code. They can either be "void",
+/// a single value return type, or the shape of a function type at the given type index.
 /// Please see: https://webassembly.github.io/gc/core/binary/instructions.html#control-instructions
 pub type BlockType {
   VoidBlockType
@@ -182,26 +200,30 @@ pub type BlockType {
   FuncTypeBlockType(idx: TypeIDX)
 }
 
-/// Please see: https://webassembly.github.io/gc/core/syntax/types.html#result-types
-pub type ResultType {
-  ResultType(parameters: FingerTree(ValType), result: FingerTree(ValType))
+/// An instruction type is two result types, one for the parameters, and one for the results.
+pub type InstructionType {
+  InstructionType(parameters: FingerTree(ValType), results: FingerTree(ValType))
 }
 
+/// A function type describes the shape of the parameters and results of a given function.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#function-types
 pub type FuncType {
-  FuncType(rt: ResultType)
+  FuncType(parameters: FingerTree(ValType), results: FingerTree(ValType))
 }
 
+/// A struct type describes the shape of the fields of a given struct.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#aggregate-types
 pub type StructType {
   StructType(ft: FingerTree(FieldType))
 }
 
+/// An array type describes an array with the given field type.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#aggregate-types
 pub type ArrayType {
   ArrayType(ft: FieldType)
 }
 
+/// A field type is classified by a "StorageType" and a "Mutability" state. 
 /// Please See: https://webassembly.github.io/gc/core/syntax/types.html#aggregate-types
 pub type FieldType {
   FieldType(st: StorageType, mut: Mut)
@@ -212,6 +234,7 @@ pub type FieldType {
 /// however, they are merged with StorageType for convenience
 pub type StorageType {
   ValTypeStorageType(vt: ValType)
+  // the values below are PackedTypes
   I8StorageType
   I16StorageType
 }
@@ -222,6 +245,8 @@ pub type PackedType {
   I16
 }
 
+/// This function is used to unwrap the packed type from a storage type, returning the
+/// smallest possible ValType associated with this storage type
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#aux-unpacktype
 pub fn unpack_storage_type(st: StorageType) -> ValType {
   case st {
@@ -230,6 +255,8 @@ pub fn unpack_storage_type(st: StorageType) -> ValType {
   }
 }
 
+/// A composite type is a classification of a SubType, which can either be a function,
+/// a struct, or an array.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#composite-types
 pub type CompositeType {
   FuncCompositeType(ft: FuncType)
@@ -237,66 +264,83 @@ pub type CompositeType {
   ArrayCompositeType(at: ArrayType)
 }
 
+/// A recursive type is a fundamental unit of type declaration in WebAssembly modules.
+/// It is used to describe the shape of mutually recursive SubTypes.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#recursive-types
 pub type RecType {
   RecType(st: FingerTree(SubType))
 }
 
+/// An index into the module's type section.
 pub type TypeIDX {
   /// Module Type Index
   TypeIDX(id: U32)
 }
 
+/// An index into a struct's field list.
 pub type FieldIDX {
   /// Module Field Index
   FieldIDX(id: U32)
 }
 
+/// An index into the module's function section and also the concrete function.
 pub type FuncIDX {
   /// Module Func Index
   FuncIDX(id: U32)
 }
 
+/// An index into the module's table section
 pub type TableIDX {
   /// Module Table Index
   TableIDX(id: U32)
 }
 
+/// An index into a function's code section, that identifies a location within a given function.
 pub type LabelIDX {
   /// Label Index
   LabelIDX(id: U32)
 }
 
+/// An index into the module's Element section, and points to a given Element sequence.
 pub type ElemIDX {
   /// Module Elem Index
   ElemIDX(id: U32)
 }
 
+/// An index into the module's memory section, and points to a given memory.
 pub type MemIDX {
   /// Module Mem Index
   MemIDX(id: U32)
 }
 
+/// A fundamental type in a WASM module that defines not only the shape of the type, but
+/// also an array of matching subtype indexes that the type matches.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#recursive-types
 pub type SubType {
   SubType(final: Bool, t: FingerTree(TypeIDX), ct: CompositeType)
 }
 
+/// A definition of a limit range, which has a minimum, and an optional maximum which defaults
+/// to an unbounded upper bound.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#limits
 pub type Limits {
   Limits(min: U32, max: Option(U32))
 }
 
+/// A MemoryType describes the byte length limits of a given memory.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#memory-types
 pub type MemType {
   MemType(limits: Limits)
 }
 
+/// A TableType describes the RefrenceType of a given table, along with the limits of
+/// how many items may exist in that table.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#table-types
 pub type TableType {
   TableType(t: RefType, limits: Limits)
 }
 
+/// A GlobalType describes a ValueType and a Mutability state of a given global.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#global-types
 pub type GlobalType {
   GlobalType(vt: ValType, mut: Mut)
@@ -308,6 +352,7 @@ pub type Mut {
   Var
 }
 
+/// An ExternType describes an a shape of some external refrence.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#external-types
 pub type ExternType {
   FuncExternType(dt: DefType)
@@ -316,6 +361,7 @@ pub type ExternType {
   GlobalExternType(gt: GlobalType)
 }
 
+/// This function returns all the ExternTypes that are FuncTypes
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
 pub fn get_extern_func_types(
   et: FingerTree(ExternType),
@@ -329,6 +375,7 @@ pub fn get_extern_func_types(
   })
 }
 
+/// This function returns all the ExternTypes that are TableTypes
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
 pub fn get_extern_table_types(
   et: FingerTree(ExternType),
@@ -342,6 +389,7 @@ pub fn get_extern_table_types(
   })
 }
 
+/// This function returns all the ExternTypes that are MemTypes
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
 pub fn get_extern_memory_types(
   et: FingerTree(ExternType),
@@ -355,6 +403,7 @@ pub fn get_extern_memory_types(
   })
 }
 
+/// This function returns all the ExternTypes that are GlobalTypes
 /// https://webassembly.github.io/gc/core/syntax/types.html#id5
 pub fn get_extern_global_types(
   et: FingerTree(ExternType),
@@ -368,41 +417,43 @@ pub fn get_extern_global_types(
   })
 }
 
-/// Please see: https://webassembly.github.io/gc/core/valid/types.html#instruction-types
-pub type InstructionType {
-  InstructionType(t1: FingerTree(ValType), t2: FingerTree(ValType))
-}
-
+/// A deftype is a "wrapper", referred to as an "unrolled" type that identifies a SubType.
+/// That SubType is represented by a refrence to a specific recursive type, and then indexing
+/// into that refrence's subtype.
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#defined-types
 pub type DefType {
   DefType(rt: RecType, idx: Int)
 }
 
+/// A local type is represented as a value type and wether or not it has been initialized.
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#local-types 
 pub type LocalType {
   LocalType(initialized: Bool, t: ValType)
 }
 
-/// Please see: todo
+/// An index into the data section, that points to a given data segment
 pub type DataIDX {
   DataIDX(id: U32)
 }
 
-/// Please see: todo
+/// An index into a code segment's parameters and local variables
 pub type LocalIDX {
   LocalIDX(id: U32)
 }
 
-/// Please see: todo
+/// An index into the global section that points to a given global
 pub type GlobalIDX {
   GlobalIDX(id: U32)
 }
 
-/// Please see: todo
+/// An immediate argument for an instruction that defines how a load or a store operation
+/// should be performed.
 pub type MemArg {
   MemArg(offset: U32, align: U32)
 }
 
+/// An instruction defines a distinct operation to be performed on the wasm virtual machine.
+/// Please see: https://webassembly.github.io/gc/core/syntax/instructions.html
 pub type Instruction {
   I64Const(val: I64)
   I32Const(val: I32)
@@ -897,20 +948,20 @@ pub type Instruction {
   Else
 }
 
-pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
+pub fn get_result_type(instruction: Instruction) -> Result(InstructionType, Nil) {
   case instruction {
     End | Else -> Error(Nil)
 
     I64Const(_) ->
-      Ok(ResultType(finger_tree.new(), finger_tree.from_list([I64ValType])))
+      Ok(InstructionType(finger_tree.new(), finger_tree.from_list([I64ValType])))
     I32Const(_) | ArrayLen | I31GetS | I31GetU ->
-      Ok(ResultType(finger_tree.new(), finger_tree.from_list([I32ValType])))
+      Ok(InstructionType(finger_tree.new(), finger_tree.from_list([I32ValType])))
     F64Const(_) ->
-      Ok(ResultType(finger_tree.new(), finger_tree.from_list([F64ValType])))
+      Ok(InstructionType(finger_tree.new(), finger_tree.from_list([F64ValType])))
     F32Const(_) ->
-      Ok(ResultType(finger_tree.new(), finger_tree.from_list([F32ValType])))
+      Ok(InstructionType(finger_tree.new(), finger_tree.from_list([F32ValType])))
     I64Popcnt | I64Ctz | I64Clz | I64Extend32S | I64Extend16S | I64Extend8S ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([I64ValType]),
       ))
@@ -926,17 +977,17 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I32Load8S(_)
     | I32Load8U(_)
     | MemoryGrow ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([I32ValType]),
       ))
     F64Nearest | F64Trunc | F64Floor | F64Ceil | F64Sqrt | F64Neg | F64Abs ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([F64ValType]),
       ))
     F32Nearest | F32Trunc | F32Floor | F32Ceil | F32Sqrt | F32Neg | F32Abs ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([F32ValType]),
       ))
@@ -955,7 +1006,7 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I64Mul
     | I64Sub
     | I64Add ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I64ValType, I64ValType]),
         finger_tree.from_list([I64ValType]),
       ))
@@ -984,22 +1035,22 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I32LtU
     | I32Ne
     | I32Eq ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType, I32ValType]),
         finger_tree.from_list([I32ValType]),
       ))
     F64Copysign | F64Max | F64Min | F64Div | F64Mul | F64Sub | F64Add ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F64ValType, F64ValType]),
         finger_tree.from_list([F64ValType]),
       ))
     F32Copysign | F32Max | F32Min | F32Div | F32Mul | F32Sub | F32Add ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F32ValType, F32ValType]),
         finger_tree.from_list([F32ValType]),
       ))
     I64Eqz | I32WrapI64 ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([I32ValType]),
       ))
@@ -1013,18 +1064,18 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I64LtU
     | I64Ne
     | I64Eq ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I64ValType, I64ValType]),
         finger_tree.from_list([I32ValType]),
       ))
 
     F64Ge | F64Le | F64Gt | F64Lt | F64Ne | F64Eq ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F64ValType, F64ValType]),
         finger_tree.from_list([I32ValType]),
       ))
     F32Ge | F32Le | F32Gt | F32Lt | F32Ne | F32Eq ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F32ValType, F32ValType]),
         finger_tree.from_list([I32ValType]),
       ))
@@ -1037,7 +1088,7 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I64Load8U(_)
     | I64Load32S(_)
     | I64Load32U(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([I64ValType]),
       ))
@@ -1046,17 +1097,17 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I64TruncSatF64S
     | I64TruncSatF64U
     | I64ReinterpretF64 ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([I64ValType]),
       ))
     I64TruncF32S | I64TruncF32U | I64TruncSatF32S | I64TruncSatF32U ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([I64ValType]),
       ))
     I32TruncF64S | I32TruncF64U | I32TruncSatF64S | I32TruncSatF64U ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([I32ValType]),
       ))
@@ -1065,42 +1116,45 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I32TruncSatF32S
     | I32TruncSatF32U
     | I32ReinterpretF32 ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([I32ValType]),
       ))
     F32DemoteF64 ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([F64ValType]),
       ))
     F64PromoteF32 ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([F32ValType]),
       ))
     F64ConvertI64S | F64ConvertI64U | F64ReinterpretI64 ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([F64ValType]),
       ))
     F64ConvertI32S | F64ConvertI32U | F64Load(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([F64ValType]),
       ))
     F32ConvertI64S | F32ConvertI64U ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([F32ValType]),
       ))
     F32ConvertI32S | F32ConvertI32U | F32ReinterpretI32 | F32Load(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([F32ValType]),
       ))
     V128Const(_) ->
-      Ok(ResultType(finger_tree.new(), finger_tree.from_list([V128ValType])))
+      Ok(InstructionType(
+        finger_tree.new(),
+        finger_tree.from_list([V128ValType]),
+      ))
     V128Not
     | I64x2Neg
     | I64x2Abs
@@ -1139,7 +1193,7 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | F64x2ConvertLowI32x4S
     | F64x2ConvertLowI32x4U
     | F64x2PromoteLowF32x4 ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([V128ValType]),
       ))
@@ -1276,12 +1330,12 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | F32x4Sub
     | F32x4Add
     | I64x2Mul ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType, V128ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     V128Bitselect ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType, V128ValType, V128ValType]),
         finger_tree.from_list([V128ValType]),
       ))
@@ -1298,7 +1352,7 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I32x4Bitmask
     | I16x8Bitmask
     | I8x16Bitmask ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([I32ValType]),
       ))
@@ -1318,42 +1372,42 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | V128Load32Splat(_)
     | V128Load16Splat(_)
     | V128Load8Splat(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     I64x2Splat ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I64ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     F32x4Splat ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F32ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     F64x2Splat ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([F64ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     I64x2ExtractLane(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([I64ValType]),
       ))
     I32x4ExtractLane(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([I32ValType]),
       ))
     F32x4ExtractLane(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([F32ValType]),
       ))
     F64x2ExtractLane(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType]),
         finger_tree.from_list([F64ValType]),
       ))
@@ -1372,26 +1426,26 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | I8x16ShrS
     | I8x16ShrU
     | I8x16Shl ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType, I32ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     I64x2ReplaceLane(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType, I64ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     F32x4ReplaceLane(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType, F32ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     F64x2ReplaceLane(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([V128ValType, F64ValType]),
         finger_tree.from_list([V128ValType]),
       ))
-    Nop -> Ok(ResultType(finger_tree.new(), finger_tree.new()))
+    Nop -> Ok(InstructionType(finger_tree.new(), finger_tree.new()))
     RefFunc(_)
     | ArrayNewFixed(_, _)
     | RefNull(_)
@@ -1454,37 +1508,37 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | StructNewDefault(_) -> todo
 
     RefI31 ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.new(),
         finger_tree.from_list([RefTypeValType(I31RefType)]),
       ))
     AnyConvertExtern ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([RefTypeValType(ExternRefType)]),
         finger_tree.from_list([RefTypeValType(AnyRefType)]),
       ))
     ExternConvertAny ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([RefTypeValType(AnyRefType)]),
         finger_tree.from_list([RefTypeValType(ExternRefType)]),
       ))
     I64Store(_) | I64Store16(_) | I64Store8(_) | I64Store32(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType, I64ValType]),
         finger_tree.new(),
       ))
     I32Store(_) | I32Store16(_) | I32Store8(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType, I32ValType]),
         finger_tree.new(),
       ))
     F64Store(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType, F64ValType]),
         finger_tree.new(),
       ))
     F32Store(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType, F32ValType]),
         finger_tree.new(),
       ))
@@ -1493,7 +1547,7 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | V128Store16Lane(_, _)
     | V128Store32Lane(_, _)
     | V128Store64Lane(_, _) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType, V128ValType]),
         finger_tree.new(),
       ))
@@ -1501,25 +1555,28 @@ pub fn get_result_type(instruction: Instruction) -> Result(ResultType, Nil) {
     | V128Load16Lane(_, _)
     | V128Load32Lane(_, _)
     | V128Load64Lane(_, _) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType, V128ValType]),
         finger_tree.from_list([V128ValType]),
       ))
     MemorySize ->
-      Ok(ResultType(finger_tree.new(), finger_tree.from_list([I32ValType])))
+      Ok(InstructionType(finger_tree.new(), finger_tree.from_list([I32ValType])))
     MemoryFill | MemoryCopy | MemoryInit(_) ->
-      Ok(ResultType(
+      Ok(InstructionType(
         finger_tree.from_list([I32ValType, I32ValType, I32ValType]),
         finger_tree.new(),
       ))
-    DataDrop(_) -> Ok(ResultType(finger_tree.new(), finger_tree.new()))
+    DataDrop(_) -> Ok(InstructionType(finger_tree.new(), finger_tree.new()))
   }
 }
 
+/// An expression is a "End" [0x0B] terminated sequence of instructions
 pub type Expr {
   Expr(insts: FingerTree(Instruction))
 }
 
+/// Expanding a deftype extracts the "CompositeType" of the refrenced subtype to
+/// identify what kind of DefinedType it is. 
 pub fn def_type_expand(dt: DefType) {
   let DefType(RecType(st), idx) = dt
   use st <- result.try(st |> finger_tree.drop(idx))
@@ -1527,6 +1584,8 @@ pub fn def_type_expand(dt: DefType) {
   st.ct
 }
 
+/// An import describes a function, table, memory, or global expected to be provided
+/// by the WebAssembly host.
 pub type Import {
   FuncImport(mod: String, name: String, type_idx: TypeIDX)
   TableImport(mod: String, name: String, table_type: TableType)
@@ -1534,36 +1593,48 @@ pub type Import {
   GlobalImport(mod: String, name: String, global_type: GlobalType)
 }
 
-/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
-pub type Func {
-  Func(type_: U32, locals: FingerTree(Locals), body: Expr)
-}
-
+/// A set of defined locals, (3:u32 i32:valtype), which describe how many of each type 
+/// of local is defined in a given code section.
+/// 
+/// E.X. Locals* -> (3 i32) (2 i64) (1 f32)
+/// 
+/// This sequence of "Locals" expands to  ValType* -> (i32) (i32) (i32) (i64) (i64) (f32)
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#functions
 pub type Locals {
   Locals(count: U32, type_: ValType)
 }
 
+/// A WebAssembly table that is defined by a TableType, and is optionally initialized by
+/// an Expression
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#tables
 pub type Table {
   Table(type_: TableType, init: Option(Expr))
 }
 
+/// A WebAssembly Memory defined by it's memory type
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#memories
 pub type Mem {
   Mem(type_: MemType)
 }
 
+/// A WebAssembly Global defined by it's global type and constant initializer
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#globals
 pub type Global {
   Global(type_: GlobalType, init: Expr)
 }
 
+/// A WebAssembly element segment that describes a sequence of Expressions to help initialize tables
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
 pub type Elem {
   Elem(type_: RefType, init: FingerTree(Expr), mode: ElemMode)
 }
 
+/// An element segment defines a sequence of expressions, but how those elements are used is
+/// determined by the ElemMode provided as a "SegmentType"
+/// 
+/// - `Passive`: This segment is used to define tables that are not initialized from function calls
+/// - `Active`: This segment is used to define tables that are initialized when the module is instantiated, on a given table, at a specific index
+/// - `Declarative`: This segment is used to define refrences that are created later from code
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
 pub type ElemMode {
   PassiveElemMode
@@ -1571,11 +1642,8 @@ pub type ElemMode {
   DeclarativeElemMode
 }
 
-/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#start-function
-pub type Start {
-  Start(func: U32)
-}
-
+/// An export describes an item that is provided back to the WebAssembly host
+/// for later use.
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#exports
 pub type Export {
   FuncExport(name: String, func_idx: FuncIDX)
@@ -1584,6 +1652,8 @@ pub type Export {
   GlobalExport(name: String, global_idx: GlobalIDX)
 }
 
+/// A convention to identify if and export is a function
+/// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#exports
 pub fn export_is_func(export: Export) -> Bool {
   case export {
     FuncExport(_, _) -> True
@@ -1591,6 +1661,7 @@ pub fn export_is_func(export: Export) -> Bool {
   }
 }
 
+/// A convention to identify if and export is a table
 /// Conventions: https://webassembly.github.io/gc/core/syntax/modules.html#exports
 pub fn export_is_table(export: Export) -> Bool {
   case export {
@@ -1599,6 +1670,8 @@ pub fn export_is_table(export: Export) -> Bool {
   }
 }
 
+/// A convention to identify if and export is a memory
+/// Conventions: https://webassembly.github.io/gc/core/syntax/modules.html#exports
 pub fn export_is_mem(export: Export) -> Bool {
   case export {
     MemExport(_, _) -> True
@@ -1606,6 +1679,8 @@ pub fn export_is_mem(export: Export) -> Bool {
   }
 }
 
+/// A convention to identify if and export is a global
+/// Conventions: https://webassembly.github.io/gc/core/syntax/modules.html#exports
 pub fn export_is_global(export: Export) -> Bool {
   case export {
     GlobalExport(_, _) -> True
@@ -1613,44 +1688,44 @@ pub fn export_is_global(export: Export) -> Bool {
   }
 }
 
+/// A convenience method to filter out exports that are not functions
 pub fn funcs(exports: FingerTree(Export)) -> FingerTree(Export) {
   exports |> finger_tree.filter(export_is_func)
 }
 
+/// A convenience method to filter out exports that are not tables
 pub fn tables(exports: FingerTree(Export)) -> FingerTree(Export) {
   exports |> finger_tree.filter(export_is_table)
 }
 
+/// A convenience method to filter out exports that are not memories
 pub fn mems(exports: FingerTree(Export)) -> FingerTree(Export) {
   exports |> finger_tree.filter(export_is_mem)
 }
 
+/// A convenience method to filter out exports that are not globals
 pub fn globals(exports: FingerTree(Export)) -> FingerTree(Export) {
   exports |> finger_tree.filter(export_is_global)
 }
 
+/// A WebAssembly function defined by it's locals and function body
 pub type Code {
   Code(locals: FingerTree(Locals), body: Expr)
 }
 
-pub type DataMode {
-  ActiveData
-  PassiveData
-}
-
+/// A WebAssembly data segment that describes the "type" of the data segment, the memory it
+/// writes into, the offset into that memory, and the data itself.
 pub type Data {
-  Data(
-    mode: DataMode,
-    mem: Option(MemIDX),
-    offset: Option(Expr),
-    init: BitArray,
-  )
+  ActiveData(mem: MemIDX, offset: Expr, init: BitArray)
+  PassiveData(init: BitArray)
 }
 
+/// Return the integer value of a local index
 pub fn unwrap_local_idx(idx: LocalIDX) {
   idx.id |> numbers.unwrap_u32
 }
 
+/// Return the integer value of a type index
 pub fn unwrap_type_idx(idx: TypeIDX) {
   idx.id |> numbers.unwrap_u32
 }

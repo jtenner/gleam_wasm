@@ -9,10 +9,8 @@ import internal/binary/values.{
   encode_i8, encode_s33, encode_u16, encode_u32, encode_u64, encode_u8,
 }
 import internal/structure/numbers.{
-  type I16, type I32, type I64, type I8, type S33, type U16, type U32, type U64,
-  type U8, i16, i32, i64, i8, s33, u16, u32, u64, u8, unwrap_i16, unwrap_i32,
-  unwrap_i64, unwrap_i8, unwrap_s33, unwrap_u16, unwrap_u32, unwrap_u64,
-  unwrap_u8,
+  i16, i32, i64, i8, s33, u16, u32, u64, u8, unwrap_i16, unwrap_i32, unwrap_i64,
+  unwrap_i8, unwrap_s33, unwrap_u16, unwrap_u32, unwrap_u64, unwrap_u8,
 }
 
 pub fn to_i16(val: Int) {

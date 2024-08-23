@@ -1,5 +1,6 @@
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
+import gleam/result
 
 pub opaque type FingerTree(u) {
   Empty
@@ -54,16 +55,16 @@ fn unshift_node(tree: FingerTree(a), node: a) -> FingerTree(a) {
 pub fn push(tree: FingerTree(u), a: u) -> FingerTree(u) {
   case tree {
     Empty -> Single(a)
-    Single(b) -> Deep(2, One(a), Empty, One(b))
+    Single(b) -> Deep(2, One(b), Empty, One(a))
     Deep(s, pr, m, One(b)) -> Deep(s + 1, pr, m, Two(b, a))
     Deep(s, pr, m, Two(c, b)) -> Deep(s + 1, pr, m, Three(c, b, a))
     Deep(s, pr, m, Three(d, c, b)) -> Deep(s + 1, pr, m, Four(d, c, b, a))
     Deep(s, pr, m, Four(e, d, c, b)) ->
-      Deep(s + 1, pr, push_node(m, Node3(e, d, c)), One(b))
+      Deep(s + 1, pr, do_push(m, Node3(e, d, c)), Two(b, a))
   }
 }
 
-fn push_node(tree: FingerTree(a), node: a) -> FingerTree(a) {
+fn do_push(tree: FingerTree(Node(a)), node: Node(a)) -> FingerTree(Node(a)) {
   tree |> push(node)
 }
 
@@ -242,4 +243,301 @@ pub fn filter(tree: FingerTree(e), f: fn(e) -> Bool) -> FingerTree(e) {
 
 pub fn new() {
   Empty
+}
+
+pub fn reverse(tree: FingerTree(e)) -> FingerTree(e) {
+  reducel(tree, Empty, unshift)
+}
+
+pub fn map(tree: FingerTree(e), f: fn(e) -> v) -> FingerTree(v) {
+  reducel(tree, Empty, fn(acc, e) { acc |> push(f(e)) })
+}
+
+pub fn drop(tree: FingerTree(e), n: Int) -> #(FingerTree(e), FingerTree(e)) {
+  do_drop(tree, n, Empty)
+}
+
+fn do_drop(tree: FingerTree(e), n: Int, acc: FingerTree(e)) {
+  case shift(tree), n {
+    Ok(#(a, rest)), 0 -> #(acc |> push(a), rest)
+    Ok(#(a, rest)), _ -> do_drop(rest, n - 1, acc |> push(a))
+    Error(Nil), _ -> #(acc, tree)
+  }
+}
+
+pub fn get(tree: FingerTree(u), get_idx: Int) {
+  case
+    reducel(tree, #(None, 0), fn(i, n) -> #(Option(u), Int) {
+      case i, n {
+        #(None, idx), n if idx == get_idx -> #(Some(n), idx + 1)
+        #(a, n), _ -> #(a, n + 1)
+      }
+    })
+  {
+    #(Some(u), _) -> Ok(u)
+    _ -> Error("Index out of bounds")
+  }
+}
+
+pub const empty = Empty
+
+pub fn size(tree: FingerTree(e)) {
+  case tree {
+    Empty -> 0
+    Single(_) -> 1
+    Deep(s, _, _, _) -> s
+  }
+}
+
+pub fn try_reducel(
+  tree: FingerTree(u),
+  acc: v,
+  l_fn: fn(v, u) -> Result(v, w),
+) -> Result(v, w) {
+  case tree {
+    Empty -> Ok(acc)
+    Single(u) -> l_fn(acc, u)
+    Deep(_, pr, m, sf) -> {
+      use acc <- result.try(try_reducel_finger(pr, acc, l_fn))
+      use acc <- result.try(try_reducel_node(m, acc, l_fn))
+      try_reducel_finger(sf, acc, l_fn)
+    }
+  }
+}
+
+fn try_reducel_finger(
+  finger: Finger(u),
+  acc: v,
+  l_fn: fn(v, u) -> Result(v, w),
+) -> Result(v, w) {
+  case finger {
+    One(u) -> l_fn(acc, u)
+    Two(u, v) -> {
+      use acc <- result.try(l_fn(acc, u))
+      l_fn(acc, v)
+    }
+    Three(u, v, w) -> {
+      use acc <- result.try(l_fn(acc, u))
+      use acc <- result.try(l_fn(acc, v))
+      l_fn(acc, w)
+    }
+    Four(u, v, w, x) -> {
+      use acc <- result.try(l_fn(acc, u))
+      use acc <- result.try(l_fn(acc, v))
+      use acc <- result.try(l_fn(acc, w))
+      l_fn(acc, x)
+    }
+  }
+}
+
+fn try_reducel_node(
+  node: FingerTree(Node(u)),
+  acc: v,
+  l_fn: fn(v, u) -> Result(v, w),
+) -> Result(v, w) {
+  use acc, node <- try_reducel(node, acc)
+  case node {
+    Node1(u) -> l_fn(acc, u)
+    Node2(u, v) -> {
+      use acc <- result.try(l_fn(acc, u))
+      l_fn(acc, v)
+    }
+    Node3(u, v, w) -> {
+      use acc <- result.try(l_fn(acc, u))
+      use acc <- result.try(l_fn(acc, v))
+      l_fn(acc, w)
+    }
+  }
+}
+
+pub fn try_map(
+  tree: FingerTree(u),
+  map_fn: fn(u) -> Result(v, w),
+) -> Result(FingerTree(v), w) {
+  case tree {
+    Empty -> Ok(Empty)
+    Single(u) -> {
+      use u <- result.map(map_fn(u))
+      Single(u)
+    }
+    Deep(s, pr, m, sf) -> {
+      use pr <- result.try(try_map_finger(pr, map_fn))
+      use m <- result.try(try_map_node(m, map_fn))
+      use sf <- result.map(try_map_finger(sf, map_fn))
+      Deep(s, pr, m, sf)
+    }
+  }
+}
+
+fn try_map_finger(
+  finger: Finger(u),
+  map_fn: fn(u) -> Result(v, w),
+) -> Result(Finger(v), w) {
+  case finger {
+    One(u) -> {
+      use u <- result.map(map_fn(u))
+      One(u)
+    }
+    Two(u, v) -> {
+      use u <- result.try(map_fn(u))
+      use v <- result.map(map_fn(v))
+      Two(u, v)
+    }
+    Three(u, v, w) -> {
+      use u <- result.try(map_fn(u))
+      use v <- result.try(map_fn(v))
+      use w <- result.map(map_fn(w))
+      Three(u, v, w)
+    }
+    Four(u, v, w, x) -> {
+      use u <- result.try(map_fn(u))
+      use v <- result.try(map_fn(v))
+      use w <- result.try(map_fn(w))
+      use x <- result.map(map_fn(x))
+      Four(u, v, w, x)
+    }
+  }
+}
+
+fn try_map_node(
+  node_tree: FingerTree(Node(u)),
+  map_fn: fn(u) -> Result(v, w),
+) -> Result(FingerTree(Node(v)), w) {
+  use node <- try_map(node_tree)
+  case node {
+    Node1(u) -> {
+      use u <- result.map(map_fn(u))
+      Node1(u)
+    }
+    Node2(u, v) -> {
+      use u <- result.try(map_fn(u))
+      use v <- result.map(map_fn(v))
+      Node2(u, v)
+    }
+    Node3(u, v, w) -> {
+      use u <- result.try(map_fn(u))
+      use v <- result.try(map_fn(v))
+      use w <- result.map(map_fn(w))
+      Node3(u, v, w)
+    }
+  }
+}
+
+pub fn append(tree1: FingerTree(u), tree2: FingerTree(u)) -> FingerTree(u) {
+  case tree1, tree2 {
+    Empty, tree2 -> tree2
+    Single(u), tree2 -> tree2 |> unshift(u)
+    tree1, Empty -> tree1
+    tree1, Single(u) -> tree1 |> push(u)
+    tree1, tree2 -> reducel(tree2, tree1, push)
+  }
+}
+
+pub fn prepend(tree1: FingerTree(u), tree2: FingerTree(u)) -> FingerTree(u) {
+  append(tree2, tree1)
+}
+
+pub fn reducel_index(tree: FingerTree(u), acc: v, f: fn(v, u, Int) -> v) {
+  let #(acc, _) = do_reducel_index(tree, acc, 0, f)
+  acc
+}
+
+fn do_reducel_index(
+  tree: FingerTree(u),
+  acc: v,
+  index: Int,
+  f: fn(v, u, Int) -> v,
+) {
+  case tree {
+    Empty -> #(acc, index)
+    Single(u) -> #(f(acc, u, index), index + 1)
+    Deep(_, pr, m, sf) -> {
+      let #(acc, index) = do_reducel_index_finger(pr, acc, index, f)
+      let #(acc, index) = do_reducel_index_node_tree(m, acc, index, f)
+      let #(acc, index) = do_reducel_index_finger(sf, acc, index, f)
+      #(acc, index)
+    }
+  }
+}
+
+fn do_reducel_index_finger(
+  finger: Finger(u),
+  acc: v,
+  index: Int,
+  f: fn(v, u, Int) -> v,
+) {
+  case finger {
+    One(u) -> #(f(acc, u, index), index + 1)
+    Two(u, v) -> {
+      let acc = f(acc, u, index)
+      #(f(acc, v, index), index + 1)
+    }
+    Three(u, v, w) -> {
+      let acc = f(acc, u, index)
+      let acc = f(acc, v, index + 1)
+      #(f(acc, w, index + 2), index + 3)
+    }
+    Four(u, v, w, x) -> {
+      let acc = f(acc, u, index)
+      let acc = f(acc, v, index + 1)
+      let acc = f(acc, w, index + 2)
+      #(f(acc, x, index + 3), index + 4)
+    }
+  }
+}
+
+fn do_reducel_index_node_tree(
+  node_tree: FingerTree(Node(u)),
+  acc: v,
+  index: Int,
+  f: fn(v, u, Int) -> v,
+) -> #(v, Int) {
+  use #(acc, index), node <- reducel(node_tree, #(acc, index))
+  case node {
+    Node1(u) -> #(f(acc, u, index), index + 1)
+    Node2(u, v) -> {
+      let acc = f(acc, u, index)
+      #(f(acc, v, index + 1), index + 2)
+    }
+    Node3(u, v, w) -> {
+      let acc = f(acc, u, index)
+      let acc = f(acc, v, index + 1)
+      #(f(acc, w, index + 2), index + 3)
+    }
+  }
+}
+
+pub fn map_index(tree: FingerTree(u), f: fn(u, Int) -> v) -> FingerTree(v) {
+  use tree, item, index <- reducel_index(tree, Empty)
+  tree |> push(f(item, index))
+}
+
+pub fn set(tree: FingerTree(u), target_index: Int, target_item: u) {
+  case tree |> size {
+    n if n > target_index -> Error(Nil)
+    _ ->
+      Ok({
+        use u, index <- map_index(tree)
+        case target_index == index {
+          True -> target_item
+          False -> u
+        }
+      })
+  }
+}
+
+pub fn take(tree: FingerTree(u), count: Int) {
+  do_take(tree, Empty, count)
+}
+
+fn do_take(tree: FingerTree(u), acc: FingerTree(u), count: Int) {
+  case tree, count {
+    _, 0 -> Ok(#(acc, tree))
+    Empty, _ -> Error(Nil)
+    tree, count ->
+      case shift(tree) {
+        Ok(#(u, tree)) -> do_take(tree, acc |> push(u), count - 1)
+        Error(_) -> Error(Nil)
+      }
+  }
 }

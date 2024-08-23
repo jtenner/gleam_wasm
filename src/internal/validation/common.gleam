@@ -678,7 +678,11 @@ pub fn get_local(state: ValidationState, idx: LocalIDX) {
 
 pub fn set_local(state: ValidationState, idx: LocalIDX, val: LocalType) {
   let idx = idx |> unwrap_local_idx
-  use locals <- result.map({ state.0 }.locals |> finger_tree.set(idx, val))
+  use locals <- result.map(
+    { state.0 }.locals
+    |> finger_tree.set(idx, val)
+    |> result.replace_error("unable to set local"),
+  )
   #(Context(..state.0, locals: locals), state.1)
 }
 
@@ -759,7 +763,7 @@ pub fn unreachable(state: ValidationState) {
     ctx,
     Stacks(
       ..stacks,
-      val_stack: new_val_stack |> finger_tree.from_list,
+      val_stack: new_val_stack,
       ctrl_stack: new_ctrl_stack
         |> finger_tree.push(CtrlFrame(..last_frame, unreachable: True)),
     ),

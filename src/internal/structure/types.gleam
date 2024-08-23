@@ -1579,8 +1579,7 @@ pub type Expr {
 /// identify what kind of DefinedType it is. 
 pub fn def_type_expand(dt: DefType) {
   let DefType(RecType(st), idx) = dt
-  use st <- result.try(st |> finger_tree.drop(idx))
-  use #(st, _) <- result.map(st |> finger_tree.shift)
+  use st <- result.map(st |> finger_tree.get(idx))
   st.ct
 }
 

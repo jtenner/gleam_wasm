@@ -532,7 +532,7 @@ pub fn encode_custom_sections(
 ) {
   case sections {
     Some(sections) ->
-      finger_tree.try_fold(sections, builder, encode_custom_section)
+      finger_tree.try_reducel(sections, builder, encode_custom_section)
     None -> Ok(builder)
   }
 }

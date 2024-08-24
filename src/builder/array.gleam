@@ -1,53 +1,77 @@
 import builder/expression_builder.{type ExpressionBuilder}
-
-pub fn copy(func: ExpressionBuilder) {
-  todo
+import internal/structure/numbers.{type U32}
+import internal/structure/types.{
+  type DataIDX, type ElemIDX, type TypeIDX, ArrayCopy, ArrayFill, ArrayGet,
+  ArrayGetS, ArrayGetU, ArrayInitData, ArrayInitElem, ArrayLen, ArrayNew,
+  ArrayNewData, ArrayNewDefault, ArrayNewElem, ArrayNewFixed, ArraySet,
 }
 
-pub fn fill(func: ExpressionBuilder) {
-  todo
+pub fn array_new(builder: ExpressionBuilder, idx: TypeIDX) {
+  builder
+  |> expression_builder.push(ArrayNew(idx))
 }
 
-pub fn get(func: ExpressionBuilder) {
-  todo
+pub fn array_new_default(builder: ExpressionBuilder, idx: TypeIDX) {
+  builder
+  |> expression_builder.push(ArrayNewDefault(idx))
 }
 
-pub fn get_s(func: ExpressionBuilder) {
-  todo
+pub fn array_new_data(builder: ExpressionBuilder, idx: TypeIDX, data: DataIDX) {
+  builder
+  |> expression_builder.push(ArrayNewData(idx, data))
 }
 
-pub fn get_u(func: ExpressionBuilder) {
-  todo
+pub fn array_new_elem(builder: ExpressionBuilder, idx: TypeIDX, elem: ElemIDX) {
+  builder
+  |> expression_builder.push(ArrayNewElem(idx, elem))
 }
 
-pub fn init_data(func: ExpressionBuilder) {
-  todo
+pub fn array_new_fixed(builder: ExpressionBuilder, idx: TypeIDX, size: U32) {
+  builder
+  |> expression_builder.push(ArrayNewFixed(idx, size))
 }
 
-pub fn init_elem(func: ExpressionBuilder) {
-  todo
+pub fn array_get(builder: ExpressionBuilder, idx: TypeIDX) {
+  builder
+  |> expression_builder.push(ArrayGet(idx))
 }
 
-pub fn len(func: ExpressionBuilder) {
-  todo
+pub fn array_get_s(builder: ExpressionBuilder, idx: TypeIDX) {
+  builder
+  |> expression_builder.push(ArrayGetS(idx))
 }
 
-pub fn new(func: ExpressionBuilder) {
-  todo
+pub fn array_get_u(builder: ExpressionBuilder, idx: TypeIDX) {
+  builder
+  |> expression_builder.push(ArrayGetU(idx))
 }
 
-pub fn new_data(func: ExpressionBuilder) {
-  todo
+pub fn array_set(builder: ExpressionBuilder, idx: TypeIDX) {
+  builder
+  |> expression_builder.push(ArraySet(idx))
 }
 
-pub fn new_default(func: ExpressionBuilder) {
-  todo
+pub fn array_len(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(ArrayLen)
 }
 
-pub fn new_elem(func: ExpressionBuilder) {
-  todo
+pub fn array_fill(builder: ExpressionBuilder, idx: TypeIDX) {
+  builder
+  |> expression_builder.push(ArrayFill(idx))
 }
 
-pub fn set(func: ExpressionBuilder) {
-  todo
+pub fn array_copy(builder: ExpressionBuilder, idx1: TypeIDX, idx2: TypeIDX) {
+  builder
+  |> expression_builder.push(ArrayCopy(idx1, idx2))
+}
+
+pub fn array_init_data(builder: ExpressionBuilder, idx: TypeIDX, data: DataIDX) {
+  builder
+  |> expression_builder.push(ArrayInitData(idx, data))
+}
+
+pub fn array_init_elem(builder: ExpressionBuilder, idx: TypeIDX, elem: ElemIDX) {
+  builder
+  |> expression_builder.push(ArrayInitElem(idx, elem))
 }

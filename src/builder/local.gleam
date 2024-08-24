@@ -1,13 +1,13 @@
 import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn get(func: ExpressionBuilder) {
+pub fn get(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn set(func: ExpressionBuilder) {
+pub fn set(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn tee(func: ExpressionBuilder) {
+pub fn tee(builder: ExpressionBuilder) {
   todo
 }

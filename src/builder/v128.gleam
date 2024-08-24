@@ -1,121 +1,121 @@
 import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn and(func: ExpressionBuilder) {
+pub fn and(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn andor(func: ExpressionBuilder) {
+pub fn andor(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn any_true(func: ExpressionBuilder) {
+pub fn any_true(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn bitselect(func: ExpressionBuilder) {
+pub fn bitselect(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn const_(func: ExpressionBuilder) {
+pub fn const_(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load(func: ExpressionBuilder) {
+pub fn load(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load16_lane(func: ExpressionBuilder) {
+pub fn load16_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load16_splat(func: ExpressionBuilder) {
+pub fn load16_splat(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load16x4_s(func: ExpressionBuilder) {
+pub fn load16x4_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load16x4_u(func: ExpressionBuilder) {
+pub fn load16x4_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load32_lane(func: ExpressionBuilder) {
+pub fn load32_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load32_splat(func: ExpressionBuilder) {
+pub fn load32_splat(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load32_zero(func: ExpressionBuilder) {
+pub fn load32_zero(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load32x2_s(func: ExpressionBuilder) {
+pub fn load32x2_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load32x2_u(func: ExpressionBuilder) {
+pub fn load32x2_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load64_lane(func: ExpressionBuilder) {
+pub fn load64_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load64_splat(func: ExpressionBuilder) {
+pub fn load64_splat(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load64_zero(func: ExpressionBuilder) {
+pub fn load64_zero(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load8_lane(func: ExpressionBuilder) {
+pub fn load8_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load8_splat(func: ExpressionBuilder) {
+pub fn load8_splat(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load8x8_s(func: ExpressionBuilder) {
+pub fn load8x8_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn load8x8_u(func: ExpressionBuilder) {
+pub fn load8x8_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn not(func: ExpressionBuilder) {
+pub fn not(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn or(func: ExpressionBuilder) {
+pub fn or(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store(func: ExpressionBuilder) {
+pub fn store(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store16_lane(func: ExpressionBuilder) {
+pub fn store16_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store32_lane(func: ExpressionBuilder) {
+pub fn store32_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store64_lane(func: ExpressionBuilder) {
+pub fn store64_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn store8_lane(func: ExpressionBuilder) {
+pub fn store8_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn xor(func: ExpressionBuilder) {
+pub fn xor(builder: ExpressionBuilder) {
   todo
 }

@@ -1,185 +1,243 @@
 import builder/expression_builder.{type ExpressionBuilder}
-
-pub fn abs(func: ExpressionBuilder) {
-  todo
+import internal/structure/types.{
+  type LaneIDX8, I16x8Abs, I16x8Add, I16x8AddSatS, I16x8AddSatU, I16x8AllTrue,
+  I16x8AvgrU, I16x8Bitmask, I16x8Eq, I16x8ExtaddPairwiseI8x16S,
+  I16x8ExtaddPairwiseI8x16U, I16x8ExtendHighI8x16S, I16x8ExtendHighI8x16U,
+  I16x8ExtendLowI8x16S, I16x8ExtendLowI8x16U, I16x8ExtmulHighI8x16S,
+  I16x8ExtmulHighI8x16U, I16x8ExtmulLowI8x16S, I16x8ExtmulLowI8x16U,
+  I16x8ExtractLaneS, I16x8ExtractLaneU, I16x8GeS, I16x8GeU, I16x8GtS, I16x8GtU,
+  I16x8LeS, I16x8LeU, I16x8LtS, I16x8LtU, I16x8MaxS, I16x8MaxU, I16x8MinS,
+  I16x8MinU, I16x8Mul, I16x8NarrowI32x4S, I16x8NarrowI32x4U, I16x8Ne, I16x8Neg,
+  I16x8Q15mulrSatS, I16x8ReplaceLane, I16x8Shl, I16x8ShrS, I16x8ShrU, I16x8Splat,
+  I16x8Sub, I16x8SubSatS, I16x8SubSatU,
 }
 
-pub fn add(func: ExpressionBuilder) {
-  todo
+pub fn splat(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Splat)
 }
 
-pub fn add_sat_s(func: ExpressionBuilder) {
-  todo
+pub fn extract_lane_s(builder: ExpressionBuilder, lane_idx: LaneIDX8) {
+  builder
+  |> expression_builder.push(I16x8ExtractLaneS(lane_idx))
 }
 
-pub fn add_sat_u(func: ExpressionBuilder) {
-  todo
+pub fn extract_lane_u(builder: ExpressionBuilder, lane_idx: LaneIDX8) {
+  builder
+  |> expression_builder.push(I16x8ExtractLaneU(lane_idx))
 }
 
-pub fn all_true(func: ExpressionBuilder) {
-  todo
+pub fn replace_lane(builder: ExpressionBuilder, lane_idx: LaneIDX8) {
+  builder
+  |> expression_builder.push(I16x8ReplaceLane(lane_idx))
 }
 
-pub fn avgr_u(func: ExpressionBuilder) {
-  todo
+pub fn ge_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8GeS)
 }
 
-pub fn bitmask(func: ExpressionBuilder) {
-  todo
+pub fn ge_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8GeU)
 }
 
-pub fn eq(func: ExpressionBuilder) {
-  todo
+pub fn le_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8LeS)
 }
 
-pub fn extadd_pairwise_i8x16_s(func: ExpressionBuilder) {
-  todo
+pub fn le_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8LeU)
 }
 
-pub fn extadd_pairwise_i8x16_u(func: ExpressionBuilder) {
-  todo
+pub fn gt_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8GtS)
 }
 
-pub fn extend_high_i8x16_s(func: ExpressionBuilder) {
-  todo
+pub fn gt_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8GtU)
 }
 
-pub fn extend_high_i8x16_u(func: ExpressionBuilder) {
-  todo
+pub fn lt_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8LtS)
 }
 
-pub fn extend_low_i8x16_s(func: ExpressionBuilder) {
-  todo
+pub fn lt_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8LtU)
 }
 
-pub fn extend_low_i8x16_u(func: ExpressionBuilder) {
-  todo
+pub fn ne(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Ne)
 }
 
-pub fn extmul_high_i8x16_s(func: ExpressionBuilder) {
-  todo
+pub fn eq(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Eq)
 }
 
-pub fn extmul_high_i8x16_u(func: ExpressionBuilder) {
-  todo
+pub fn neg(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Neg)
 }
 
-pub fn extmul_low_i8x16_s(func: ExpressionBuilder) {
-  todo
+pub fn abs(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Abs)
 }
 
-pub fn extmul_low_i8x16_u(func: ExpressionBuilder) {
-  todo
+pub fn i16x8q15mulr_sat_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Q15mulrSatS)
 }
 
-pub fn extract_lane(func: ExpressionBuilder) {
-  todo
+pub fn all_true(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8AllTrue)
 }
 
-pub fn extract_lane_s(func: ExpressionBuilder) {
-  todo
+pub fn bitmask(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Bitmask)
 }
 
-pub fn ge_s(func: ExpressionBuilder) {
-  todo
+pub fn narrow_i32x4s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8NarrowI32x4S)
 }
 
-pub fn ge_u(func: ExpressionBuilder) {
-  todo
+pub fn narrow_i32x4u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8NarrowI32x4U)
 }
 
-pub fn gt_s(func: ExpressionBuilder) {
-  todo
+pub fn extend_high_i8x16s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtendHighI8x16S)
 }
 
-pub fn gt_u(func: ExpressionBuilder) {
-  todo
+pub fn extend_high_i8x16u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtendHighI8x16U)
 }
 
-pub fn le_s(func: ExpressionBuilder) {
-  todo
+pub fn extend_low_i8x16s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtendLowI8x16S)
 }
 
-pub fn le_u(func: ExpressionBuilder) {
-  todo
+pub fn extend_low_i8x16u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtendLowI8x16U)
 }
 
-pub fn lt_s(func: ExpressionBuilder) {
-  todo
+pub fn shr_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ShrS)
 }
 
-pub fn lt_u(func: ExpressionBuilder) {
-  todo
+pub fn shr_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ShrU)
 }
 
-pub fn max_s(func: ExpressionBuilder) {
-  todo
+pub fn shl(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Shl)
 }
 
-pub fn max_u(func: ExpressionBuilder) {
-  todo
+pub fn sub(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Sub)
 }
 
-pub fn min_s(func: ExpressionBuilder) {
-  todo
+pub fn add(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Add)
 }
 
-pub fn min_u(func: ExpressionBuilder) {
-  todo
+pub fn max_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8MaxS)
 }
 
-pub fn mul(func: ExpressionBuilder) {
-  todo
+pub fn max_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8MaxU)
 }
 
-pub fn narrow_i32x4_s(func: ExpressionBuilder) {
-  todo
+pub fn min_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8MinS)
 }
 
-pub fn narrow_i32x4_u(func: ExpressionBuilder) {
-  todo
+pub fn min_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8MinU)
 }
 
-pub fn ne(func: ExpressionBuilder) {
-  todo
+pub fn sub_sat_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8SubSatS)
 }
 
-pub fn neg(func: ExpressionBuilder) {
-  todo
+pub fn sub_sat_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8SubSatU)
 }
 
-pub fn q15mulr_sat_s(func: ExpressionBuilder) {
-  todo
+pub fn add_sat_s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8AddSatS)
 }
 
-pub fn replace_lane(func: ExpressionBuilder) {
-  todo
+pub fn add_sat_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8AddSatU)
 }
 
-pub fn shl(func: ExpressionBuilder) {
-  todo
+pub fn mul(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8Mul)
 }
 
-pub fn shr_s(func: ExpressionBuilder) {
-  todo
+pub fn avgr_u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8AvgrU)
 }
 
-pub fn shr_u(func: ExpressionBuilder) {
-  todo
+pub fn extmul_high_i8x16s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtmulHighI8x16S)
 }
 
-pub fn splat(func: ExpressionBuilder) {
-  todo
+pub fn extmul_high_i8x16u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtmulHighI8x16U)
 }
 
-pub fn sub(func: ExpressionBuilder) {
-  todo
+pub fn extmul_low_i8x16s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtmulLowI8x16S)
 }
 
-pub fn sub_sat_s(func: ExpressionBuilder) {
-  todo
+pub fn extmul_low_i8x16u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtmulLowI8x16U)
 }
 
-pub fn sub_sat_u(func: ExpressionBuilder) {
-  todo
+pub fn extadd_pairwise_i8x16s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtaddPairwiseI8x16S)
+}
+
+pub fn extadd_pairwise_i8x16u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(I16x8ExtaddPairwiseI8x16U)
 }

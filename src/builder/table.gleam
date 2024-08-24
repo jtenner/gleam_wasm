@@ -1,29 +1,29 @@
 import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn copy(func: ExpressionBuilder) {
+pub fn copy(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn fill(func: ExpressionBuilder) {
+pub fn fill(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn get(func: ExpressionBuilder) {
+pub fn get(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn grow(func: ExpressionBuilder) {
+pub fn grow(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn init(func: ExpressionBuilder) {
+pub fn init(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn set(func: ExpressionBuilder) {
+pub fn set(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn size(func: ExpressionBuilder) {
+pub fn size(builder: ExpressionBuilder) {
   todo
 }

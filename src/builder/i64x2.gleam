@@ -1,109 +1,109 @@
 import builder/expression_builder.{type ExpressionBuilder}
 
-pub fn abs(func: ExpressionBuilder) {
+pub fn abs(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn add(func: ExpressionBuilder) {
+pub fn add(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn all_true(func: ExpressionBuilder) {
+pub fn all_true(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn bitmask(func: ExpressionBuilder) {
+pub fn bitmask(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn eq(func: ExpressionBuilder) {
+pub fn eq(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extend_high_i32x4_s(func: ExpressionBuilder) {
+pub fn extend_high_i32x4_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extend_high_i32x4_u(func: ExpressionBuilder) {
+pub fn extend_high_i32x4_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extend_low_i32x4_s(func: ExpressionBuilder) {
+pub fn extend_low_i32x4_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extend_low_i32x4_u(func: ExpressionBuilder) {
+pub fn extend_low_i32x4_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extract_lane(func: ExpressionBuilder) {
+pub fn extract_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extract_lane_s(func: ExpressionBuilder) {
+pub fn extract_lane_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn ge_s(func: ExpressionBuilder) {
+pub fn ge_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn gt_s(func: ExpressionBuilder) {
+pub fn gt_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn le_s(func: ExpressionBuilder) {
+pub fn le_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn lt_s(func: ExpressionBuilder) {
+pub fn lt_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn ne(func: ExpressionBuilder) {
+pub fn ne(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn neg(func: ExpressionBuilder) {
+pub fn neg(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn replace_lane(func: ExpressionBuilder) {
+pub fn replace_lane(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn shl(func: ExpressionBuilder) {
+pub fn shl(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn shr_s(func: ExpressionBuilder) {
+pub fn shr_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn shr_u(func: ExpressionBuilder) {
+pub fn shr_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn splat(func: ExpressionBuilder) {
+pub fn splat(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn sub(func: ExpressionBuilder) {
+pub fn sub(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extmul_high_i32x4_s(func: ExpressionBuilder) {
+pub fn extmul_high_i32x4_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extmul_high_i32x4_u(func: ExpressionBuilder) {
+pub fn extmul_high_i32x4_u(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extmul_low_i32x4_s(func: ExpressionBuilder) {
+pub fn extmul_low_i32x4_s(builder: ExpressionBuilder) {
   todo
 }
 
-pub fn extmul_low_i32x4_u(func: ExpressionBuilder) {
+pub fn extmul_low_i32x4_u(builder: ExpressionBuilder) {
   todo
 }

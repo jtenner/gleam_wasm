@@ -1,121 +1,153 @@
 import builder/expression_builder.{type ExpressionBuilder}
-
-pub fn abs(func: ExpressionBuilder) {
-  todo
+import internal/structure/numbers.{type F32}
+import internal/structure/types.{
+  type MemArg, F32Abs, F32Add, F32Ceil, F32Const, F32ConvertI32S, F32ConvertI32U,
+  F32ConvertI64S, F32ConvertI64U, F32Copysign, F32DemoteF64, F32Div, F32Eq,
+  F32Floor, F32Ge, F32Gt, F32Le, F32Load, F32Lt, F32Max, F32Min, F32Mul, F32Ne,
+  F32Nearest, F32Neg, F32ReinterpretI32, F32Sqrt, F32Store, F32Sub, F32Trunc,
 }
 
-pub fn add(func: ExpressionBuilder) {
-  todo
+pub fn const_(builder: ExpressionBuilder, val: F32) {
+  builder
+  |> expression_builder.push(F32Const(val))
 }
 
-pub fn ceil(func: ExpressionBuilder) {
-  todo
+pub fn nearest(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Nearest)
 }
 
-pub fn const_(func: ExpressionBuilder) {
-  todo
+pub fn trunc(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Trunc)
 }
 
-pub fn convert_i32_s(func: ExpressionBuilder) {
-  todo
+pub fn floor(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Floor)
 }
 
-pub fn convert_i32_u(func: ExpressionBuilder) {
-  todo
+pub fn ceil(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Ceil)
 }
 
-pub fn convert_i64_s(func: ExpressionBuilder) {
-  todo
+pub fn sqrt(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Sqrt)
 }
 
-pub fn convert_i64_u(func: ExpressionBuilder) {
-  todo
+pub fn neg(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Neg)
 }
 
-pub fn copysign(func: ExpressionBuilder) {
-  todo
+pub fn abs(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Abs)
 }
 
-pub fn demote_f64(func: ExpressionBuilder) {
-  todo
+pub fn copysign(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Copysign)
 }
 
-pub fn div(func: ExpressionBuilder) {
-  todo
+pub fn max(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Max)
 }
 
-pub fn eq(func: ExpressionBuilder) {
-  todo
+pub fn min(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Min)
 }
 
-pub fn floor(func: ExpressionBuilder) {
-  todo
+pub fn div(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Div)
 }
 
-pub fn ge(func: ExpressionBuilder) {
-  todo
+pub fn mul(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Mul)
 }
 
-pub fn gt(func: ExpressionBuilder) {
-  todo
+pub fn sub(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Sub)
 }
 
-pub fn le(func: ExpressionBuilder) {
-  todo
+pub fn add(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Add)
 }
 
-pub fn load(func: ExpressionBuilder) {
-  todo
+pub fn ge(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Ge)
 }
 
-pub fn lt(func: ExpressionBuilder) {
-  todo
+pub fn le(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Le)
 }
 
-pub fn max(func: ExpressionBuilder) {
-  todo
+pub fn gt(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Gt)
 }
 
-pub fn min(func: ExpressionBuilder) {
-  todo
+pub fn lt(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Lt)
 }
 
-pub fn mul(func: ExpressionBuilder) {
-  todo
+pub fn ne(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Ne)
 }
 
-pub fn ne(func: ExpressionBuilder) {
-  todo
+pub fn eq(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32Eq)
 }
 
-pub fn nearest(func: ExpressionBuilder) {
-  todo
+pub fn demote_f64(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32DemoteF64)
 }
 
-pub fn neg(func: ExpressionBuilder) {
-  todo
+pub fn convert_i64s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32ConvertI64S)
 }
 
-pub fn reinterpret_i32(func: ExpressionBuilder) {
-  todo
+pub fn convert_i64u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32ConvertI64U)
 }
 
-pub fn reinterpret_i64(func: ExpressionBuilder) {
-  todo
+pub fn convert_i32s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32ConvertI32S)
 }
 
-pub fn sqrt(func: ExpressionBuilder) {
-  todo
+pub fn convert_i32u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32ConvertI32U)
 }
 
-pub fn store(func: ExpressionBuilder) {
-  todo
+pub fn reinterpret_i32(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F32ReinterpretI32)
 }
 
-pub fn sub(func: ExpressionBuilder) {
-  todo
+pub fn load(builder: ExpressionBuilder, mem_arg: MemArg) {
+  builder
+  |> expression_builder.push(F32Load(mem_arg))
 }
 
-pub fn trunc(func: ExpressionBuilder) {
-  todo
+pub fn store(builder: ExpressionBuilder, mem_arg: MemArg) {
+  builder
+  |> expression_builder.push(F32Store(mem_arg))
 }

@@ -1,109 +1,144 @@
 import builder/expression_builder.{type ExpressionBuilder}
-
-pub fn abs(func: ExpressionBuilder) {
-  todo
+import internal/structure/types.{
+  type LaneIDX2, type MemArg, F64x2Abs, F64x2Add, F64x2Ceil,
+  F64x2ConvertLowI32x4S, F64x2ConvertLowI32x4U, F64x2Div, F64x2Eq,
+  F64x2ExtractLane, F64x2Floor, F64x2Ge, F64x2Gt, F64x2Le, F64x2Lt, F64x2Max,
+  F64x2Min, F64x2Mul, F64x2Ne, F64x2Nearest, F64x2Neg, F64x2Pmax, F64x2Pmin,
+  F64x2PromoteLowF32x4, F64x2ReplaceLane, F64x2Splat, F64x2Sqrt, F64x2Sub,
+  F64x2Trunc,
 }
 
-pub fn add(func: ExpressionBuilder) {
-  todo
+pub fn splat(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Splat)
 }
 
-pub fn ceil(func: ExpressionBuilder) {
-  todo
+pub fn extract_lane(builder: ExpressionBuilder, lane_idx: LaneIDX2) {
+  builder
+  |> expression_builder.push(F64x2ExtractLane(lane_idx))
 }
 
-pub fn convert_low_i32x4_s(func: ExpressionBuilder) {
-  todo
+pub fn replace_lane(builder: ExpressionBuilder, lane_idx: LaneIDX2) {
+  builder
+  |> expression_builder.push(F64x2ReplaceLane(lane_idx))
 }
 
-pub fn convert_low_i32x4_u(func: ExpressionBuilder) {
-  todo
+pub fn ge(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Ge)
 }
 
-pub fn div(func: ExpressionBuilder) {
-  todo
+pub fn le(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Le)
 }
 
-pub fn eq(func: ExpressionBuilder) {
-  todo
+pub fn gt(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Gt)
 }
 
-pub fn extract_lane(func: ExpressionBuilder) {
-  todo
+pub fn lt(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Lt)
 }
 
-pub fn floor(func: ExpressionBuilder) {
-  todo
+pub fn ne(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Ne)
 }
 
-pub fn ge(func: ExpressionBuilder) {
-  todo
+pub fn eq(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Eq)
 }
 
-pub fn gt(func: ExpressionBuilder) {
-  todo
+pub fn nearest(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Nearest)
 }
 
-pub fn le(func: ExpressionBuilder) {
-  todo
+pub fn trunc(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Trunc)
 }
 
-pub fn lt(func: ExpressionBuilder) {
-  todo
+pub fn floor(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Floor)
 }
 
-pub fn max(func: ExpressionBuilder) {
-  todo
+pub fn ceil(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Ceil)
 }
 
-pub fn min(func: ExpressionBuilder) {
-  todo
+pub fn sqrt(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Sqrt)
 }
 
-pub fn mul(func: ExpressionBuilder) {
-  todo
+pub fn neg(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Neg)
 }
 
-pub fn ne(func: ExpressionBuilder) {
-  todo
+pub fn abs(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Abs)
 }
 
-pub fn nearest(func: ExpressionBuilder) {
-  todo
+pub fn pmax(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Pmax)
 }
 
-pub fn neg(func: ExpressionBuilder) {
-  todo
+pub fn pmin(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Pmin)
 }
 
-pub fn pmax(func: ExpressionBuilder) {
-  todo
+pub fn max(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Max)
 }
 
-pub fn pmin(func: ExpressionBuilder) {
-  todo
+pub fn min(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Min)
 }
 
-pub fn promote_low_f32x4(func: ExpressionBuilder) {
-  todo
+pub fn div(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Div)
 }
 
-pub fn replace_lane(func: ExpressionBuilder) {
-  todo
+pub fn mul(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Mul)
 }
 
-pub fn splat(func: ExpressionBuilder) {
-  todo
+pub fn sub(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Sub)
 }
 
-pub fn sqrt(func: ExpressionBuilder) {
-  todo
+pub fn add(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2Add)
 }
 
-pub fn sub(func: ExpressionBuilder) {
-  todo
+pub fn convert_low_i32x4s(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2ConvertLowI32x4S)
 }
 
-pub fn trunc(func: ExpressionBuilder) {
-  todo
+pub fn convert_low_i32x4u(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2ConvertLowI32x4U)
+}
+
+pub fn promote_low_f32x4(builder: ExpressionBuilder) {
+  builder
+  |> expression_builder.push(F64x2PromoteLowF32x4)
 }

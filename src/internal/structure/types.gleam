@@ -940,10 +940,10 @@ pub type Instruction {
   Return
   Call(func_idx: FuncIDX)
   CallRef(type_idx: TypeIDX)
-  CallIndirect(type_idx: TypeIDX, table_idx: TableIDX)
+  CallIndirect(table_idx: TableIDX, type_idx: TypeIDX)
   ReturnCall(func_idx: FuncIDX)
   ReturnCallRef(type_idx: TypeIDX)
-  ReturnCallIndirect(type_idx: TypeIDX, table_idx: TableIDX)
+  ReturnCallIndirect(table_idx: TableIDX, type_idx: TypeIDX)
   End
   Else
 }

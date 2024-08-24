@@ -798,7 +798,7 @@ fn decode_instruction(bits: BitArray) {
     <<0x11, rest:bits>> -> {
       use #(type_idx, rest) <- result.try(decode_type_idx(rest))
       use #(table_idx, rest) <- result.map(decode_table_idx(rest))
-      #(CallIndirect(type_idx, table_idx), rest)
+      #(CallIndirect(table_idx, type_idx), rest)
     }
     <<0x12, rest:bits>> -> {
       use #(func_idx, rest) <- result.map(decode_func_idx(rest))
@@ -807,7 +807,7 @@ fn decode_instruction(bits: BitArray) {
     <<0x13, rest:bits>> -> {
       use #(type_idx, rest) <- result.try(decode_type_idx(rest))
       use #(table_idx, rest) <- result.map(decode_table_idx(rest))
-      #(ReturnCallIndirect(type_idx, table_idx), rest)
+      #(ReturnCallIndirect(table_idx, type_idx), rest)
     }
     <<0x14, rest:bits>> -> {
       use #(type_idx, rest) <- result.map(decode_type_idx(rest))
@@ -1805,7 +1805,7 @@ fn encode_instruction(
       builder
       |> bytes_builder.append(<<0x10>>)
       |> encode_func_idx(func_idx)
-    CallIndirect(type_idx, table_idx) -> {
+    CallIndirect(table_idx, type_idx) -> {
       use builder <- result.try(
         builder
         |> bytes_builder.append(<<0x11>>)
@@ -1817,13 +1817,13 @@ fn encode_instruction(
       builder
       |> bytes_builder.append(<<0x12>>)
       |> encode_func_idx(func_idx)
-    ReturnCallIndirect(type_idx, table_idx) -> {
+    ReturnCallIndirect(table_idx, type_idx) -> {
       use builder <- result.try(
         builder
         |> bytes_builder.append(<<0x13>>)
-        |> encode_type_idx(type_idx),
+        |> encode_table_idx(table_idx),
       )
-      builder |> encode_table_idx(table_idx)
+      builder |> encode_type_idx(type_idx)
     }
     CallRef(type_idx) ->
       builder

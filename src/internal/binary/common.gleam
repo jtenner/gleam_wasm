@@ -19,22 +19,7 @@ pub fn encode_vec(
   builder
   |> encode_u32(size)
   // this function is a loop over the items in the vector
-  |> do_encode_vec(items, encode_fn)
-}
-
-/// Loop over each item in a vector, and encode them using the given encoding function 
-fn do_encode_vec(
-  builder: BytesBuilder,
-  items: FingerTree(u),
-  encode_fn: fn(BytesBuilder, u) -> Result(BytesBuilder, String),
-) {
-  case items |> finger_tree.shift {
-    Error(_) -> Ok(builder)
-    Ok(#(item, rest)) -> {
-      use builder <- result.try(builder |> encode_fn(item))
-      builder |> do_encode_vec(rest, encode_fn)
-    }
-  }
+  |> finger_tree.try_reducel(items, _, encode_fn)
 }
 
 /// Decode a vector of items using the given decoding function
@@ -170,4 +155,13 @@ pub fn encode_bytes_builder_vec(
   builder
   |> encode_u32(size)
   |> bytes_builder.append_builder(section_builder)
+}
+
+pub fn expect_decode_bytes(bits: BitArray, target_match: BitArray) {
+  let match_length = 8 * bit_array.byte_size(target_match)
+  case bits {
+    <<match:bits-size(match_length), rest:bits>> if match == target_match ->
+      Ok(rest)
+    _ -> Error("Invalid bytes")
+  }
 }

@@ -26,16 +26,20 @@ import internal/structure/numbers
 import internal/structure/types.{
   type Code, type Data, type Elem, type Export, type Expr, type FuncIDX,
   type Global, type Import, type RecType, type RefType, type Table, ActiveData,
-  ActiveElemMode, Code, DeclarativeElemMode, Elem, Expr, FuncExport,
-  FuncHeapType, FuncImport, FuncRefType, Global, GlobalExport, GlobalImport,
-  HeapTypeRefType, I32Const, Locals, MemExport, MemImport, PassiveData,
-  PassiveElemMode, RefFunc, RefNull, Table, TableExport, TableIDX, TableImport,
-  ref_type_unwrap_heap_type,
+  ActiveElemMode, Code, DeclarativeElemMode, ElemExpressions, ElemFuncs, Expr,
+  FuncExport, FuncHeapType, FuncImport, FuncRefType, Global, GlobalExport,
+  GlobalImport, HeapTypeRefType, I32Const, Locals, MemExport, MemImport,
+  PassiveData, PassiveElemMode, RefFunc, RefNull, Table, TableExport, TableIDX,
+  TableImport, ref_type_unwrap_heap_type,
 } as structure_types
+
+const wasm_magic = <<0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00>>
 
 /// Encode a binary module, returning either a BitArray or an Error
 pub fn encode_module(module: BinaryModule) {
-  let builder = bytes_builder.new()
+  let builder =
+    bytes_builder.new()
+    |> bytes_builder.append(wasm_magic)
 
   // Each section can be prepended with an unlimited number of custom sections
   use builder <- result.try(encode_custom_sections(builder, module.custom_0))
@@ -117,7 +121,8 @@ pub fn encode_module(module: BinaryModule) {
 }
 
 pub fn decode_module(bits: BitArray) {
-  use #(custom_0, rest) <- result.try(decode_custom_sections(bits))
+  use rest <- result.try(common.expect_decode_bytes(bits, wasm_magic))
+  use #(custom_0, rest) <- result.try(decode_custom_sections(rest))
   use #(types, rest) <- result.try(decode_type_section(rest))
   use #(custom_1, rest) <- result.try(decode_custom_sections(rest))
   use #(imports, rest) <- result.try(decode_import_section(rest))
@@ -249,7 +254,7 @@ pub fn decode_code_section(bits: BitArray) {
   common.decode_section(bits, 0x0A, do_decode_code_section)
 }
 
-fn func_idx_to_expr(expr: FuncIDX) {
+pub fn func_idx_to_expr(expr: FuncIDX) {
   Expr([RefFunc(expr)] |> finger_tree.from_list)
 }
 
@@ -264,9 +269,9 @@ pub fn decode_elememt(bits: BitArray) {
       let table_idx_zero = TableIDX(zero)
 
       #(
-        Elem(
+        ElemFuncs(
           HeapTypeRefType(FuncHeapType, False),
-          idx |> finger_tree.map(func_idx_to_expr),
+          idx,
           ActiveElemMode(table_idx_zero, expr),
         ),
         rest,
@@ -276,11 +281,7 @@ pub fn decode_elememt(bits: BitArray) {
       use #(_, rest) <- result.try(common.expect_decode_byte(rest, 0x00))
       use #(idx, rest) <- result.map(common.decode_vec(rest, decode_func_idx))
       #(
-        Elem(
-          HeapTypeRefType(FuncHeapType, False),
-          idx |> finger_tree.map(func_idx_to_expr),
-          PassiveElemMode,
-        ),
+        ElemFuncs(HeapTypeRefType(FuncHeapType, False), idx, PassiveElemMode),
         rest,
       )
     }
@@ -290,9 +291,9 @@ pub fn decode_elememt(bits: BitArray) {
       use #(idx, rest) <- result.map(common.decode_vec(rest, decode_func_idx))
 
       #(
-        Elem(
+        ElemFuncs(
           HeapTypeRefType(FuncHeapType, False),
-          idx |> finger_tree.map(func_idx_to_expr),
+          idx,
           ActiveElemMode(table_idx, expr),
         ),
         rest,
@@ -303,9 +304,9 @@ pub fn decode_elememt(bits: BitArray) {
       use #(idx, rest) <- result.map(common.decode_vec(rest, decode_func_idx))
 
       #(
-        Elem(
+        ElemFuncs(
           HeapTypeRefType(FuncHeapType, False),
-          idx |> finger_tree.map(func_idx_to_expr),
+          idx,
           DeclarativeElemMode,
         ),
         rest,
@@ -317,7 +318,7 @@ pub fn decode_elememt(bits: BitArray) {
       let assert Ok(zero) = numbers.u32(0x00)
       let table_idx_zero = TableIDX(zero)
       #(
-        Elem(
+        ElemExpressions(
           HeapTypeRefType(FuncHeapType, False),
           init,
           ActiveElemMode(table_idx_zero, offset),
@@ -328,19 +329,19 @@ pub fn decode_elememt(bits: BitArray) {
     5 -> {
       use #(rt, rest) <- result.try(decode_ref_type(rest))
       use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
-      #(Elem(rt, init, DeclarativeElemMode), rest)
+      #(ElemExpressions(rt, init, DeclarativeElemMode), rest)
     }
     6 -> {
       use #(table_idx, rest) <- result.try(decode_table_idx(rest))
       use #(offset, rest) <- result.try(decode_expression(rest))
       use #(rt, rest) <- result.try(decode_ref_type(rest))
       use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
-      #(Elem(rt, init, ActiveElemMode(table_idx, offset)), rest)
+      #(ElemExpressions(rt, init, ActiveElemMode(table_idx, offset)), rest)
     }
     7 -> {
       use #(rt, rest) <- result.try(decode_ref_type(rest))
       use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
-      #(Elem(rt, init, PassiveElemMode), rest)
+      #(ElemExpressions(rt, init, PassiveElemMode), rest)
     }
     _ -> Error("Invalid element segment type")
   }
@@ -724,15 +725,18 @@ pub fn encode_start_section(builder: BytesBuilder, start_section: StartSection) 
 }
 
 pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
-  let Elem(type_, init, mode) = element
   let assert Ok(zero) = numbers.u32(0x00)
   let table_idx_zero = TableIDX(zero)
 
-  case type_, mode {
+  case element {
     // Type: 0
     // this segment initializes the first table with the given function indexes at offset [Expr]
     // [Active with func idx] 0x00 Offset Expr, init:FuncIDX*
-    HeapTypeRefType(FuncHeapType, False), ActiveElemMode(table_idx, offset)
+    ElemFuncs(
+      HeapTypeRefType(FuncHeapType, False),
+      init,
+      ActiveElemMode(table_idx, offset),
+    )
       if table_idx == table_idx_zero
     -> {
       use builder <- result.try(
@@ -740,26 +744,26 @@ pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
         |> bytes_builder.append(<<0x00>>)
         |> encode_expression(offset),
       )
-      use init <- result.try(finger_tree.try_map(init, expression_to_func_idx))
-      builder
-      |> common.encode_vec(init, encode_func_idx)
+      builder |> common.encode_vec(init, encode_func_idx)
     }
 
     // Type: 1
     // this segment can only be used with a `table.init` instruction with an array of function indexes
     // [Passive with func idx] 0x01 0x00 init:FuncIDX*
-    HeapTypeRefType(FuncHeapType, False), PassiveElemMode -> {
-      use init <- result.try(finger_tree.try_map(init, expression_to_func_idx))
+    ElemFuncs(HeapTypeRefType(FuncHeapType, False), init, PassiveElemMode) ->
       builder
       |> bytes_builder.append(<<0x01, 0x00>>)
       |> common.encode_vec(init, encode_func_idx)
-    }
 
     // Note: because it's implied table index is 0, variant 4 must be tried as a special case first
     // Type: 4
     // this segment initializes the first table with the given expressions at offset [Expr]
     // [Active with function expressions] 0x04 Offset Expr, init:Expr*
-    HeapTypeRefType(FuncHeapType, False), ActiveElemMode(table_idx, offset)
+    ElemExpressions(
+      HeapTypeRefType(FuncHeapType, False),
+      init,
+      ActiveElemMode(table_idx, offset),
+    )
       if table_idx == table_idx_zero
     -> {
       use builder <- result.try(
@@ -773,8 +777,11 @@ pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
     // Type: 2
     // this segment initializes the table at index [x] with the given function indexes at offset [Expr]
     // [Active with func idx] 0x02 x:TableIDX offset:Expr 0x00 init:FuncIDX*
-    HeapTypeRefType(FuncHeapType, False), ActiveElemMode(table_idx, offset) -> {
-      use init <- result.try(finger_tree.try_map(init, expression_to_func_idx))
+    ElemFuncs(
+      HeapTypeRefType(FuncHeapType, False),
+      init,
+      ActiveElemMode(table_idx, offset),
+    ) -> {
       use builder <- result.try(
         builder
         |> bytes_builder.append(<<0x02>>)
@@ -789,18 +796,16 @@ pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
     // Type: 3
     // this segment pre-initializes an array of function indexes for future use
     // [Declarative with func idx] 0x03 0x00 init:FuncIDX*
-    HeapTypeRefType(FuncHeapType, False), DeclarativeElemMode -> {
-      use init <- result.try(finger_tree.try_map(init, expression_to_func_idx))
+    ElemFuncs(HeapTypeRefType(FuncHeapType, False), init, DeclarativeElemMode) ->
       builder
       |> bytes_builder.append(<<0x03, 0x00>>)
       |> common.encode_vec(init, encode_func_idx)
-    }
 
     // Type: 5
     // this segment can only be used with a `table.init` instruction with an array of expressions of
     // the given reftype
     // [Passive with reftype expressions] 0x05 rt:Reftype init:Expr*
-    type_, PassiveElemMode -> {
+    ElemExpressions(type_, init, PassiveElemMode) -> {
       use builder <- result.try(
         builder
         |> bytes_builder.append(<<0x05>>)
@@ -813,7 +818,7 @@ pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
     // this segment initializes the given table with the given expressions of the given reftype at
     // the provided offset
     // [Active with reftype expressions] 0x06 x:TableIDX offset:Expr rt:Reftype init:Expr*
-    type_, ActiveElemMode(table_idx, offset) -> {
+    ElemExpressions(type_, init, ActiveElemMode(table_idx, offset)) -> {
       use builder <- result.try(
         builder
         |> bytes_builder.append(<<0x06>>)
@@ -827,7 +832,7 @@ pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
     // Type: 7
     // this segment pre-initializes an array of expressions of the given reftype for future use
     // [Declarative with reftype expressions] 0x07 rt:Reftype init:Expr*
-    type_, DeclarativeElemMode -> {
+    ElemExpressions(type_, init, DeclarativeElemMode) -> {
       use builder <- result.try(
         builder
         |> bytes_builder.append(<<0x07>>)
@@ -835,6 +840,8 @@ pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
       )
       builder |> common.encode_vec(init, encode_expression)
     }
+
+    _ -> Error("invalid element segment type")
   }
 }
 

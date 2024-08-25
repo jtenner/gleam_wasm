@@ -1,3 +1,4 @@
+import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -73,9 +74,9 @@ pub fn reducer(tree: FingerTree(u), acc: v, r_fn: fn(v, u) -> v) -> v {
     Empty -> acc
     Single(u) -> r_fn(acc, u)
     Deep(_, pr, m, sf) -> {
-      let acc = reducer_finger(pr, acc, r_fn)
+      let acc = reducer_finger(sf, acc, r_fn)
       let acc = reducer_node(m, acc, r_fn)
-      reducer_finger(sf, acc, r_fn)
+      reducer_finger(pr, acc, r_fn)
     }
   }
 }
@@ -83,9 +84,9 @@ pub fn reducer(tree: FingerTree(u), acc: v, r_fn: fn(v, u) -> v) -> v {
 fn reducer_finger(finger: Finger(u), acc: v, r_fn: fn(v, u) -> v) -> v {
   case finger {
     One(u) -> r_fn(acc, u)
-    Two(u, v) -> r_fn(r_fn(acc, u), v)
-    Three(u, v, w) -> r_fn(r_fn(r_fn(acc, u), v), w)
-    Four(u, v, w, x) -> r_fn(r_fn(r_fn(r_fn(acc, u), v), w), x)
+    Two(v, u) -> acc |> r_fn(u) |> r_fn(v)
+    Three(w, v, u) -> acc |> r_fn(u) |> r_fn(v) |> r_fn(w)
+    Four(x, w, v, u) -> acc |> r_fn(u) |> r_fn(v) |> r_fn(w) |> r_fn(x)
   }
 }
 
@@ -93,8 +94,8 @@ fn reducer_node(node: FingerTree(Node(u)), acc: v, r_fn: fn(v, u) -> v) -> v {
   use acc, node <- reducer(node, acc)
   case node {
     Node1(u) -> r_fn(acc, u)
-    Node2(u, v) -> r_fn(r_fn(acc, u), v)
-    Node3(u, v, w) -> r_fn(r_fn(r_fn(acc, u), v), w)
+    Node2(v, u) -> acc |> r_fn(u) |> r_fn(v)
+    Node3(w, v, u) -> acc |> r_fn(u) |> r_fn(v) |> r_fn(w)
   }
 }
 
@@ -113,9 +114,9 @@ pub fn reducel(tree: FingerTree(u), acc: v, r_fn: fn(v, u) -> v) -> v {
 fn reducel_finger(finger: Finger(u), acc: v, r_fn: fn(v, u) -> v) -> v {
   case finger {
     One(u) -> r_fn(acc, u)
-    Two(v, u) -> r_fn(r_fn(acc, u), v)
-    Three(w, v, u) -> r_fn(r_fn(r_fn(acc, u), v), w)
-    Four(x, w, v, u) -> r_fn(r_fn(r_fn(r_fn(acc, u), v), w), x)
+    Two(u, v) -> acc |> r_fn(u) |> r_fn(v)
+    Three(u, v, w) -> acc |> r_fn(u) |> r_fn(v) |> r_fn(w)
+    Four(u, v, w, x) -> acc |> r_fn(u) |> r_fn(v) |> r_fn(w) |> r_fn(x)
   }
 }
 
@@ -123,13 +124,20 @@ fn reducel_node(node: FingerTree(Node(u)), acc: v, r_fn: fn(v, u) -> v) -> v {
   use acc, node <- reducer(node, acc)
   case node {
     Node1(u) -> r_fn(acc, u)
-    Node2(v, u) -> r_fn(r_fn(acc, u), v)
-    Node3(w, v, u) -> r_fn(r_fn(r_fn(acc, u), v), w)
+    Node2(u, v) -> acc |> r_fn(u) |> r_fn(v)
+    Node3(u, v, w) -> acc |> r_fn(u) |> r_fn(v) |> r_fn(w)
   }
 }
 
 pub fn from_list(l: List(e)) {
-  list.fold_right(l, Empty, unshift)
+  do_from_list(l, Empty)
+}
+
+fn do_from_list(l: List(e), tree: FingerTree(e)) {
+  case l {
+    [] -> tree
+    [x, ..xs] -> do_from_list(xs, tree |> push(x))
+  }
 }
 
 pub fn to_list(tree: FingerTree(e)) {
@@ -157,7 +165,7 @@ pub fn shift(tree: FingerTree(e)) -> Result(#(e, FingerTree(e)), Nil) {
             Ok(#(Node1(a), rest_nodes)) ->
               Ok(#(popped_a, Deep(s - 1, One(a), rest_nodes, sf)))
             Error(Nil) -> {
-              // the tree itself is now empty, and the next element must be in the suffix
+              // the tree in the middle is empty
               case shift_finger(sf) {
                 #(new_a, Some(new_sf)) ->
                   Ok(#(popped_a, Deep(s - 1, One(new_a), Empty, new_sf)))
@@ -250,7 +258,8 @@ pub fn reverse(tree: FingerTree(e)) -> FingerTree(e) {
 }
 
 pub fn map(tree: FingerTree(e), f: fn(e) -> v) -> FingerTree(v) {
-  reducel(tree, Empty, fn(acc, e) { acc |> push(f(e)) })
+  use acc, e <- reducel(tree, Empty)
+  acc |> push(f(e))
 }
 
 pub fn drop(tree: FingerTree(e), n: Int) -> #(FingerTree(e), FingerTree(e)) {

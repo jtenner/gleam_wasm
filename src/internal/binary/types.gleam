@@ -220,13 +220,23 @@ pub fn decode_ref_type(bits: BitArray) {
     <<0x6C, rest:bits>> -> Ok(#(I31RefType, rest))
     <<0x6B, rest:bits>> -> Ok(#(StructRefType, rest))
     <<0x6A, rest:bits>> -> Ok(#(ArrayRefType, rest))
-    <<0x64, rest:bits>> -> {
-      use #(heap_type, rest) <- result.map(decode_heap_type(rest))
-      #(HeapTypeRefType(heap_type, False), rest)
-    }
+    <<0x63, 0x73, rest:bits>> -> Ok(#(NoFuncRefType, rest))
+    <<0x63, 0x72, rest:bits>> -> Ok(#(NoExternRefType, rest))
+    <<0x63, 0x71, rest:bits>> -> Ok(#(NoneRefType, rest))
+    <<0x63, 0x70, rest:bits>> -> Ok(#(FuncRefType, rest))
+    <<0x63, 0x6F, rest:bits>> -> Ok(#(ExternRefType, rest))
+    <<0x63, 0x6E, rest:bits>> -> Ok(#(AnyRefType, rest))
+    <<0x63, 0x6D, rest:bits>> -> Ok(#(EqRefType, rest))
+    <<0x63, 0x6C, rest:bits>> -> Ok(#(I31RefType, rest))
+    <<0x63, 0x6B, rest:bits>> -> Ok(#(StructRefType, rest))
+    <<0x63, 0x6A, rest:bits>> -> Ok(#(ArrayRefType, rest))
     <<0x63, rest:bits>> -> {
       use #(heap_type, rest) <- result.map(decode_heap_type(rest))
       #(HeapTypeRefType(heap_type, True), rest)
+    }
+    <<0x64, rest:bits>> -> {
+      use #(heap_type, rest) <- result.map(decode_heap_type(rest))
+      #(HeapTypeRefType(heap_type, False), rest)
     }
     _ -> Error("Invalid reference type")
   }
@@ -307,6 +317,10 @@ pub fn encode_result_type(
   result_type: FingerTree(ValType),
 ) {
   builder |> common.encode_vec(result_type, encode_val_type)
+}
+
+pub fn decode_result_type(bits: BitArray) {
+  common.decode_vec(bits, decode_val_type)
 }
 
 pub fn encode_func_type(builder: BytesBuilder, func_type: FuncType) {

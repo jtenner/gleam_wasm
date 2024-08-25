@@ -1625,7 +1625,8 @@ pub type Global {
 /// A WebAssembly element segment that describes a sequence of Expressions to help initialize tables
 /// Please see: https://webassembly.github.io/gc/core/syntax/modules.html#element-segments
 pub type Elem {
-  Elem(type_: RefType, init: FingerTree(Expr), mode: ElemMode)
+  ElemFuncs(type_: RefType, init: FingerTree(FuncIDX), mode: ElemMode)
+  ElemExpressions(type_: RefType, init: FingerTree(Expr), mode: ElemMode)
 }
 
 /// An element segment defines a sequence of expressions, but how those elements are used is

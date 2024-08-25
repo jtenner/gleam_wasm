@@ -4,12 +4,12 @@ import builder/ref
 import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/io
-import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleeunit/should
 import internal/binary/common
 import internal/binary/modules
 import internal/binary/types
+import internal/binary/values
 import internal/finger_tree
 import internal/structure/modules as structure_modules
 import internal/structure/numbers
@@ -528,9 +528,12 @@ pub fn function_section_test() {
   |> modules.encode_function_section(empty_function_section)
   |> should_equal_helper(<<0x03, 0x01, 0x00>>)
 
-  let assert Ok(indexes) = [1, 2, 3, 4] |> list.try_map(numbers.u32)
-  let indexes =
-    indexes |> finger_tree.from_list |> finger_tree.map(structure_types.TypeIDX)
+  let assert Ok(indexes) =
+    [1, 2, 3, 4]
+    |> finger_tree.from_list
+    |> finger_tree.try_map(numbers.u32)
+
+  let indexes = indexes |> finger_tree.map(structure_types.TypeIDX)
 
   let function_section = structure_modules.FunctionSection(indexes)
 
@@ -722,10 +725,274 @@ pub fn start_section_test() {
   |> should_equal_helper(<<0x08, 42>>)
 }
 
-// TODO: Complicated element section, and one element test per type (8 types)
-// pub fn element_section_test_x() {
-//   todo
-// }
+pub fn element_section_test() {
+  let empty_element_section =
+    structure_modules.ElementSection(finger_tree.new())
+
+  bytes_builder.new()
+  |> modules.encode_element_section(empty_element_section)
+  |> should_equal_helper(<<0x09, 0x01, 0x00>>)
+
+  let assert Ok(zero) = numbers.u32(0)
+  let assert Ok(one) = numbers.u32(1)
+  let assert Ok(two) = numbers.u32(2)
+  let assert Ok(fourty_two) = numbers.i32(42)
+  let assert Ok(fourty_two_unsigned) = numbers.u32(42)
+  let offset_fourty_two =
+    expression_builder.new()
+    |> i32.const_(fourty_two)
+    |> expression_builder.end_unwrap()
+
+  let table_idx_zero = structure_types.TableIDX(zero)
+  let table_idx_fourty_two = structure_types.TableIDX(fourty_two_unsigned)
+
+  let ref_func =
+    structure_types.HeapTypeRefType(structure_types.FuncHeapType, False)
+  // Elem(type_: RefType, init: FingerTree(Expr), mode: ElemMode)
+
+  let ref_null_i31 =
+    structure_types.HeapTypeRefType(structure_types.I31HeapType, True)
+  let null_i31 =
+    expression_builder.new()
+    |> ref.null(structure_types.I31HeapType)
+    |> expression_builder.end_unwrap()
+
+  let three_null_i31 = finger_tree.from_list([null_i31, null_i31, null_i31])
+
+  let three_func_idx =
+    finger_tree.from_list([
+      structure_types.FuncIDX(zero),
+      structure_types.FuncIDX(one),
+      structure_types.FuncIDX(two),
+    ])
+
+  let three_func_idx_expression =
+    three_func_idx |> finger_tree.map(modules.func_idx_to_expr)
+
+  // type 0 -> (ref func) (init: FuncIDX*) Active(TableIDX(0), Offset(offset_fourty_two))
+  let element_zero =
+    structure_types.ElemFuncs(
+      ref_func,
+      three_func_idx,
+      structure_types.ActiveElemMode(table_idx_zero, offset_fourty_two),
+    )
+  let element_zero_bytes = <<
+    // segment type 0
+    0x00,
+    // offset 42
+    0x41, 42, 0x0B,
+    // 3 indexes [0, 1, 2]
+    0x03, 0x00, 0x01, 0x02,
+  >>
+  bytes_builder.new()
+  |> modules.encode_element_segment(element_zero)
+  |> should_equal_helper(element_zero_bytes)
+
+  // 1 -> (ref func) (init: FuncIDX*) (passive)
+  let element_one =
+    structure_types.ElemFuncs(
+      ref_func,
+      three_func_idx,
+      structure_types.PassiveElemMode,
+    )
+  let element_one_bytes = <<
+    // segment type 1
+    0x01,
+    // elem kind 0
+    0x00,
+    // 3 indexes [0, 1, 2]
+    0x03, 0x00, 0x01, 0x02,
+  >>
+  bytes_builder.new()
+  |> modules.encode_element_segment(element_one)
+  |> should_equal_helper(element_one_bytes)
+
+  // 2 -> (ref func) (init: FuncIDX*) (Active (TableIDX(42), Offset(offset_fourty_two)))
+  let element_two =
+    structure_types.ElemFuncs(
+      ref_func,
+      three_func_idx,
+      structure_types.ActiveElemMode(table_idx_fourty_two, offset_fourty_two),
+    )
+  let element_two_bytes = <<
+    // segment type 2
+    0x02,
+    // table index 42
+    42,
+    // offset 42
+    0x41, 42, 0x0B,
+    // elem kind 0
+    0x00,
+    // 3 indexes [0, 1, 2]
+    0x03, 0x00, 0x01, 0x02,
+  >>
+  bytes_builder.new()
+  |> modules.encode_element_segment(element_two)
+  |> should_equal_helper(element_two_bytes)
+
+  // 3 -> (ref func) init: FuncIDX* (declarative)
+  let element_three =
+    structure_types.ElemFuncs(
+      ref_func,
+      three_func_idx,
+      structure_types.DeclarativeElemMode,
+    )
+  let element_three_bytes = <<
+    // segment type 3
+    0x03,
+    // elem kind 0
+    0x00,
+    // 3 indexes [0, 1, 2]
+    0x03, 0x00, 0x01, 0x02,
+  >>
+  bytes_builder.new()
+  |> modules.encode_element_segment(element_three)
+  |> should_equal_helper(element_three_bytes)
+
+  let element_four =
+    structure_types.ElemExpressions(
+      ref_func,
+      three_func_idx_expression,
+      structure_types.ActiveElemMode(table_idx_zero, offset_fourty_two),
+    )
+  let element_four_bytes = <<
+    // segment type 4
+    0x04,
+    // offset 42
+    0x41, 42, 0x0B,
+    // 3 index expressions [0, 1, 2]
+    0x03,
+    // ref.func 0 end
+    0xd2, 0x00, 0x0B,
+    // ref.func 1 end
+    0xd2, 0x01, 0x0B,
+    // ref.func 2 end
+    0xd2, 0x02, 0x0B,
+  >>
+  bytes_builder.new()
+  |> modules.encode_element_segment(element_four)
+  |> should_equal_helper(element_four_bytes)
+
+  let element_five =
+    structure_types.ElemExpressions(
+      ref_null_i31,
+      three_null_i31,
+      structure_types.PassiveElemMode,
+    )
+  let element_five_bytes = <<
+    // segment type 5
+    0x05,
+    // elem ref type (ref i31 null)
+    0x6C,
+    // 3 (ref.null i3i)
+    0x03,
+    // ref.null i31 x 3
+    0xD0, 0x6C, 0x0B, 0xD0, 0x6C, 0x0B, 0xD0, 0x6C, 0x0B,
+  >>
+  // <<5, 108, 3, 208, 108, 11, 208, 108, 11, 208, 108, 11>>
+  // <<5, 108, 3, 208, 108, 208, 108, 208, 108>>
+  bytes_builder.new()
+  |> modules.encode_element_segment(element_five)
+  |> should_equal_helper(element_five_bytes)
+
+  let element_six =
+    structure_types.ElemExpressions(
+      ref_null_i31,
+      three_null_i31,
+      structure_types.ActiveElemMode(table_idx_fourty_two, offset_fourty_two),
+    )
+  let element_six_bytes = <<
+    // segment type 6
+    0x06,
+    // table index 42
+    42,
+    // offset 42
+    0x41, 42, 0x0B,
+    // elem ref type (ref i31 null)
+    0x6C,
+    // 3 (ref.null i3i)
+    0x03,
+    // ref.null i31 x 3
+    0xD0, 0x6C, 0x0B, 0xD0, 0x6C, 0x0B, 0xD0, 0x6C, 0x0B,
+  >>
+  bytes_builder.new()
+  |> modules.encode_element_segment(element_six)
+  |> should_equal_helper(element_six_bytes)
+
+  let element_seven =
+    structure_types.ElemExpressions(
+      ref_null_i31,
+      three_null_i31,
+      structure_types.DeclarativeElemMode,
+    )
+  let element_seven_bytes = <<
+    // segment type 7
+    0x07,
+    // elem ref type (ref i31 null)
+    0x6C,
+    // 3 (ref.null i3i)
+    0x03,
+    // ref.null i31 x 3
+    0xD0, 0x6C, 0x0B, 0xD0, 0x6C, 0x0B, 0xD0, 0x6C, 0x0B,
+  >>
+  bytes_builder.new()
+  |> modules.encode_element_segment(element_seven)
+  |> should_equal_helper(element_seven_bytes)
+
+  let element_section =
+    structure_modules.ElementSection(
+      finger_tree.from_list([
+        element_zero,
+        element_one,
+        element_two,
+        element_three,
+        element_four,
+        element_five,
+        element_six,
+        element_seven,
+      ]),
+    )
+
+  let element_section_byte_length =
+    1
+    // for vector size (0x08)
+    + bit_array.byte_size(element_zero_bytes)
+    + bit_array.byte_size(element_one_bytes)
+    + bit_array.byte_size(element_two_bytes)
+    + bit_array.byte_size(element_three_bytes)
+    + bit_array.byte_size(element_four_bytes)
+    + bit_array.byte_size(element_five_bytes)
+    + bit_array.byte_size(element_six_bytes)
+    + bit_array.byte_size(element_seven_bytes)
+
+  let assert Ok(element_section_length) =
+    numbers.u32(element_section_byte_length)
+  let element_section_length =
+    values.encode_u32(bytes_builder.new(), element_section_length)
+    |> bytes_builder.to_bit_array
+
+  let element_section_bytes = <<
+    // section type 9
+    0x09,
+    // byte size
+    element_section_length:bits,
+    // 8 elements
+    0x08,
+    // segment type 0 through 7
+    element_zero_bytes:bits,
+    element_one_bytes:bits,
+    element_two_bytes:bits,
+    element_three_bytes:bits,
+    element_four_bytes:bits,
+    element_five_bytes:bits,
+    element_six_bytes:bits,
+    element_seven_bytes:bits,
+  >>
+
+  bytes_builder.new()
+  |> modules.encode_element_section(element_section)
+  |> should_equal_helper(element_section_bytes)
+}
 
 pub fn code_section_test() {
   let assert Ok(two) = numbers.u32(2)
@@ -750,9 +1017,6 @@ pub fn code_section_test() {
         ),
       ]),
     )
-
-  // "actual",   <<10, 11, 1, 9, 1, 2, 127, 65, 41, 65, 1, 106, 11>>
-  // "expected", <<10, 10, 1, 9, 1, 2, 127, 65, 41, 65, 1, 106, 11>>
 
   let code_section_bytes = <<
     0x0A, 0x0B,

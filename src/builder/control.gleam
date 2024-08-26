@@ -51,23 +51,46 @@ pub fn nop(builder: ExpressionBuilder) {
   |> expression_builder.push(Nop)
 }
 
-pub fn loop(builder: ExpressionBuilder, block_type: BlockType) {
+pub fn loop(
+  builder: ExpressionBuilder,
+  block_type: BlockType,
+  callback: fn(ExpressionBuilder) -> ExpressionBuilder,
+) {
   builder
   |> expression_builder.begin_loop(block_type)
+  |> callback
+  |> expression_builder.end
 }
 
-pub fn if_(builder: ExpressionBuilder, block_type: BlockType) {
+pub fn if_(
+  builder: ExpressionBuilder,
+  block_type: BlockType,
+  callback: fn(
+    ExpressionBuilder,
+    fn(ExpressionBuilder, fn(ExpressionBuilder) -> ExpressionBuilder) ->
+      ExpressionBuilder,
+  ) ->
+    ExpressionBuilder,
+) {
   builder
   |> expression_builder.begin_if(block_type)
+  |> callback(fn(builder, callback) {
+    builder
+    |> expression_builder.begin_else
+    |> callback
+  })
+  |> expression_builder.end
 }
 
-pub fn else_(builder: ExpressionBuilder) {
-  builder |> expression_builder.begin_else
-}
-
-pub fn block(builder: ExpressionBuilder, block_type: BlockType) {
+pub fn block(
+  builder: ExpressionBuilder,
+  block_type: BlockType,
+  callback: fn(ExpressionBuilder) -> ExpressionBuilder,
+) {
   builder
   |> expression_builder.begin_block(block_type)
+  |> callback
+  |> expression_builder.end
 }
 
 pub fn br(builder: ExpressionBuilder, label_idx: LabelIDX) {
@@ -141,11 +164,6 @@ pub fn call_ref(builder: ExpressionBuilder, type_idx: TypeIDX) {
 pub fn drop(builder: ExpressionBuilder) {
   builder
   |> expression_builder.push(Drop)
-}
-
-pub fn end(builder: ExpressionBuilder) {
-  builder
-  |> expression_builder.end
 }
 
 pub fn end_expression(builder: ExpressionBuilder) {

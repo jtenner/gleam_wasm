@@ -1,6 +1,4 @@
-import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
-import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import internal/binary/common.{encode_bytes_builder_vec}
@@ -96,23 +94,25 @@ pub fn encode_module(module: BinaryModule) {
     builder |> common.encode_option(module.elements, encode_element_section),
   )
 
-  // The next section is always the code section if it exists with id 0x0a
+  // The next section is always the custom section if it exists with id 0x0c
+  // The data count section is parsed and encoded out of order as per the spec located
+  // here: https://webassembly.github.io/gc/core/binary/modules.html#binary-module
   use builder <- result.try(encode_custom_sections(builder, module.custom_9))
+  use builder <- result.try(
+    builder
+    |> common.encode_option(module.data_count, encode_data_count_section),
+  )
+
+  // The next section is always the code section if it exists with id 0x0a
+  use builder <- result.try(encode_custom_sections(builder, module.custom_10))
   use builder <- result.try(
     builder |> common.encode_option(module.code, encode_code_section),
   )
 
   // The next section is always the data section if it exists with id 0x0b
-  use builder <- result.try(encode_custom_sections(builder, module.custom_10))
-  use builder <- result.try(
-    builder |> common.encode_option(module.data, encode_data_section),
-  )
-
-  // The next section is always the custom section if it exists with id 0x0c
   use builder <- result.try(encode_custom_sections(builder, module.custom_11))
   use builder <- result.try(
-    builder
-    |> common.encode_option(module.data_count, encode_data_count_section),
+    builder |> common.encode_option(module.data, encode_data_section),
   )
 
   // The last sections, according to the Wasm Spec, are always custom sections
@@ -139,13 +139,13 @@ pub fn decode_module(bits: BitArray) {
   use #(custom_7, rest) <- result.try(decode_custom_sections(rest))
   use #(start, rest) <- result.try(decode_start_section(rest))
   use #(custom_8, rest) <- result.try(decode_custom_sections(rest))
-  use #(elements, rest) <- result.try(decode_elememt_section(rest))
+  use #(elements, rest) <- result.try(decode_element_section(rest))
   use #(custom_9, rest) <- result.try(decode_custom_sections(rest))
-  use #(code, rest) <- result.try(decode_code_section(rest))
-  use #(custom_10, rest) <- result.try(decode_custom_sections(rest))
-  use #(data, rest) <- result.try(decode_data_section(rest))
-  use #(custom_11, rest) <- result.try(decode_custom_sections(rest))
   use #(data_count, rest) <- result.try(decode_data_count_section(rest))
+  use #(custom_10, rest) <- result.try(decode_custom_sections(rest))
+  use #(code, rest) <- result.try(decode_code_section(rest))
+  use #(custom_11, rest) <- result.try(decode_custom_sections(rest))
+  use #(data, rest) <- result.try(decode_data_section(rest))
   use #(custom_12, rest) <- result.map(decode_custom_sections(rest))
   #(
     BinaryModule(
@@ -352,7 +352,7 @@ fn do_decode_element_segment(bits: BitArray) {
   #(ElementSection(elems), rest)
 }
 
-pub fn decode_elememt_section(bits: BitArray) {
+pub fn decode_element_section(bits: BitArray) {
   common.decode_section(bits, 0x09, do_decode_element_segment)
 }
 
@@ -927,28 +927,14 @@ pub fn encode_data_count_section(
   builder: BytesBuilder,
   data_count_section: DataCountSection,
 ) {
+  let data_count =
+    bytes_builder.new()
+    |> encode_u32(data_count_section.count)
+  use size <- result.try(data_count |> bytes_builder.byte_size |> numbers.u32)
   Ok(
     builder
     |> bytes_builder.append(<<0x0C>>)
-    |> encode_u32(data_count_section.count),
+    |> encode_u32(size)
+    |> bytes_builder.append_builder(data_count),
   )
-}
-
-fn debug_decode_section_start(bits: BitArray) {
-  let rest_length = bits |> bit_array.byte_size
-  case bits {
-    <<first, rest:bits>> -> {
-      use #(val, _) <- result.try(values.decode_u32(rest))
-      io.debug(#(
-        "section",
-        first,
-        "byte count",
-        val,
-        "bytes left from start of section",
-        rest_length,
-      ))
-      Ok(Nil)
-    }
-    _ -> Ok(Nil)
-  }
 }

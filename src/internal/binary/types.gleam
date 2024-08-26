@@ -3,6 +3,7 @@ import gleam/bytes_builder.{type BytesBuilder}
 import gleam/io
 import gleam/option.{None, Some}
 import gleam/result
+import gleam/string
 import internal/binary/common
 import internal/binary/values.{
   decode_i32, decode_i64, decode_s33, decode_u32, encode_i32, encode_i64,
@@ -231,7 +232,19 @@ pub fn decode_ref_type(bits: BitArray) {
     <<0x63, 0x6A, rest:bits>> -> Ok(#(ArrayRefType, rest))
     <<0x63, rest:bits>> -> {
       use #(heap_type, rest) <- result.map(decode_heap_type(rest))
-      #(HeapTypeRefType(heap_type, True), rest)
+      case heap_type {
+        NoFuncHeapType -> #(NoFuncRefType, rest)
+        NoExternHeapType -> #(NoExternRefType, rest)
+        NoneHeapType -> #(NoneRefType, rest)
+        FuncHeapType -> #(FuncRefType, rest)
+        ExternHeapType -> #(ExternRefType, rest)
+        AnyHeapType -> #(AnyRefType, rest)
+        EqHeapType -> #(EqRefType, rest)
+        I31HeapType -> #(I31RefType, rest)
+        StructHeapType -> #(StructRefType, rest)
+        ArrayHeapType -> #(ArrayRefType, rest)
+        _ -> #(HeapTypeRefType(heap_type, True), rest)
+      }
     }
     <<0x64, rest:bits>> -> {
       use #(heap_type, rest) <- result.map(decode_heap_type(rest))
@@ -535,7 +548,10 @@ pub fn decode_type_idx(bits: BitArray) {
 }
 
 pub fn encode_type_idx(builder: BytesBuilder, type_idx: TypeIDX) {
-  Ok(builder |> encode_u32(type_idx.id))
+  case type_idx {
+    TypeIDX(id) -> Ok(builder |> encode_u32(id))
+    _ -> Error("Invalid type index, found concrete index instead of numeric.")
+  }
 }
 
 pub fn encode_mem_idx(builder: BytesBuilder, mem_idx: MemIDX) {
@@ -682,6 +698,8 @@ pub fn encode_block_type(builder: BytesBuilder, block_type: BlockType) {
       use s33_value <- result.map(type_idx |> unwrap_u32 |> s33)
       builder |> encode_s33(s33_value)
     }
+    _ ->
+      panic as "Concrete block types cannot be encoded. Something went wrong."
   }
 }
 
@@ -702,10 +720,7 @@ fn do_decode_expression(bits: BitArray, acc: FingerTree(Instruction)) {
       #(Expr(acc |> finger_tree.push(if_)), rest)
     }
     Ok(#(t1, rest)) -> do_decode_expression(rest, acc |> finger_tree.push(t1))
-    a -> {
-      io.debug(#("decoding expression", a, bits |> bit_array.inspect))
-      Error("Invalid expression")
-    }
+    _ -> Error("Invalid expression")
   }
 }
 
@@ -740,8 +755,8 @@ fn do_decode_else(
 pub fn decode_cast_flags(bits: BitArray) {
   case bits {
     <<0x00, rest:bits>> -> Ok(#(#(False, False), rest))
-    <<0x01, rest:bits>> -> Ok(#(#(False, True), rest))
-    <<0x02, rest:bits>> -> Ok(#(#(True, False), rest))
+    <<0x01, rest:bits>> -> Ok(#(#(True, False), rest))
+    <<0x02, rest:bits>> -> Ok(#(#(False, True), rest))
     <<0x03, rest:bits>> -> Ok(#(#(True, True), rest))
     _ -> Error("Invalid cast flags")
   }
@@ -750,8 +765,8 @@ pub fn decode_cast_flags(bits: BitArray) {
 pub fn encode_cast_flags(builder: BytesBuilder, cast_flags: #(Bool, Bool)) {
   case cast_flags {
     #(False, False) -> Ok(builder |> bytes_builder.append(<<0x00>>))
-    #(False, True) -> Ok(builder |> bytes_builder.append(<<0x01>>))
-    #(True, False) -> Ok(builder |> bytes_builder.append(<<0x02>>))
+    #(True, False) -> Ok(builder |> bytes_builder.append(<<0x01>>))
+    #(False, True) -> Ok(builder |> bytes_builder.append(<<0x02>>))
     #(True, True) -> Ok(builder |> bytes_builder.append(<<0x03>>))
   }
 }
@@ -949,7 +964,19 @@ fn decode_instruction(bits: BitArray) {
         }
         21 -> {
           use #(ht, rest) <- result.map(decode_heap_type(rest))
-          #(RefTest(HeapTypeRefType(ht, True)), rest)
+          case ht {
+            NoFuncHeapType -> #(RefTest(NoFuncRefType), rest)
+            NoExternHeapType -> #(RefTest(NoExternRefType), rest)
+            NoneHeapType -> #(RefTest(NoneRefType), rest)
+            FuncHeapType -> #(RefTest(FuncRefType), rest)
+            ExternHeapType -> #(RefTest(ExternRefType), rest)
+            AnyHeapType -> #(RefTest(AnyRefType), rest)
+            EqHeapType -> #(RefTest(EqRefType), rest)
+            I31HeapType -> #(RefTest(I31RefType), rest)
+            StructHeapType -> #(RefTest(StructRefType), rest)
+            ArrayHeapType -> #(RefTest(ArrayRefType), rest)
+            _ -> #(RefTest(HeapTypeRefType(ht, True)), rest)
+          }
         }
         22 -> {
           use #(ht, rest) <- result.map(decode_heap_type(rest))
@@ -992,7 +1019,7 @@ fn decode_instruction(bits: BitArray) {
         28 -> Ok(#(RefI31, rest))
         29 -> Ok(#(I31GetS, rest))
         30 -> Ok(#(I31GetU, rest))
-        _ -> Error("Invalid instruction")
+        _ -> Error("Invalid ref instruction")
       }
     }
     <<0xfc, rest:bits>> -> {
@@ -1006,7 +1033,56 @@ fn decode_instruction(bits: BitArray) {
         5 -> Ok(#(I64TruncSatF32U, rest))
         6 -> Ok(#(I64TruncSatF64S, rest))
         7 -> Ok(#(I64TruncSatF64U, rest))
-        _ -> Error("Invalid instruction")
+        8 -> {
+          use #(idx, rest) <- result.try(decode_data_idx(rest))
+          case rest {
+            <<0x00, rest:bits>> -> Ok(#(MemoryInit(idx), rest))
+            _ -> Error("Invalid memory init instruction")
+          }
+        }
+        9 -> {
+          use #(idx, rest) <- result.map(decode_data_idx(rest))
+          #(DataDrop(idx), rest)
+        }
+        10 -> {
+          case rest {
+            <<0x00, 0x00, rest:bits>> -> Ok(#(MemoryCopy, rest))
+            _ -> Error("Invalid memory copy instruction")
+          }
+        }
+        11 -> {
+          case rest {
+            <<0x00, rest:bits>> -> Ok(#(MemoryFill, rest))
+            _ -> Error("Invalid memory fill instruction")
+          }
+        }
+        12 -> {
+          use #(idx, rest) <- result.try(decode_elem_idx(rest))
+          use #(idx2, rest) <- result.map(decode_table_idx(rest))
+          #(TableInit(idx, idx2), rest)
+        }
+        13 -> {
+          use #(idx, rest) <- result.map(decode_elem_idx(rest))
+          #(ElemDrop(idx), rest)
+        }
+        14 -> {
+          use #(idx, rest) <- result.try(decode_table_idx(rest))
+          use #(idx2, rest) <- result.map(decode_table_idx(rest))
+          #(TableCopy(idx, idx2), rest)
+        }
+        15 -> {
+          use #(idx, rest) <- result.map(decode_table_idx(rest))
+          #(TableGrow(idx), rest)
+        }
+        16 -> {
+          use #(idx, rest) <- result.map(decode_table_idx(rest))
+          #(TableSize(idx), rest)
+        }
+        17 -> {
+          use #(idx, rest) <- result.map(decode_table_idx(rest))
+          #(TableFill(idx), rest)
+        }
+        _ -> Error("Invalid table instruction")
       }
     }
     <<0xfd, rest:bits>> -> {
@@ -1114,7 +1190,7 @@ fn decode_instruction(bits: BitArray) {
               use val <- result.map(v128(bits))
               #(V128Const(val), rest)
             }
-            _ -> Error("Invalid instruction")
+            _ -> Error("Invalid v128 instruction")
           }
         }
         13 -> {
@@ -1446,61 +1522,6 @@ fn decode_instruction(bits: BitArray) {
     <<0x26, rest:bits>> -> {
       use #(idx, rest) <- result.map(decode_table_idx(rest))
       #(TableSet(idx), rest)
-    }
-    <<0xFC, rest:bits>> -> {
-      use #(op, rest) <- result.try(values.decode_u32(rest))
-      case op |> unwrap_u32 {
-        8 -> {
-          use #(idx, rest) <- result.try(decode_data_idx(rest))
-          case rest {
-            <<0x00, rest:bits>> -> Ok(#(MemoryInit(idx), rest))
-            _ -> Error("Invalid instruction")
-          }
-        }
-        9 -> {
-          use #(idx, rest) <- result.map(decode_data_idx(rest))
-          #(DataDrop(idx), rest)
-        }
-        10 -> {
-          case rest {
-            <<0x00, 0x00, rest:bits>> -> Ok(#(MemoryCopy, rest))
-            _ -> Error("Invalid instruction")
-          }
-        }
-        11 -> {
-          case rest {
-            <<0x00, rest:bits>> -> Ok(#(MemoryFill, rest))
-            _ -> Error("Invalid instruction")
-          }
-        }
-        12 -> {
-          use #(idx, rest) <- result.try(decode_elem_idx(rest))
-          use #(idx2, rest) <- result.map(decode_table_idx(rest))
-          #(TableInit(idx, idx2), rest)
-        }
-        13 -> {
-          use #(idx, rest) <- result.map(decode_elem_idx(rest))
-          #(ElemDrop(idx), rest)
-        }
-        14 -> {
-          use #(idx, rest) <- result.try(decode_table_idx(rest))
-          use #(idx2, rest) <- result.map(decode_table_idx(rest))
-          #(TableCopy(idx, idx2), rest)
-        }
-        15 -> {
-          use #(idx, rest) <- result.map(decode_table_idx(rest))
-          #(TableGrow(idx), rest)
-        }
-        16 -> {
-          use #(idx, rest) <- result.map(decode_table_idx(rest))
-          #(TableSize(idx), rest)
-        }
-        17 -> {
-          use #(idx, rest) <- result.map(decode_table_idx(rest))
-          #(TableFill(idx), rest)
-        }
-        _ -> Error("Invalid instruction")
-      }
     }
     <<0x28, rest:bits>> -> {
       use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))

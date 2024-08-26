@@ -108,7 +108,6 @@ pub type HeapType {
   ArrayHeapType
   NoneHeapType
   ConcreteHeapType(idx: TypeIDX)
-  DefTypeHeapType(dt: DefType)
   BotHeapType
 }
 
@@ -154,10 +153,9 @@ pub type RefType {
   NoExternRefType
 }
 
-/// This function is used to check if a refrence type is nullable
 pub fn ref_type_is_nullable(rt: RefType) {
   case rt {
-    HeapTypeRefType(_, null) -> null
+    HeapTypeRefType(_, mut) -> mut
     _ -> True
   }
 }
@@ -275,6 +273,8 @@ pub type RecType {
 pub type TypeIDX {
   /// Module Type Index
   TypeIDX(id: U32)
+  RecTypeIDX(id: U32)
+  DefTypeReference(dt: DefType)
 }
 
 /// An index into a struct's field list.
@@ -941,6 +941,7 @@ pub type Instruction {
   Call(func_idx: FuncIDX)
   CallRef(type_idx: TypeIDX)
   CallIndirect(table_idx: TableIDX, type_idx: TypeIDX)
+  // expand(TypeSection[type_idx].subtype[sub_type_index]) -> CompositeType
   ReturnCall(func_idx: FuncIDX)
   ReturnCallRef(type_idx: TypeIDX)
   ReturnCallIndirect(table_idx: TableIDX, type_idx: TypeIDX)
@@ -1727,5 +1728,9 @@ pub fn unwrap_local_idx(idx: LocalIDX) {
 
 /// Return the integer value of a type index
 pub fn unwrap_type_idx(idx: TypeIDX) {
-  idx.id |> numbers.unwrap_u32
+  case idx {
+    TypeIDX(idx) -> idx |> numbers.unwrap_u32
+    _ ->
+      panic as "Concrete and replaced types cannot be unwrapped. Something went wrong."
+  }
 }

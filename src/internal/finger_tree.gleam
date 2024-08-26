@@ -20,12 +20,6 @@ type Node(u) {
   Node3(u, u, u)
 }
 
-// unshift(A,empty)                      ->  {single,A};
-// unshift(A,{single,B})                 ->  deep([A],empty,[B]);
-// unshift(A,{deep,_,[B,C,D,E],M,SF})    ->  deep([A,B],unshift(node3(C,D,E),M),SF);
-// unshift(A,{deep,_,PR,M,SF})           ->  deep([A|PR],M,SF).
-// 
-
 pub fn unshift(tree: FingerTree(u), a: u) -> FingerTree(u) {
   case tree {
     Empty -> Single(a)
@@ -45,11 +39,6 @@ pub fn unshift(tree: FingerTree(u), a: u) -> FingerTree(u) {
 fn unshift_node(tree: FingerTree(a), node: a) -> FingerTree(a) {
   tree |> unshift(node)
 }
-
-// push(empty,A)                      ->  {single,A};
-// push({single,B},A)                 ->  deep([B],empty,[A]);
-// push({deep,_,PR,M,[E,D,C,B]},A)    ->  deep(PR,push(M,node3(E,D,C)),[B,A]);
-// push({deep,_,PR,M,SF},A)           ->  deep(PR,M,SF++[A]).
 
 pub fn push(tree: FingerTree(u), a: u) -> FingerTree(u) {
   case tree {

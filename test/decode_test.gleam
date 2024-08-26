@@ -15,7 +15,7 @@ import internal/finger_tree
 import internal/structure/modules as structure_modules
 import internal/structure/numbers
 import internal/structure/types.{
-  FuncImport, GlobalImport, MemImport, TableImport,
+  Const, FuncImport, GlobalImport, MemImport, TableImport, Var,
 } as structure_types
 
 fn should_equal_helper(val: Result(u, String), expected: u) {
@@ -1340,7 +1340,7 @@ pub fn decode_element_section_test() {
   <<0x09, 0x01, 0x00>>
   |> decode_type_equals_helper(
     Some(empty_element_section),
-    modules.decode_elememt_section,
+    modules.decode_element_section,
     element_section_equals,
   )
 
@@ -1631,7 +1631,7 @@ pub fn decode_element_section_test() {
   element_section_bytes
   |> decode_type_equals_helper(
     Some(element_section),
-    modules.decode_elememt_section,
+    modules.decode_element_section,
     element_section_equals,
   )
 }

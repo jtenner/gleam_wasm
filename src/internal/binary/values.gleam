@@ -1,9 +1,5 @@
-import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/int
-import gleam/result
-import internal/finger_tree.{type FingerTree}
-import internal/structure/common
 import internal/structure/numbers.{
   type I16, type I32, type I64, type I8, type S33, type U16, type U32, type U64,
   type U8, i16, i32, i64, i8, s33, u16, u32, u64, u8, unwrap_i16, unwrap_i32,

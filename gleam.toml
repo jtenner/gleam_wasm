@@ -4,8 +4,8 @@ version = "1.0.0"
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
 #
-# description = ""
-# licences = ["Apache-2.0"]
+description = "A Web Assembly Encoder and Decoder written in Gleam"
+licences = ["MIT"]
 # repository = { type = "github", user = "", repo = "" }
 # links = [{ title = "Website", href = "" }]
 #
@@ -15,6 +15,8 @@ version = "1.0.0"
 [dependencies]
 gleam_stdlib = ">= 0.34.0 and < 2.0.0"
 ieee_float = ">= 1.0.0 and < 2.0.0"
+simplifile = ">= 2.0.1 and < 3.0.0"
+pprint = ">= 1.0.3 and < 2.0.0"
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"

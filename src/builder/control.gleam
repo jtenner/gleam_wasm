@@ -1,12 +1,10 @@
 import builder/expression_builder.{type ExpressionBuilder}
-import gleam/option.{type Option, None, Some}
 import internal/finger_tree.{type FingerTree}
 import internal/structure/types.{
-  type BlockType, type Expr, type FuncIDX, type LabelIDX, type RefType,
-  type TableIDX, type TypeIDX, type ValType, Block, Br, BrIf, BrOnCast,
-  BrOnCastFail, BrOnNonNull, BrOnNull, BrTable, Call, CallIndirect, CallRef,
-  Drop, If, Loop, Nop, Return, ReturnCall, ReturnCallIndirect, ReturnCallRef,
-  Select, SelectT, Unreachable,
+  type BlockType, type FuncIDX, type LabelIDX, type RefType, type TableIDX,
+  type TypeIDX, type ValType, Br, BrIf, BrOnCast, BrOnCastFail, BrOnNonNull,
+  BrOnNull, BrTable, Call, CallIndirect, CallRef, Drop, Nop, Return, ReturnCall,
+  ReturnCallIndirect, ReturnCallRef, Select, SelectT, Unreachable,
 }
 
 pub fn return(builder: ExpressionBuilder) {

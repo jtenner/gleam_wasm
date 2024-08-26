@@ -1,11 +1,10 @@
 import builder/expression_builder.{type ExpressionBuilder}
 import internal/structure/types.{
-  type LaneIDX2, type MemArg, F64x2Abs, F64x2Add, F64x2Ceil,
-  F64x2ConvertLowI32x4S, F64x2ConvertLowI32x4U, F64x2Div, F64x2Eq,
-  F64x2ExtractLane, F64x2Floor, F64x2Ge, F64x2Gt, F64x2Le, F64x2Lt, F64x2Max,
-  F64x2Min, F64x2Mul, F64x2Ne, F64x2Nearest, F64x2Neg, F64x2Pmax, F64x2Pmin,
-  F64x2PromoteLowF32x4, F64x2ReplaceLane, F64x2Splat, F64x2Sqrt, F64x2Sub,
-  F64x2Trunc,
+  type LaneIDX2, F64x2Abs, F64x2Add, F64x2Ceil, F64x2ConvertLowI32x4S,
+  F64x2ConvertLowI32x4U, F64x2Div, F64x2Eq, F64x2ExtractLane, F64x2Floor,
+  F64x2Ge, F64x2Gt, F64x2Le, F64x2Lt, F64x2Max, F64x2Min, F64x2Mul, F64x2Ne,
+  F64x2Nearest, F64x2Neg, F64x2Pmax, F64x2Pmin, F64x2PromoteLowF32x4,
+  F64x2ReplaceLane, F64x2Splat, F64x2Sqrt, F64x2Sub, F64x2Trunc,
 }
 
 pub fn splat(builder: ExpressionBuilder) {

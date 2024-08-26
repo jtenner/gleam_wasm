@@ -1,6 +1,5 @@
 import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
-import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
@@ -85,21 +84,16 @@ pub fn decode_byte_vec(bits: BitArray) {
   decode_bytes(rest, size)
 }
 
+// [u32]:size [name]:size
 /// WebAssembly strings are encoded with a byte_length and a utf8 string.
 /// This function decodes a string and returns the rest of the BitArray
 pub fn decode_string(val: BitArray) -> Result(#(String, BitArray), String) {
   use #(byte_length, rest) <- result.try(decode_u32(val))
-  let byte_length = byte_length |> unwrap_u32
-  let byte_length = byte_length * 8
-  case rest {
-    <<str:bits-size(byte_length), rest:bits>> -> {
-      case str |> bit_array.to_string {
-        Ok(str) -> Ok(#(str, rest))
-        Error(_) -> Error("Invalid utf8")
-      }
-    }
-    _ -> Error("Byte length mismatch")
-  }
+  use #(bytes, rest) <- result.try(decode_bytes(rest, byte_length |> unwrap_u32))
+  use str <- result.try(
+    bit_array.to_string(bytes) |> result.replace_error("Invalid utf8 string"),
+  )
+  Ok(#(str, rest))
 }
 
 /// Decode a section with the given section ID and the given decoding function
@@ -113,9 +107,7 @@ pub fn decode_section(
     <<id, rest:bits>> if id == section_id -> {
       // Because the section has a size, split the BitArray into the section_bytes and the rest
       // of the BitArray
-      use #(size, rest) <- result.try(decode_u32(rest))
-      let size = size |> unwrap_u32
-      use #(section_bytes, rest) <- result.try(decode_bytes(rest, size))
+      use #(section_bytes, rest) <- result.try(decode_byte_vec(rest))
 
       // Try to decode the section with the given decoding function
       use #(section, left) <- result.try(decode_section_fn(section_bytes))

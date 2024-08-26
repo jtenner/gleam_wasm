@@ -4,7 +4,7 @@ import builder/ref
 import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/io
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleeunit/should
 import internal/binary/common
 import internal/binary/modules
@@ -722,7 +722,7 @@ pub fn start_section_test() {
 
   bytes_builder.new()
   |> modules.encode_start_section(start_section)
-  |> should_equal_helper(<<0x08, 42>>)
+  |> should_equal_helper(<<0x08, 1, 42>>)
 }
 
 pub fn element_section_test() {

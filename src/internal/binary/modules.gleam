@@ -1,5 +1,6 @@
 import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
+import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import internal/binary/common.{encode_bytes_builder_vec}
@@ -20,17 +21,16 @@ import internal/structure/modules.{
   type MemorySection, type StartSection, type TableSection, type TypeSection,
   BinaryModule, CodeSection, CustomSection, DataCountSection, DataSection,
   ElementSection, ExportSection, FunctionSection, GlobalSection, ImportSection,
-  MemorySection, StartSection, TableSection, TypeSection, binary_module_new,
+  MemorySection, StartSection, TableSection, TypeSection,
 }
 import internal/structure/numbers
 import internal/structure/types.{
   type Code, type Data, type Elem, type Export, type Expr, type FuncIDX,
-  type Global, type Import, type RecType, type RefType, type Table, ActiveData,
-  ActiveElemMode, Code, DeclarativeElemMode, ElemExpressions, ElemFuncs, Expr,
-  FuncExport, FuncHeapType, FuncImport, FuncRefType, Global, GlobalExport,
-  GlobalImport, HeapTypeRefType, I32Const, Locals, MemExport, MemImport,
-  PassiveData, PassiveElemMode, RefFunc, RefNull, Table, TableExport, TableIDX,
-  TableImport, ref_type_unwrap_heap_type,
+  type Global, type Import, type Table, ActiveData, ActiveElemMode, Code,
+  DeclarativeElemMode, ElemExpressions, ElemFuncs, Expr, FuncExport,
+  FuncHeapType, FuncImport, Global, GlobalExport, GlobalImport, HeapTypeRefType,
+  Locals, MemExport, MemImport, PassiveData, PassiveElemMode, RefFunc, Table,
+  TableExport, TableIDX, TableImport,
 } as structure_types
 
 const wasm_magic = <<0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00>>
@@ -179,14 +179,13 @@ pub fn decode_module(bits: BitArray) {
   )
 }
 
+fn do_decode_data_count_section(bits: BitArray) {
+  use #(count, rest) <- result.map(values.decode_u32(bits))
+  #(DataCountSection(count), rest)
+}
+
 pub fn decode_data_count_section(bits: BitArray) {
-  case bits {
-    <<0x0C, rest:bits>> -> {
-      use #(count, rest) <- result.map(values.decode_u32(rest))
-      #(Some(DataCountSection(count)), rest)
-    }
-    _ -> Ok(#(None, bits))
-  }
+  common.decode_section(bits, 0x0C, do_decode_data_count_section)
 }
 
 pub fn decode_data(bits: BitArray) {
@@ -288,6 +287,7 @@ pub fn decode_elememt(bits: BitArray) {
     2 -> {
       use #(table_idx, rest) <- result.try(decode_table_idx(rest))
       use #(expr, rest) <- result.try(decode_expression(rest))
+      use #(_, rest) <- result.try(common.expect_decode_byte(rest, 0x00))
       use #(idx, rest) <- result.map(common.decode_vec(rest, decode_func_idx))
 
       #(
@@ -329,7 +329,7 @@ pub fn decode_elememt(bits: BitArray) {
     5 -> {
       use #(rt, rest) <- result.try(decode_ref_type(rest))
       use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
-      #(ElemExpressions(rt, init, DeclarativeElemMode), rest)
+      #(ElemExpressions(rt, init, PassiveElemMode), rest)
     }
     6 -> {
       use #(table_idx, rest) <- result.try(decode_table_idx(rest))
@@ -341,7 +341,7 @@ pub fn decode_elememt(bits: BitArray) {
     7 -> {
       use #(rt, rest) <- result.try(decode_ref_type(rest))
       use #(init, rest) <- result.map(common.decode_vec(rest, decode_expression))
-      #(ElemExpressions(rt, init, PassiveElemMode), rest)
+      #(ElemExpressions(rt, init, DeclarativeElemMode), rest)
     }
     _ -> Error("Invalid element segment type")
   }
@@ -430,11 +430,7 @@ fn decode_table(bits: BitArray) {
     }
     _ -> {
       use #(tt, rest) <- result.map(decode_table_type(bits))
-      let ht = ref_type_unwrap_heap_type(tt.t)
-      let expr = RefNull(ht)
-      let expr = finger_tree.from_list([expr])
-      let expr = Some(Expr(expr))
-      #(Table(tt, expr), rest)
+      #(Table(tt, None), rest)
     }
   }
 }
@@ -503,27 +499,21 @@ pub fn decode_custom_sections(bits: BitArray) {
   do_decode_custom_sections(bits, finger_tree.new())
 }
 
-fn decode_custom_section(bits: BitArray) {
-  use #(name, rest) <- result.try(common.decode_string(bits))
-  use #(data_size, rest) <- result.try(values.decode_u32(rest))
-  let data_size = data_size |> numbers.unwrap_u32
-  use #(data, rest) <- result.try(common.decode_bytes(rest, data_size))
-  case rest {
-    <<>> -> Ok(#(CustomSection(name, data), rest))
-    _ -> Error("Invalid custom section")
-  }
+fn do_decode_custom_section(rest: BitArray) {
+  use #(name, rest) <- result.try(common.decode_string(rest))
+  use #(data, rest) <- result.map(common.decode_byte_vec(rest))
+  #(CustomSection(name, data), rest)
+}
+
+pub fn decode_custom_section(bits: BitArray) {
+  common.decode_section(bits, 0x00, do_decode_custom_section)
 }
 
 fn do_decode_custom_sections(bits: BitArray, acc: FingerTree(CustomSection)) {
-  use #(section, rest) <- result.try(common.decode_section(
-    bits,
-    0x00,
-    decode_custom_section,
-  ))
-  case section {
-    Some(section) ->
+  case decode_custom_section(bits) {
+    Ok(#(Some(section), rest)) ->
       do_decode_custom_sections(rest, acc |> finger_tree.push(section))
-    None -> Ok(#(Some(acc), rest))
+    _ -> Ok(#(Some(acc), bits))
   }
 }
 
@@ -720,7 +710,7 @@ pub fn encode_export_section(
 
 pub fn encode_start_section(builder: BytesBuilder, start_section: StartSection) {
   builder
-  |> bytes_builder.append(<<8>>)
+  |> bytes_builder.append(<<8, 1>>)
   |> encode_func_idx(start_section.start)
 }
 
@@ -845,19 +835,6 @@ pub fn encode_element_segment(builder: BytesBuilder, element: Elem) {
   }
 }
 
-fn expression_to_func_idx(expr: Expr) {
-  use #(inst, rest) <- result.try(
-    expr.insts
-    |> finger_tree.shift
-    |> result.map_error(fn(_) { "expected RefFunc" }),
-  )
-
-  case inst, rest |> finger_tree.size {
-    RefFunc(idx), 0 -> Ok(idx)
-    _, _ -> Error("expected RefFunc")
-  }
-}
-
 pub fn encode_element_section(
   builder: BytesBuilder,
   element_section: ElementSection,
@@ -955,4 +932,23 @@ pub fn encode_data_count_section(
     |> bytes_builder.append(<<0x0C>>)
     |> encode_u32(data_count_section.count),
   )
+}
+
+fn debug_decode_section_start(bits: BitArray) {
+  let rest_length = bits |> bit_array.byte_size
+  case bits {
+    <<first, rest:bits>> -> {
+      use #(val, _) <- result.try(values.decode_u32(rest))
+      io.debug(#(
+        "section",
+        first,
+        "byte count",
+        val,
+        "bytes left from start of section",
+        rest_length,
+      ))
+      Ok(Nil)
+    }
+    _ -> Ok(Nil)
+  }
 }

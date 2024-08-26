@@ -1,21 +1,17 @@
-import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import internal/finger_tree.{type FingerTree}
-import internal/structure/common as structure_common
-import internal/structure/numbers.{type U32, u32, unwrap_u32}
+import internal/structure/numbers.{unwrap_u32}
 import internal/structure/types.{
   type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
-  type DefType, type ExternType, type FieldType, type FuncIDX, type FuncType,
-  type GlobalType, type HeapType, type Instruction, type LocalType, type MemType,
-  type NumType, type PackedType, type RecType, type RefType, type StorageType,
-  type StructType, type SubType, type TableType, type TypeIDX, type ValType,
-  type VecType, AnyHeapType, AnyRefType, ArrayHeapType, ArrayRefType,
-  ConcreteHeapType, DefType, EqHeapType, EqRefType, ExternHeapType,
-  ExternRefType, FuncCompositeType, FuncHeapType, FuncRefType, FuncTypeBlockType,
-  HeapTypeRefType, I31HeapType, I31RefType, NoExternHeapType, NoExternRefType,
-  NoFuncHeapType, NoFuncRefType, NoneHeapType, NoneRefType, RecType,
-  StructHeapType, StructRefType, SubType, TypeIDX,
+  type DefType, type ExternType, type FieldType, type FuncType, type GlobalType,
+  type HeapType, type Instruction, type LocalType, type MemType, type NumType,
+  type PackedType, type RecType, type RefType, type StorageType, type StructType,
+  type SubType, type TableType, type TypeIDX, type ValType, type VecType,
+  AnyHeapType, AnyRefType, ArrayHeapType, ArrayRefType, ConcreteHeapType,
+  DefType, EqHeapType, EqRefType, ExternHeapType, ExternRefType, FuncHeapType,
+  FuncRefType, FuncTypeBlockType, HeapTypeRefType, I31HeapType, I31RefType,
+  NoExternHeapType, NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType,
+  NoneRefType, RecType, StructHeapType, StructRefType, SubType, TypeIDX,
 }
 
 /// Please see: https://webassembly.github.io/gc/core/valid/conventions.html#contexts

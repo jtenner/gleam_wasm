@@ -1,32 +1,29 @@
-import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/result
-import internal/binary/values
 import internal/finger_tree.{type FingerTree}
-import internal/structure/numbers.{type U32, unwrap_u32}
 import internal/structure/types.{
-  type AbstractHeapType, type ArrayType, type BlockType, type CompositeType,
-  type DefType, type ExternType, type FieldType, type FuncType, type GlobalType,
-  type HeapType, type Instruction, type LocalIDX, type LocalType, type MemType,
-  type NumType, type PackedType, type RecType, type RefType, type StorageType,
-  type StructType, type SubType, type TableType, type TypeIDX, type ValType,
-  type VecType, AnyHeapType, AnyRefType, ArrayCompositeType, ArrayHeapType,
-  ArrayRefType, ArrayType, BotHeapType, BotValType, ConcreteHeapType, Const,
-  DefType, DefTypeHeapType, EqHeapType, EqRefType, ExternHeapType, ExternRefType,
-  F32ValType, F64ValType, FieldType, FuncCompositeType, FuncExternType,
-  FuncHeapType, FuncRefType, FuncType, FuncTypeBlockType, GlobalExternType,
-  GlobalType, HeapTypeRefType, I16StorageType, I31HeapType, I31RefType,
-  I32ValType, I64ValType, I8StorageType, LocalType, Loop, MemExternType,
-  NoExternHeapType, NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType,
-  NoneRefType, RecType, RefTypeValType, StructCompositeType, StructHeapType,
-  StructRefType, StructType, SubType, TableExternType, TableType, V128ValType,
-  ValTypeBlockType, ValTypeStorageType, Var, VoidBlockType, unwrap_local_idx,
+  type AbstractHeapType, type ArrayType, type CompositeType, type DefType,
+  type ExternType, type FieldType, type FuncType, type GlobalType, type HeapType,
+  type Instruction, type LocalIDX, type LocalType, type MemType, type NumType,
+  type PackedType, type RecType, type RefType, type StorageType, type StructType,
+  type SubType, type TableType, type ValType, type VecType, AnyHeapType,
+  AnyRefType, ArrayCompositeType, ArrayHeapType, ArrayRefType, ArrayType,
+  BotHeapType, BotValType, ConcreteHeapType, Const, DefType, DefTypeHeapType,
+  EqHeapType, EqRefType, ExternHeapType, ExternRefType, F32ValType, F64ValType,
+  FieldType, FuncCompositeType, FuncExternType, FuncHeapType, FuncRefType,
+  FuncType, GlobalExternType, GlobalType, HeapTypeRefType, I16StorageType,
+  I31HeapType, I31RefType, I32ValType, I64ValType, I8StorageType, LocalType,
+  Loop, MemExternType, NoExternHeapType, NoExternRefType, NoFuncHeapType,
+  NoFuncRefType, NoneHeapType, NoneRefType, RecType, RefTypeValType,
+  StructCompositeType, StructHeapType, StructRefType, StructType, SubType,
+  TableExternType, TableType, V128ValType, ValTypeStorageType, Var,
+  unwrap_local_idx,
 }
 
 import internal/validation/types.{
   type Context, type CtrlFrame, type TypeVisitor, type ValidationState, Context,
   CtrlFrame, Stacks,
-} as validation_types
+} as _
 
 pub fn visit_num_type(
   ctx: Context,

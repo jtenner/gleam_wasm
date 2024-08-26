@@ -1,4 +1,3 @@
-import builder/memory
 import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/io
@@ -476,7 +475,7 @@ pub fn decode_sub_type(bits: BitArray) {
     }
     _ -> {
       use #(ct, rest) <- result.map(decode_comp_type(bits))
-      #(SubType(False, finger_tree.new(), ct), rest)
+      #(SubType(True, finger_tree.new(), ct), rest)
     }
   }
 }
@@ -703,7 +702,10 @@ fn do_decode_expression(bits: BitArray, acc: FingerTree(Instruction)) {
       #(Expr(acc |> finger_tree.push(if_)), rest)
     }
     Ok(#(t1, rest)) -> do_decode_expression(rest, acc |> finger_tree.push(t1))
-    _ -> Error("Invalid expression")
+    a -> {
+      io.debug(#("decoding expression", a, bits |> bit_array.inspect))
+      Error("Invalid expression")
+    }
   }
 }
 
@@ -788,6 +790,7 @@ fn decode_instruction(bits: BitArray) {
       #(if_, rest)
     }
     <<0x05, rest:bits>> -> Ok(#(Else, rest))
+    <<0x0B, rest:bits>> -> Ok(#(End, rest))
     <<0x0C, rest:bits>> -> {
       use #(idx, rest) <- result.map(decode_label_idx(rest))
       #(Br(idx), rest)

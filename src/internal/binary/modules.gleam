@@ -852,7 +852,7 @@ pub fn encode_element_section(
   |> bytes_builder.append_builder(section_builder)
 }
 
-fn encode_code_segment(builder: BytesBuilder, code: Code) {
+pub fn encode_code_segment(builder: BytesBuilder, code: Code) {
   use code_builder <- result.try(
     bytes_builder.new()
     |> common.encode_vec(code.locals, encode_locals),

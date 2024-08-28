@@ -20,6 +20,10 @@ type Node(u) {
   Node3(u, u, u)
 }
 
+pub fn single(u: u) -> FingerTree(u) {
+  Single(u)
+}
+
 pub fn unshift(tree: FingerTree(u), a: u) -> FingerTree(u) {
   case tree {
     Empty -> Single(a)
@@ -535,5 +539,27 @@ fn do_take(tree: FingerTree(u), acc: FingerTree(u), count: Int) {
         Ok(#(u, tree)) -> do_take(tree, acc |> push(u), count - 1)
         Error(_) -> Error(Nil)
       }
+  }
+}
+
+pub fn peekl(tree: FingerTree(u)) -> Result(u, Nil) {
+  case tree {
+    Empty -> Error(Nil)
+    Single(u) -> Ok(u)
+    Deep(_, One(u), _, _) -> Ok(u)
+    Deep(_, Two(u, _), _, _) -> Ok(u)
+    Deep(_, Three(u, _, _), _, _) -> Ok(u)
+    Deep(_, Four(u, _, _, _), _, _) -> Ok(u)
+  }
+}
+
+pub fn peekr(tree: FingerTree(u)) -> Result(u, Nil) {
+  case tree {
+    Empty -> Error(Nil)
+    Single(u) -> Ok(u)
+    Deep(_, _, _, One(u)) -> Ok(u)
+    Deep(_, _, _, Two(_, u)) -> Ok(u)
+    Deep(_, _, _, Three(_, _, u)) -> Ok(u)
+    Deep(_, _, _, Four(_, _, _, u)) -> Ok(u)
   }
 }

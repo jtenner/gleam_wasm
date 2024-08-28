@@ -79,3 +79,21 @@ pub fn call_indirect_test() {
 
   round_trip(structure_types.CallIndirect(table_idx, type_idx), <<0x11, 42, 1>>)
 }
+
+pub fn return_call_test() {
+  let assert Ok(func_idx) = numbers.u32(42)
+  let func_idx = structure_types.FuncIDX(func_idx)
+
+  round_trip(structure_types.ReturnCall(func_idx), <<0x12, 42>>)
+}
+
+pub fn return_call_indirect_test() {
+  let assert Ok(type_idx) = numbers.u32(42)
+  let type_idx = structure_types.TypeIDX(type_idx)
+  let assert Ok(table_idx) = numbers.u32(1)
+  let table_idx = structure_types.TableIDX(table_idx)
+
+  round_trip(structure_types.ReturnCallIndirect(table_idx, type_idx), <<
+    0x13, 42, 1,
+  >>)
+}

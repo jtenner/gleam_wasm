@@ -791,6 +791,19 @@ pub fn encode_instruction(
       )
       builder |> encode_table_idx(table_idx)
     }
+    ReturnCall(func_idx) -> {
+      builder
+      |> bytes_builder.append(<<0x12>>)
+      |> encode_func_idx(func_idx)
+    }
+    ReturnCallIndirect(table_idx, type_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x13>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder |> encode_table_idx(table_idx)
+    }
     _ -> panic as "Invalid Instruction"
   }
 }
@@ -825,6 +838,15 @@ pub fn decode_instruction(
       use #(type_idx, rest) <- result.try(decode_type_idx(rest))
       use #(table_idx, rest) <- result.map(decode_table_idx(rest))
       #(CallIndirect(table_idx, type_idx), rest)
+    }
+    <<0x12, rest:bits>> -> {
+      use #(func_idx, rest) <- result.map(decode_func_idx(rest))
+      #(ReturnCall(func_idx), rest)
+    }
+    <<0x13, rest:bits>> -> {
+      use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+      use #(table_idx, rest) <- result.map(decode_table_idx(rest))
+      #(ReturnCallIndirect(table_idx, type_idx), rest)
     }
     _ -> panic as "Invalid byte sequence"
   }

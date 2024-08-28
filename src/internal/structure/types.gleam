@@ -929,7 +929,11 @@ pub type Instruction {
   Unreachable
   Block(bt: BlockType, instructions: Expr)
   Loop(bt: BlockType, instructions: Expr)
-  If(bt: BlockType, instructions: Expr, else_instructions: Option(Expr))
+  If(
+    bt: BlockType,
+    instructions: FingerTree(Instruction),
+    else_instructions: Option(FingerTree(Instruction)),
+  )
   Br(label: LabelIDX)
   BrIf(label: LabelIDX)
   BrTable(labels: FingerTree(LabelIDX), default: LabelIDX)

@@ -81,16 +81,13 @@ pub fn end(builder: ExpressionBuilder) {
       if block_stack == finger_tree.empty
     -> Ok(ExpressionBuilder(Some(Expr(instructions)), EmptyTop, block_stack))
     ExpressionBuilder(None, IfBlock(bt, if_instructions), block_stack) ->
-      do_append(block_stack, If(bt, Expr(if_instructions), None))
+      do_append(block_stack, If(bt, if_instructions, None))
     ExpressionBuilder(
       None,
       ElseBlock(bt, if_instructions, else_instructions),
       block_stack,
     ) ->
-      do_append(
-        block_stack,
-        If(bt, Expr(if_instructions), Some(Expr(else_instructions))),
-      )
+      do_append(block_stack, If(bt, if_instructions, Some(else_instructions)))
     ExpressionBuilder(None, LoopBlock(bt, loop_instructions), block_stack) ->
       do_append(block_stack, Loop(bt, Expr(loop_instructions)))
     ExpressionBuilder(None, InlineBlock(bt, block_instructions), block_stack) ->

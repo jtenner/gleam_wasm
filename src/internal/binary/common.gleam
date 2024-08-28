@@ -1,5 +1,6 @@
 import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
+import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
@@ -128,7 +129,14 @@ pub fn decode_section(
 pub fn expect_decode_byte(bits: BitArray, val: Int) {
   case bits {
     <<first, rest:bits>> if first == val -> Ok(#(first, rest))
-    _ -> Error("Invalid byte")
+    <<first, _:bits>> ->
+      Error(
+        "Invalid byte: 0x"
+        <> { int.to_base16(first) }
+        <> ", expected 0x"
+        <> { int.to_base16(val) },
+      )
+    _ -> Error("Empty buffer, expected 0x" <> { int.to_base16(val) })
   }
 }
 

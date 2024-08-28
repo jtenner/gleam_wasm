@@ -2,6 +2,7 @@ import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/dynamic
 import gleam/int
+import gleam/io
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
@@ -115,6 +116,7 @@ import internal/structure/types.{
   ValTypeBlockType, ValTypeStorageType, Var, VoidBlockType, lane_16, lane_2,
   lane_4, lane_8,
 }
+import pprint
 import simplifile
 
 pub fn decode_lane_16(bits: BitArray) {
@@ -742,11 +744,81 @@ pub fn encode_expression(
   builder: BytesBuilder,
   expression: Expr,
 ) -> Result(BytesBuilder, String) {
-  todo
+  let insts = expression.insts
+
+  use builder <- result.map(
+    builder
+    |> do_encode_instructions(insts),
+  )
+  builder
+  |> bytes_builder.append(<<0x0B>>)
+}
+
+pub fn do_encode_instructions(
+  builder: BytesBuilder,
+  insts: FingerTree(Instruction),
+) -> Result(BytesBuilder, String) {
+  case finger_tree.shift(insts) {
+    Ok(#(inst, rest)) -> {
+      use builder <- result.try(builder |> encode_instruction(inst))
+      do_encode_instructions(builder, rest)
+    }
+    Error(Nil) -> Ok(builder)
+  }
 }
 
 pub fn decode_expression(bits: BitArray) -> Result(#(Expr, BitArray), String) {
-  todo
+  do_decode_expression(bits, finger_tree.empty)
+}
+
+fn do_decode_expression(
+  bits: BitArray,
+  acc: FingerTree(Instruction),
+) -> Result(#(Expr, BitArray), String) {
+  case bits {
+    <<0x0B, rest:bits>> -> Ok(#(Expr(acc), rest))
+    _ -> {
+      use #(inst, rest) <- result.try(decode_instruction(bits))
+      do_decode_expression(rest, acc |> finger_tree.push(inst))
+    }
+  }
+}
+
+fn do_decode_if_instruction(
+  bits: BitArray,
+  bt: BlockType,
+  acc: FingerTree(Instruction),
+) -> Result(#(Instruction, BitArray), String) {
+  case bits {
+    <<0x0B, rest:bits>> -> Ok(#(If(bt, acc, None), rest))
+    <<0x05, rest:bits>> -> {
+      do_decode_else_instruction(rest, bt, acc, finger_tree.empty)
+    }
+    _ -> {
+      use #(inst, rest) <- result.try(decode_instruction(bits))
+      do_decode_if_instruction(rest, bt, acc |> finger_tree.push(inst))
+    }
+  }
+}
+
+fn do_decode_else_instruction(
+  bits: BitArray,
+  bt: BlockType,
+  if_acc: FingerTree(Instruction),
+  else_acc: FingerTree(Instruction),
+) -> Result(#(Instruction, BitArray), String) {
+  case bits {
+    <<0x0B, rest:bits>> -> Ok(#(If(bt, if_acc, Some(else_acc)), rest))
+    _ -> {
+      use #(inst, rest) <- result.try(decode_instruction(bits))
+      do_decode_else_instruction(
+        rest,
+        bt,
+        if_acc,
+        else_acc |> finger_tree.push(inst),
+      )
+    }
+  }
 }
 
 pub fn encode_instruction(
@@ -756,6 +828,48 @@ pub fn encode_instruction(
   case instruction {
     Unreachable -> Ok(builder |> bytes_builder.append(<<0x00>>))
     Nop -> Ok(builder |> bytes_builder.append(<<0x01>>))
+    Block(block_type, expression) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x02>>)
+        |> encode_block_type(block_type),
+      )
+      builder |> encode_expression(expression)
+    }
+    Loop(block_type, expression) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x03>>)
+        |> encode_block_type(block_type),
+      )
+      builder |> encode_expression(expression)
+    }
+    If(block_type, then_expression, else_expression) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0x04>>)
+        |> encode_block_type(block_type),
+      )
+      use builder <- result.try(
+        builder
+        |> do_encode_instructions(then_expression),
+      )
+      case else_expression {
+        Some(else_expression) -> {
+          use builder <- result.map(
+            builder
+            |> bytes_builder.append(<<0x05>>)
+            |> do_encode_instructions(else_expression),
+          )
+          builder |> bytes_builder.append(<<0x0B>>)
+        }
+        None ->
+          Ok(
+            builder
+            |> bytes_builder.append(<<0x0B>>),
+          )
+      }
+    }
     Br(LabelIDX(label_idx)) -> {
       builder
       |> bytes_builder.append(<<0x0C>>)
@@ -804,7 +918,197 @@ pub fn encode_instruction(
       )
       builder |> encode_table_idx(table_idx)
     }
-    _ -> panic as "Invalid Instruction"
+    CallRef(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0x14>>)
+      |> encode_type_idx(type_idx)
+    ReturnCallRef(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0x15>>)
+      |> encode_type_idx(type_idx)
+    BrOnNull(label_idx) -> {
+      builder
+      |> bytes_builder.append(<<0xD5>>)
+      |> encode_label_idx(label_idx)
+    }
+    BrOnNonNull(label_idx) -> {
+      builder
+      |> bytes_builder.append(<<0xD6>>)
+      |> encode_label_idx(label_idx)
+    }
+    LocalGet(local_idx) -> {
+      builder
+      |> bytes_builder.append(<<0x20>>)
+      |> encode_local_idx(local_idx)
+    }
+    I32Eqz -> Ok(builder |> bytes_builder.append(<<0x45>>))
+    I32Eq -> Ok(builder |> bytes_builder.append(<<0x46>>))
+    I32Ne -> Ok(builder |> bytes_builder.append(<<0x47>>))
+    I32LtS -> Ok(builder |> bytes_builder.append(<<0x48>>))
+    I32LtU -> Ok(builder |> bytes_builder.append(<<0x49>>))
+    I32GtS -> Ok(builder |> bytes_builder.append(<<0x4A>>))
+    I32GtU -> Ok(builder |> bytes_builder.append(<<0x4B>>))
+    I32LeS -> Ok(builder |> bytes_builder.append(<<0x4C>>))
+    I32LeU -> Ok(builder |> bytes_builder.append(<<0x4D>>))
+    I32GeS -> Ok(builder |> bytes_builder.append(<<0x4E>>))
+    I32GeU -> Ok(builder |> bytes_builder.append(<<0x4F>>))
+    I64Eqz -> Ok(builder |> bytes_builder.append(<<0x50>>))
+    I64Eq -> Ok(builder |> bytes_builder.append(<<0x51>>))
+    I64Ne -> Ok(builder |> bytes_builder.append(<<0x52>>))
+    I64LtS -> Ok(builder |> bytes_builder.append(<<0x53>>))
+    I64LtU -> Ok(builder |> bytes_builder.append(<<0x54>>))
+    I64GtS -> Ok(builder |> bytes_builder.append(<<0x55>>))
+    I64GtU -> Ok(builder |> bytes_builder.append(<<0x56>>))
+    I64LeS -> Ok(builder |> bytes_builder.append(<<0x57>>))
+    I64LeU -> Ok(builder |> bytes_builder.append(<<0x58>>))
+    I64GeS -> Ok(builder |> bytes_builder.append(<<0x59>>))
+    I64GeU -> Ok(builder |> bytes_builder.append(<<0x5A>>))
+    F32Eq -> Ok(builder |> bytes_builder.append(<<0x5B>>))
+    F32Ne -> Ok(builder |> bytes_builder.append(<<0x5C>>))
+    F32Lt -> Ok(builder |> bytes_builder.append(<<0x5D>>))
+    F32Gt -> Ok(builder |> bytes_builder.append(<<0x5E>>))
+    F32Le -> Ok(builder |> bytes_builder.append(<<0x5F>>))
+    F32Ge -> Ok(builder |> bytes_builder.append(<<0x60>>))
+    F64Eq -> Ok(builder |> bytes_builder.append(<<0x61>>))
+    F64Ne -> Ok(builder |> bytes_builder.append(<<0x62>>))
+    F64Lt -> Ok(builder |> bytes_builder.append(<<0x63>>))
+    F64Gt -> Ok(builder |> bytes_builder.append(<<0x64>>))
+    F64Le -> Ok(builder |> bytes_builder.append(<<0x65>>))
+    F64Ge -> Ok(builder |> bytes_builder.append(<<0x66>>))
+    I32Clz -> Ok(builder |> bytes_builder.append(<<0x67>>))
+    I32Ctz -> Ok(builder |> bytes_builder.append(<<0x68>>))
+    I32Popcnt -> Ok(builder |> bytes_builder.append(<<0x69>>))
+    I32Add -> Ok(builder |> bytes_builder.append(<<0x6A>>))
+    I32Sub -> Ok(builder |> bytes_builder.append(<<0x6B>>))
+    I32Mul -> Ok(builder |> bytes_builder.append(<<0x6C>>))
+    I32DivS -> Ok(builder |> bytes_builder.append(<<0x6D>>))
+    I32DivU -> Ok(builder |> bytes_builder.append(<<0x6E>>))
+    I32RemS -> Ok(builder |> bytes_builder.append(<<0x6F>>))
+    I32RemU -> Ok(builder |> bytes_builder.append(<<0x70>>))
+    I32And -> Ok(builder |> bytes_builder.append(<<0x71>>))
+    I32Or -> Ok(builder |> bytes_builder.append(<<0x72>>))
+    I32Xor -> Ok(builder |> bytes_builder.append(<<0x73>>))
+    I32Shl -> Ok(builder |> bytes_builder.append(<<0x74>>))
+    I32ShrS -> Ok(builder |> bytes_builder.append(<<0x75>>))
+    I32ShrU -> Ok(builder |> bytes_builder.append(<<0x76>>))
+    I32Rotl -> Ok(builder |> bytes_builder.append(<<0x77>>))
+    I32Rotr -> Ok(builder |> bytes_builder.append(<<0x78>>))
+    I64Clz -> Ok(builder |> bytes_builder.append(<<0x79>>))
+    I64Ctz -> Ok(builder |> bytes_builder.append(<<0x7A>>))
+    I64Popcnt -> Ok(builder |> bytes_builder.append(<<0x7B>>))
+    I64Add -> Ok(builder |> bytes_builder.append(<<0x7C>>))
+    I64Sub -> Ok(builder |> bytes_builder.append(<<0x7D>>))
+    I64Mul -> Ok(builder |> bytes_builder.append(<<0x7E>>))
+    I64DivS -> Ok(builder |> bytes_builder.append(<<0x7F>>))
+    I64DivU -> Ok(builder |> bytes_builder.append(<<0x80>>))
+    I64RemS -> Ok(builder |> bytes_builder.append(<<0x81>>))
+    I64RemU -> Ok(builder |> bytes_builder.append(<<0x82>>))
+    I64And -> Ok(builder |> bytes_builder.append(<<0x83>>))
+    I64Or -> Ok(builder |> bytes_builder.append(<<0x84>>))
+    I64Xor -> Ok(builder |> bytes_builder.append(<<0x85>>))
+    I64Shl -> Ok(builder |> bytes_builder.append(<<0x86>>))
+    I64ShrS -> Ok(builder |> bytes_builder.append(<<0x87>>))
+    I64ShrU -> Ok(builder |> bytes_builder.append(<<0x88>>))
+    I64Rotl -> Ok(builder |> bytes_builder.append(<<0x89>>))
+    I64Rotr -> Ok(builder |> bytes_builder.append(<<0x8A>>))
+    F32Abs -> Ok(builder |> bytes_builder.append(<<0x8B>>))
+    F32Neg -> Ok(builder |> bytes_builder.append(<<0x8C>>))
+    F32Ceil -> Ok(builder |> bytes_builder.append(<<0x8D>>))
+    F32Floor -> Ok(builder |> bytes_builder.append(<<0x8E>>))
+    F32Trunc -> Ok(builder |> bytes_builder.append(<<0x8F>>))
+    F32Nearest -> Ok(builder |> bytes_builder.append(<<0x90>>))
+    F32Sqrt -> Ok(builder |> bytes_builder.append(<<0x91>>))
+    F32Add -> Ok(builder |> bytes_builder.append(<<0x92>>))
+    F32Sub -> Ok(builder |> bytes_builder.append(<<0x93>>))
+    F32Mul -> Ok(builder |> bytes_builder.append(<<0x94>>))
+    F32Div -> Ok(builder |> bytes_builder.append(<<0x95>>))
+    F32Min -> Ok(builder |> bytes_builder.append(<<0x96>>))
+    F32Max -> Ok(builder |> bytes_builder.append(<<0x97>>))
+    F32Copysign -> Ok(builder |> bytes_builder.append(<<0x98>>))
+    F64Abs -> Ok(builder |> bytes_builder.append(<<0x99>>))
+    F64Neg -> Ok(builder |> bytes_builder.append(<<0x9A>>))
+    F64Ceil -> Ok(builder |> bytes_builder.append(<<0x9B>>))
+    F64Floor -> Ok(builder |> bytes_builder.append(<<0x9C>>))
+    F64Trunc -> Ok(builder |> bytes_builder.append(<<0x9D>>))
+    F64Nearest -> Ok(builder |> bytes_builder.append(<<0x9E>>))
+    F64Sqrt -> Ok(builder |> bytes_builder.append(<<0x9F>>))
+    F64Add -> Ok(builder |> bytes_builder.append(<<0xA0>>))
+    F64Sub -> Ok(builder |> bytes_builder.append(<<0xA1>>))
+    F64Mul -> Ok(builder |> bytes_builder.append(<<0xA2>>))
+    F64Div -> Ok(builder |> bytes_builder.append(<<0xA3>>))
+    F64Min -> Ok(builder |> bytes_builder.append(<<0xA4>>))
+    F64Max -> Ok(builder |> bytes_builder.append(<<0xA5>>))
+    F64Copysign -> Ok(builder |> bytes_builder.append(<<0xA6>>))
+    I32WrapI64 -> Ok(builder |> bytes_builder.append(<<0xA7>>))
+    I32TruncF32S -> Ok(builder |> bytes_builder.append(<<0xA8>>))
+    I32TruncF32U -> Ok(builder |> bytes_builder.append(<<0xA9>>))
+    I32TruncF64S -> Ok(builder |> bytes_builder.append(<<0xAA>>))
+    I32TruncF64U -> Ok(builder |> bytes_builder.append(<<0xAB>>))
+    I64ExtendI32S -> Ok(builder |> bytes_builder.append(<<0xAC>>))
+    I64ExtendI32U -> Ok(builder |> bytes_builder.append(<<0xAD>>))
+    I64TruncF32S -> Ok(builder |> bytes_builder.append(<<0xAE>>))
+    I64TruncF32U -> Ok(builder |> bytes_builder.append(<<0xAF>>))
+    I64TruncF64S -> Ok(builder |> bytes_builder.append(<<0xB0>>))
+    I64TruncF64U -> Ok(builder |> bytes_builder.append(<<0xB1>>))
+    F32ConvertI32S -> Ok(builder |> bytes_builder.append(<<0xB2>>))
+    F32ConvertI32U -> Ok(builder |> bytes_builder.append(<<0xB3>>))
+    F32ConvertI64S -> Ok(builder |> bytes_builder.append(<<0xB4>>))
+    F32ConvertI64U -> Ok(builder |> bytes_builder.append(<<0xB5>>))
+    F32DemoteF64 -> Ok(builder |> bytes_builder.append(<<0xB6>>))
+    F64ConvertI32S -> Ok(builder |> bytes_builder.append(<<0xB7>>))
+    F64ConvertI32U -> Ok(builder |> bytes_builder.append(<<0xB8>>))
+    F64ConvertI64S -> Ok(builder |> bytes_builder.append(<<0xB9>>))
+    F64ConvertI64U -> Ok(builder |> bytes_builder.append(<<0xBA>>))
+    F64PromoteF32 -> Ok(builder |> bytes_builder.append(<<0xBB>>))
+    I32ReinterpretF32 -> Ok(builder |> bytes_builder.append(<<0xBC>>))
+    I64ReinterpretF64 -> Ok(builder |> bytes_builder.append(<<0xBD>>))
+    F32ReinterpretI32 -> Ok(builder |> bytes_builder.append(<<0xBE>>))
+    F64ReinterpretI64 -> Ok(builder |> bytes_builder.append(<<0xBF>>))
+    I32Extend8S -> Ok(builder |> bytes_builder.append(<<0xC0>>))
+    I32Extend16S -> Ok(builder |> bytes_builder.append(<<0xC1>>))
+    I64Extend8S -> Ok(builder |> bytes_builder.append(<<0xC2>>))
+    I64Extend16S -> Ok(builder |> bytes_builder.append(<<0xC3>>))
+    I64Extend32S -> Ok(builder |> bytes_builder.append(<<0xC4>>))
+    Drop ->
+      builder
+      |> bytes_builder.append(<<0x1A>>)
+      |> Ok
+    BrOnCast(label_idx, rt1, rt2) -> {
+      let ht1_nullable = types.ref_type_is_nullable(rt1)
+      let ht2_nullable = types.ref_type_is_nullable(rt2)
+      let ht1 = types.ref_type_unwrap_heap_type(rt1)
+      let ht2 = types.ref_type_unwrap_heap_type(rt2)
+      let assert Ok(op_code) = u32(24)
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB>>)
+        |> encode_u32(op_code)
+        |> encode_cast_flags(#(ht1_nullable, ht2_nullable)),
+      )
+      use builder <- result.try(builder |> encode_label_idx(label_idx))
+      use builder <- result.try(builder |> encode_heap_type(ht1))
+      encode_heap_type(builder, ht2)
+    }
+    BrOnCastFail(label_idx, rt1, rt2) -> {
+      let ht1_nullable = types.ref_type_is_nullable(rt1)
+      let ht2_nullable = types.ref_type_is_nullable(rt2)
+      let ht1 = types.ref_type_unwrap_heap_type(rt1)
+      let ht2 = types.ref_type_unwrap_heap_type(rt2)
+      let assert Ok(op_code) = u32(25)
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB>>)
+        |> encode_u32(op_code)
+        |> encode_cast_flags(#(ht1_nullable, ht2_nullable)),
+      )
+      use builder <- result.try(builder |> encode_label_idx(label_idx))
+      use builder <- result.try(builder |> encode_heap_type(ht1))
+      encode_heap_type(builder, ht2)
+    }
+    inst -> {
+      let name = pprint.format(inst)
+      Error("Instruction not implemented: " <> name)
+    }
   }
 }
 
@@ -812,8 +1116,24 @@ pub fn decode_instruction(
   bits: BitArray,
 ) -> Result(#(Instruction, BitArray), String) {
   case bits {
+    <<0x0B, _:bits>> -> Error("Invalid end instruction")
+    <<0x05, _:bits>> -> Error("Invalid else instruction")
     <<0x00, rest:bits>> -> Ok(#(Unreachable, rest))
     <<0x01, rest:bits>> -> Ok(#(Nop, rest))
+    <<0x02, rest:bits>> -> {
+      use #(bt, rest) <- result.try(decode_block_type(rest))
+      use #(expr, rest) <- result.map(decode_expression(rest))
+      #(Block(bt, expr), rest)
+    }
+    <<0x03, rest:bits>> -> {
+      use #(bt, rest) <- result.try(decode_block_type(rest))
+      use #(expr, rest) <- result.map(decode_expression(rest))
+      #(Loop(bt, expr), rest)
+    }
+    <<0x04, rest:bits>> -> {
+      use #(bt, rest) <- result.try(decode_block_type(rest))
+      do_decode_if_instruction(rest, bt, finger_tree.empty)
+    }
     <<0x0C, rest:bits>> -> {
       use #(label_idx, rest) <- result.map(decode_u32(rest))
       #(Br(LabelIDX(label_idx)), rest)
@@ -848,6 +1168,196 @@ pub fn decode_instruction(
       use #(table_idx, rest) <- result.map(decode_table_idx(rest))
       #(ReturnCallIndirect(table_idx, type_idx), rest)
     }
-    _ -> panic as "Invalid byte sequence"
+    <<0x14, rest:bits>> -> {
+      use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+      #(CallRef(type_idx), rest)
+    }
+    <<0x15, rest:bits>> -> {
+      use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+      #(ReturnCallRef(type_idx), rest)
+    }
+    <<0x1A, rest:bits>> -> Ok(#(Drop, rest))
+    <<0x20, rest:bits>> -> {
+      use #(local_idx, rest) <- result.map(decode_local_idx(rest))
+      #(LocalGet(local_idx), rest)
+    }
+    <<0x45, rest:bits>> -> Ok(#(I32Eqz, rest))
+    <<0x46, rest:bits>> -> Ok(#(I32Eq, rest))
+    <<0x47, rest:bits>> -> Ok(#(I32Ne, rest))
+    <<0x48, rest:bits>> -> Ok(#(I32LtS, rest))
+    <<0x49, rest:bits>> -> Ok(#(I32LtU, rest))
+    <<0x4A, rest:bits>> -> Ok(#(I32GtS, rest))
+    <<0x4B, rest:bits>> -> Ok(#(I32GtU, rest))
+    <<0x4C, rest:bits>> -> Ok(#(I32LeS, rest))
+    <<0x4D, rest:bits>> -> Ok(#(I32LeU, rest))
+    <<0x4E, rest:bits>> -> Ok(#(I32GeS, rest))
+    <<0x4F, rest:bits>> -> Ok(#(I32GeU, rest))
+    <<0x50, rest:bits>> -> Ok(#(I64Eqz, rest))
+    <<0x51, rest:bits>> -> Ok(#(I64Eq, rest))
+    <<0x52, rest:bits>> -> Ok(#(I64Ne, rest))
+    <<0x53, rest:bits>> -> Ok(#(I64LtS, rest))
+    <<0x54, rest:bits>> -> Ok(#(I64LtU, rest))
+    <<0x55, rest:bits>> -> Ok(#(I64GtS, rest))
+    <<0x56, rest:bits>> -> Ok(#(I64GtU, rest))
+    <<0x57, rest:bits>> -> Ok(#(I64LeS, rest))
+    <<0x58, rest:bits>> -> Ok(#(I64LeU, rest))
+    <<0x59, rest:bits>> -> Ok(#(I64GeS, rest))
+    <<0x5A, rest:bits>> -> Ok(#(I64GeU, rest))
+    <<0x5B, rest:bits>> -> Ok(#(F32Eq, rest))
+    <<0x5C, rest:bits>> -> Ok(#(F32Ne, rest))
+    <<0x5D, rest:bits>> -> Ok(#(F32Lt, rest))
+    <<0x5E, rest:bits>> -> Ok(#(F32Gt, rest))
+    <<0x5F, rest:bits>> -> Ok(#(F32Le, rest))
+    <<0x60, rest:bits>> -> Ok(#(F32Ge, rest))
+    <<0x61, rest:bits>> -> Ok(#(F64Eq, rest))
+    <<0x62, rest:bits>> -> Ok(#(F64Ne, rest))
+    <<0x63, rest:bits>> -> Ok(#(F64Lt, rest))
+    <<0x64, rest:bits>> -> Ok(#(F64Gt, rest))
+    <<0x65, rest:bits>> -> Ok(#(F64Le, rest))
+    <<0x66, rest:bits>> -> Ok(#(F64Ge, rest))
+    <<0x67, rest:bits>> -> Ok(#(I32Clz, rest))
+    <<0x68, rest:bits>> -> Ok(#(I32Ctz, rest))
+    <<0x69, rest:bits>> -> Ok(#(I32Popcnt, rest))
+    <<0x6A, rest:bits>> -> Ok(#(I32Add, rest))
+    <<0x6B, rest:bits>> -> Ok(#(I32Sub, rest))
+    <<0x6C, rest:bits>> -> Ok(#(I32Mul, rest))
+    <<0x6D, rest:bits>> -> Ok(#(I32DivS, rest))
+    <<0x6E, rest:bits>> -> Ok(#(I32DivU, rest))
+    <<0x6F, rest:bits>> -> Ok(#(I32RemS, rest))
+    <<0x70, rest:bits>> -> Ok(#(I32RemU, rest))
+    <<0x71, rest:bits>> -> Ok(#(I32And, rest))
+    <<0x72, rest:bits>> -> Ok(#(I32Or, rest))
+    <<0x73, rest:bits>> -> Ok(#(I32Xor, rest))
+    <<0x74, rest:bits>> -> Ok(#(I32Shl, rest))
+    <<0x75, rest:bits>> -> Ok(#(I32ShrS, rest))
+    <<0x76, rest:bits>> -> Ok(#(I32ShrU, rest))
+    <<0x77, rest:bits>> -> Ok(#(I32Rotl, rest))
+    <<0x78, rest:bits>> -> Ok(#(I32Rotr, rest))
+    <<0x79, rest:bits>> -> Ok(#(I64Clz, rest))
+    <<0x7A, rest:bits>> -> Ok(#(I64Ctz, rest))
+    <<0x7B, rest:bits>> -> Ok(#(I64Popcnt, rest))
+    <<0x7C, rest:bits>> -> Ok(#(I64Add, rest))
+    <<0x7D, rest:bits>> -> Ok(#(I64Sub, rest))
+    <<0x7E, rest:bits>> -> Ok(#(I64Mul, rest))
+    <<0x7F, rest:bits>> -> Ok(#(I64DivS, rest))
+    <<0x80, rest:bits>> -> Ok(#(I64DivU, rest))
+    <<0x81, rest:bits>> -> Ok(#(I64RemS, rest))
+    <<0x82, rest:bits>> -> Ok(#(I64RemU, rest))
+    <<0x83, rest:bits>> -> Ok(#(I64And, rest))
+    <<0x84, rest:bits>> -> Ok(#(I64Or, rest))
+    <<0x85, rest:bits>> -> Ok(#(I64Xor, rest))
+    <<0x86, rest:bits>> -> Ok(#(I64Shl, rest))
+    <<0x87, rest:bits>> -> Ok(#(I64ShrS, rest))
+    <<0x88, rest:bits>> -> Ok(#(I64ShrU, rest))
+    <<0x89, rest:bits>> -> Ok(#(I64Rotl, rest))
+    <<0x8A, rest:bits>> -> Ok(#(I64Rotr, rest))
+    <<0x8B, rest:bits>> -> Ok(#(F32Abs, rest))
+    <<0x8C, rest:bits>> -> Ok(#(F32Neg, rest))
+    <<0x8D, rest:bits>> -> Ok(#(F32Ceil, rest))
+    <<0x8E, rest:bits>> -> Ok(#(F32Floor, rest))
+    <<0x8F, rest:bits>> -> Ok(#(F32Trunc, rest))
+    <<0x90, rest:bits>> -> Ok(#(F32Nearest, rest))
+    <<0x91, rest:bits>> -> Ok(#(F32Sqrt, rest))
+    <<0x92, rest:bits>> -> Ok(#(F32Add, rest))
+    <<0x93, rest:bits>> -> Ok(#(F32Sub, rest))
+    <<0x94, rest:bits>> -> Ok(#(F32Mul, rest))
+    <<0x95, rest:bits>> -> Ok(#(F32Div, rest))
+    <<0x96, rest:bits>> -> Ok(#(F32Min, rest))
+    <<0x97, rest:bits>> -> Ok(#(F32Max, rest))
+    <<0x98, rest:bits>> -> Ok(#(F32Copysign, rest))
+    <<0x99, rest:bits>> -> Ok(#(F64Abs, rest))
+    <<0x9A, rest:bits>> -> Ok(#(F64Neg, rest))
+    <<0x9B, rest:bits>> -> Ok(#(F64Ceil, rest))
+    <<0x9C, rest:bits>> -> Ok(#(F64Floor, rest))
+    <<0x9D, rest:bits>> -> Ok(#(F64Trunc, rest))
+    <<0x9E, rest:bits>> -> Ok(#(F64Nearest, rest))
+    <<0x9F, rest:bits>> -> Ok(#(F64Sqrt, rest))
+    <<0xA0, rest:bits>> -> Ok(#(F64Add, rest))
+    <<0xA1, rest:bits>> -> Ok(#(F64Sub, rest))
+    <<0xA2, rest:bits>> -> Ok(#(F64Mul, rest))
+    <<0xA3, rest:bits>> -> Ok(#(F64Div, rest))
+    <<0xA4, rest:bits>> -> Ok(#(F64Min, rest))
+    <<0xA5, rest:bits>> -> Ok(#(F64Max, rest))
+    <<0xA6, rest:bits>> -> Ok(#(F64Copysign, rest))
+    <<0xA7, rest:bits>> -> Ok(#(I32WrapI64, rest))
+    <<0xA8, rest:bits>> -> Ok(#(I32TruncF32S, rest))
+    <<0xA9, rest:bits>> -> Ok(#(I32TruncF32U, rest))
+    <<0xAA, rest:bits>> -> Ok(#(I32TruncF64S, rest))
+    <<0xAB, rest:bits>> -> Ok(#(I32TruncF64U, rest))
+    <<0xAC, rest:bits>> -> Ok(#(I64ExtendI32S, rest))
+    <<0xAD, rest:bits>> -> Ok(#(I64ExtendI32U, rest))
+    <<0xAE, rest:bits>> -> Ok(#(I64TruncF32S, rest))
+    <<0xAF, rest:bits>> -> Ok(#(I64TruncF32U, rest))
+    <<0xB0, rest:bits>> -> Ok(#(I64TruncF64S, rest))
+    <<0xB1, rest:bits>> -> Ok(#(I64TruncF64U, rest))
+    <<0xB2, rest:bits>> -> Ok(#(F32ConvertI32S, rest))
+    <<0xB3, rest:bits>> -> Ok(#(F32ConvertI32U, rest))
+    <<0xB4, rest:bits>> -> Ok(#(F32ConvertI64S, rest))
+    <<0xB5, rest:bits>> -> Ok(#(F32ConvertI64U, rest))
+    <<0xB6, rest:bits>> -> Ok(#(F32DemoteF64, rest))
+    <<0xB7, rest:bits>> -> Ok(#(F64ConvertI32S, rest))
+    <<0xB8, rest:bits>> -> Ok(#(F64ConvertI32U, rest))
+    <<0xB9, rest:bits>> -> Ok(#(F64ConvertI64S, rest))
+    <<0xBA, rest:bits>> -> Ok(#(F64ConvertI64U, rest))
+    <<0xBB, rest:bits>> -> Ok(#(F64PromoteF32, rest))
+    <<0xBC, rest:bits>> -> Ok(#(I32ReinterpretF32, rest))
+    <<0xBD, rest:bits>> -> Ok(#(I64ReinterpretF64, rest))
+    <<0xBE, rest:bits>> -> Ok(#(F32ReinterpretI32, rest))
+    <<0xBF, rest:bits>> -> Ok(#(F64ReinterpretI64, rest))
+    <<0xC0, rest:bits>> -> Ok(#(I32Extend8S, rest))
+    <<0xC1, rest:bits>> -> Ok(#(I32Extend16S, rest))
+    <<0xC2, rest:bits>> -> Ok(#(I64Extend8S, rest))
+    <<0xC3, rest:bits>> -> Ok(#(I64Extend16S, rest))
+    <<0xC4, rest:bits>> -> Ok(#(I64Extend32S, rest))
+    <<0xD5, rest:bits>> -> {
+      use #(label_idx, rest) <- result.map(decode_label_idx(rest))
+      #(BrOnNull(label_idx), rest)
+    }
+    <<0xD6, rest:bits>> -> {
+      use #(label_idx, rest) <- result.map(decode_label_idx(rest))
+      #(BrOnNonNull(label_idx), rest)
+    }
+    <<0xFB, rest:bits>> -> {
+      use #(inst_id, rest) <- result.try(decode_u32(rest))
+      let inst_id = inst_id |> unwrap_u32
+      case inst_id {
+        24 -> {
+          // br_on_cast [cast_flags] [label_idx] [heap_type] [heap_type]
+          use #(cast_flags, rest) <- result.try(decode_cast_flags(rest))
+          use #(label_idx, rest) <- result.try(decode_label_idx(rest))
+          use #(ht1, rest) <- result.try(decode_heap_type(rest))
+          use #(ht2, rest) <- result.map(decode_heap_type(rest))
+          #(
+            BrOnCast(
+              label_idx,
+              HeapTypeRefType(ht1, cast_flags.0),
+              HeapTypeRefType(ht2, cast_flags.1),
+            ),
+            rest,
+          )
+        }
+        25 -> {
+          // br_on_cast_fail [cast_flags] [label_idx] [heap_type] [heap_type]
+          use #(cast_flags, rest) <- result.try(decode_cast_flags(rest))
+          use #(label_idx, rest) <- result.try(decode_label_idx(rest))
+          use #(ht1, rest) <- result.try(decode_heap_type(rest))
+          use #(ht2, rest) <- result.map(decode_heap_type(rest))
+          #(
+            BrOnCastFail(
+              label_idx,
+              HeapTypeRefType(ht1, cast_flags.0),
+              HeapTypeRefType(ht2, cast_flags.1),
+            ),
+            rest,
+          )
+        }
+        _ ->
+          Error(
+            "Invalid ref instruction: 0xFB 0x" <> { inst_id |> int.to_base16 },
+          )
+      }
+    }
+    <<a, _:bits>> -> Error("Invalid Instruction: 0x" <> { a |> int.to_base16 })
+    _ -> panic as "Instruction buffer empty"
   }
 }

@@ -74,8 +74,8 @@ pub fn call_test() {
 pub fn call_indirect_test() {
   let assert Ok(type_idx) = numbers.u32(42)
   let type_idx = structure_types.TypeIDX(type_idx)
-  let assert Ok(type_idx) = numbers.u32(1)
-  let type_idx = structure_types.TypeIDX(type_idx)
+  let assert Ok(table_idx) = numbers.u32(1)
+  let table_idx = structure_types.TableIDX(table_idx)
 
-  round_trip(structure_types.CallIndirect(type_idx, table_idx), <<0x11, 42, 1>>)
+  round_trip(structure_types.CallIndirect(table_idx, type_idx), <<0x11, 42, 1>>)
 }

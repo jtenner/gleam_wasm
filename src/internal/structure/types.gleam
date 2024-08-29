@@ -831,8 +831,10 @@ pub type Instruction {
   RefIsNull
   RefAsNonNull
   RefEq
-  RefTest(rt: RefType)
-  RefCast(rt: RefType)
+  RefTest(rt: HeapType)
+  RefTestNullable(rt: HeapType)
+  RefCast(rt: HeapType)
+  RefCastNullable(rt: HeapType)
   StructNew(idx: TypeIDX)
   StructNewDefault(idx: TypeIDX)
   StructGet(tidx: TypeIDX, fidx: FieldIDX)
@@ -871,7 +873,7 @@ pub type Instruction {
   TableSize(idx: TableIDX)
   TableGrow(idx: TableIDX)
   TableFill(idx: TableIDX)
-  TableCopy(idx1: TableIDX, idx2: TableIDX)
+  TableCopy(dest_idx: TableIDX, src_idx: TableIDX)
   TableInit(elem: ElemIDX, idx: TableIDX)
   ElemDrop(idx: ElemIDX)
   I64Load(arg: MemArg)
@@ -1458,7 +1460,9 @@ pub fn get_result_type(instruction: Instruction) -> Result(InstructionType, Nil)
     | RefAsNonNull
     | RefEq
     | RefTest(_)
+    | RefTestNullable(_)
     | RefCast(_)
+    | RefCastNullable(_)
     | StructGet(_, _)
     | StructGetS(_, _)
     | StructGetU(_, _)

@@ -1,6 +1,5 @@
 import gleam/bit_array
 import gleam/bytes_builder.{type BytesBuilder}
-import gleam/dynamic
 import gleam/int
 import gleam/io
 import gleam/option.{None, Some}
@@ -941,6 +940,151 @@ pub fn encode_instruction(
       |> bytes_builder.append(<<0x20>>)
       |> encode_local_idx(local_idx)
     }
+    LocalSet(local_idx) -> {
+      builder
+      |> bytes_builder.append(<<0x21>>)
+      |> encode_local_idx(local_idx)
+    }
+    LocalTee(local_idx) -> {
+      builder
+      |> bytes_builder.append(<<0x22>>)
+      |> encode_local_idx(local_idx)
+    }
+    GlobalGet(global_idx) -> {
+      builder
+      |> bytes_builder.append(<<0x23>>)
+      |> encode_global_idx(global_idx)
+    }
+    GlobalSet(global_idx) -> {
+      builder
+      |> bytes_builder.append(<<0x24>>)
+      |> encode_global_idx(global_idx)
+    }
+    TableGet(table_idx) -> {
+      builder
+      |> bytes_builder.append(<<0x25>>)
+      |> encode_table_idx(table_idx)
+    }
+    TableSet(table_idx) -> {
+      builder
+      |> bytes_builder.append(<<0x26>>)
+      |> encode_table_idx(table_idx)
+    }
+
+    I32Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x28>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x29>>)
+      |> encode_mem_arg(mem_arg)
+    F32Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2A>>)
+      |> encode_mem_arg(mem_arg)
+    F64Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2B>>)
+      |> encode_mem_arg(mem_arg)
+    I32Load8S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2C>>)
+      |> encode_mem_arg(mem_arg)
+    I32Load8U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2D>>)
+      |> encode_mem_arg(mem_arg)
+    I32Load16S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2E>>)
+      |> encode_mem_arg(mem_arg)
+    I32Load16U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x2F>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load8S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x30>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load8U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x31>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load16S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x32>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load16U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x33>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load32S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x34>>)
+      |> encode_mem_arg(mem_arg)
+    I64Load32U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x35>>)
+      |> encode_mem_arg(mem_arg)
+    I32Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x36>>)
+      |> encode_mem_arg(mem_arg)
+    I64Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x37>>)
+      |> encode_mem_arg(mem_arg)
+    F32Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x38>>)
+      |> encode_mem_arg(mem_arg)
+    F64Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x39>>)
+      |> encode_mem_arg(mem_arg)
+    I32Store8(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3A>>)
+      |> encode_mem_arg(mem_arg)
+    I32Store16(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3B>>)
+      |> encode_mem_arg(mem_arg)
+    I64Store8(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3C>>)
+      |> encode_mem_arg(mem_arg)
+    I64Store16(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3D>>)
+      |> encode_mem_arg(mem_arg)
+    I64Store32(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0x3E>>)
+      |> encode_mem_arg(mem_arg)
+    MemorySize -> Ok(builder |> bytes_builder.append(<<0x3F, 0x00>>))
+    MemoryGrow -> Ok(builder |> bytes_builder.append(<<0x40, 0x00>>))
+    I32Const(i32_val) ->
+      builder
+      |> bytes_builder.append(<<0x41>>)
+      |> encode_i32(i32_val)
+      |> Ok
+    I64Const(i64_val) ->
+      builder
+      |> bytes_builder.append(<<0x42>>)
+      |> encode_i64(i64_val)
+      |> Ok
+    F32Const(f32_val) ->
+      builder
+      |> bytes_builder.append(<<0x43>>)
+      |> encode_f32(f32_val)
+      |> Ok
+    F64Const(f64_val) ->
+      builder
+      |> bytes_builder.append(<<0x44>>)
+      |> encode_f64(f64_val)
+      |> Ok
     I32Eqz -> Ok(builder |> bytes_builder.append(<<0x45>>))
     I32Eq -> Ok(builder |> bytes_builder.append(<<0x46>>))
     I32Ne -> Ok(builder |> bytes_builder.append(<<0x47>>))
@@ -1105,6 +1249,16 @@ pub fn encode_instruction(
       use builder <- result.try(builder |> encode_heap_type(ht1))
       encode_heap_type(builder, ht2)
     }
+    Select -> Ok(builder |> bytes_builder.append(<<0x1B>>))
+    SelectT(vt) ->
+      builder
+      |> bytes_builder.append(<<0x1C>>)
+      |> common.encode_vec(vt, encode_val_type)
+    RefNull(ht) ->
+      builder
+      |> bytes_builder.append(<<0xD0>>)
+      |> encode_heap_type(ht)
+    RefIsNull -> Ok(builder |> bytes_builder.append(<<0xD1>>))
     inst -> {
       let name = pprint.format(inst)
       Error("Instruction not implemented: " <> name)
@@ -1177,9 +1331,148 @@ pub fn decode_instruction(
       #(ReturnCallRef(type_idx), rest)
     }
     <<0x1A, rest:bits>> -> Ok(#(Drop, rest))
+    <<0x1B, rest:bits>> -> Ok(#(Select, rest))
+    <<0x1C, rest:bits>> -> {
+      use #(vt, rest) <- result.map(common.decode_vec(rest, decode_val_type))
+      #(SelectT(vt), rest)
+    }
     <<0x20, rest:bits>> -> {
       use #(local_idx, rest) <- result.map(decode_local_idx(rest))
       #(LocalGet(local_idx), rest)
+    }
+    <<0x21, rest:bits>> -> {
+      use #(local_idx, rest) <- result.map(decode_local_idx(rest))
+      #(LocalSet(local_idx), rest)
+    }
+    <<0x22, rest:bits>> -> {
+      use #(local_idx, rest) <- result.map(decode_local_idx(rest))
+      #(LocalTee(local_idx), rest)
+    }
+    <<0x23, rest:bits>> -> {
+      use #(global_idx, rest) <- result.map(decode_global_idx(rest))
+      #(GlobalGet(global_idx), rest)
+    }
+    <<0x24, rest:bits>> -> {
+      use #(global_idx, rest) <- result.map(decode_global_idx(rest))
+      #(GlobalSet(global_idx), rest)
+    }
+    <<0x25, rest:bits>> -> {
+      use #(table_idx, rest) <- result.map(decode_table_idx(rest))
+      #(TableGet(table_idx), rest)
+    }
+    <<0x26, rest:bits>> -> {
+      use #(table_idx, rest) <- result.map(decode_table_idx(rest))
+      #(TableSet(table_idx), rest)
+    }
+    <<0x28, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I32Load(mem_arg), rest)
+    }
+    <<0x29, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Load(mem_arg), rest)
+    }
+    <<0x2A, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(F32Load(mem_arg), rest)
+    }
+    <<0x2B, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(F64Load(mem_arg), rest)
+    }
+    <<0x2C, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I32Load8S(mem_arg), rest)
+    }
+    <<0x2D, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I32Load8U(mem_arg), rest)
+    }
+    <<0x2E, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I32Load16S(mem_arg), rest)
+    }
+    <<0x2F, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I32Load16U(mem_arg), rest)
+    }
+    <<0x30, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Load8S(mem_arg), rest)
+    }
+    <<0x31, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Load8U(mem_arg), rest)
+    }
+    <<0x32, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Load16S(mem_arg), rest)
+    }
+    <<0x33, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Load16U(mem_arg), rest)
+    }
+    <<0x34, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Load32S(mem_arg), rest)
+    }
+    <<0x35, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Load32U(mem_arg), rest)
+    }
+    <<0x36, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I32Store(mem_arg), rest)
+    }
+    <<0x37, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Store(mem_arg), rest)
+    }
+    <<0x38, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(F32Store(mem_arg), rest)
+    }
+    <<0x39, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(F64Store(mem_arg), rest)
+    }
+    <<0x3A, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I32Store8(mem_arg), rest)
+    }
+    <<0x3B, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I32Store16(mem_arg), rest)
+    }
+    <<0x3C, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Store8(mem_arg), rest)
+    }
+    <<0x3D, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Store16(mem_arg), rest)
+    }
+    <<0x3E, rest:bits>> -> {
+      use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+      #(I64Store32(mem_arg), rest)
+    }
+    <<0x3F, 0x00, rest:bits>> -> Ok(#(MemorySize, rest))
+    <<0x40, 0x00, rest:bits>> -> Ok(#(MemoryGrow, rest))
+    <<0x41, rest:bits>> -> {
+      use #(i32_val, rest) <- result.map(decode_i32(rest))
+      #(I32Const(i32_val), rest)
+    }
+    <<0x42, rest:bits>> -> {
+      use #(i64_val, rest) <- result.map(decode_i64(rest))
+      #(I64Const(i64_val), rest)
+    }
+    <<0x43, rest:bits>> -> {
+      use #(f32_val, rest) <- result.map(decode_f32(rest))
+      #(F32Const(f32_val), rest)
+    }
+    <<0x44, rest:bits>> -> {
+      use #(f64_val, rest) <- result.map(decode_f64(rest))
+      #(F64Const(f64_val), rest)
     }
     <<0x45, rest:bits>> -> Ok(#(I32Eqz, rest))
     <<0x46, rest:bits>> -> Ok(#(I32Eq, rest))
@@ -1309,6 +1602,11 @@ pub fn decode_instruction(
     <<0xC2, rest:bits>> -> Ok(#(I64Extend8S, rest))
     <<0xC3, rest:bits>> -> Ok(#(I64Extend16S, rest))
     <<0xC4, rest:bits>> -> Ok(#(I64Extend32S, rest))
+    <<0xD0, rest:bits>> -> {
+      use #(heap_type, rest) <- result.map(decode_heap_type(rest))
+      #(RefNull(heap_type), rest)
+    }
+    <<0xD1, rest:bits>> -> Ok(#(RefIsNull, rest))
     <<0xD5, rest:bits>> -> {
       use #(label_idx, rest) <- result.map(decode_label_idx(rest))
       #(BrOnNull(label_idx), rest)

@@ -1,10 +1,8 @@
 import gleam/bit_array
 import gleam/bytes_builder
-import gleam/dynamic
-import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import gleeunit/should
+import gleam/string
 import ieee_float
 import internal/binary/types
 import internal/finger_tree
@@ -16,8 +14,6 @@ fn round_trip(
   expected_inst: structure_types.Instruction,
   expected_bits: BitArray,
 ) {
-  let name = dynamic.from(expected_inst) |> dynamic.classify
-
   let actual_encoded =
     bytes_builder.new()
     |> types.encode_instruction(expected_inst)
@@ -35,7 +31,7 @@ fn round_trip(
           let expected_bits = expected_bits |> bit_array.inspect
           let fail_text =
             "Instruction "
-            <> name
+            <> string.inspect(expected_inst)
             <> " did not match. Expected:\n"
             <> expected_bits
             <> "\nActual:\n"
@@ -48,7 +44,7 @@ fn round_trip(
           let expected_inst = expected_inst |> pprint.format
           let fail_text =
             "Instruction "
-            <> name
+            <> string.inspect(expected_inst)
             <> " did not decode correctly. Expected:\n"
             <> expected_inst
             <> "\nActual:\n"
@@ -60,20 +56,26 @@ fn round_trip(
     _, Ok(#(_, rest)) -> {
       let fail_text =
         "Instruction "
-        <> name
+        <> string.inspect(expected_inst)
         <> " did not decode all the bytes. The following bytes were left over:\n"
         <> { rest |> bit_array.inspect }
       panic as fail_text
     }
     Error(err), _ -> {
       let fail_text =
-        "Instruction " <> name <> " failed to encode with error: " <> err
+        "Instruction "
+        <> string.inspect(expected_inst)
+        <> " failed to encode with error: "
+        <> err
 
       panic as fail_text
     }
     _, Error(err) -> {
       let fail_text =
-        "Instruction " <> name <> " failed to decode with error: " <> err
+        "Instruction "
+        <> string.inspect(expected_inst)
+        <> " failed to decode with error: "
+        <> err
       panic as fail_text
     }
   }
@@ -1197,1062 +1199,1277 @@ pub fn array_len_test() {
 }
 
 pub fn array_fill_test() {
-  ArrayFill
+  let assert Ok(type_idx) = numbers.u32(42)
+  let type_idx = structure_types.TypeIDX(type_idx)
+  round_trip(structure_types.ArrayFill(type_idx), <<0xFB, 16, 42>>)
 }
 
 pub fn array_copy_test() {
-  ArrayCopy
+  let assert Ok(type_idx1) = numbers.u32(42)
+  let type_idx1 = structure_types.TypeIDX(type_idx1)
+  let assert Ok(type_idx2) = numbers.u32(20)
+  let type_idx2 = structure_types.TypeIDX(type_idx2)
+
+  round_trip(structure_types.ArrayCopy(type_idx1, type_idx2), <<
+    0xFB, 17, 42, 20,
+  >>)
 }
 
 pub fn array_init_data_test() {
-  ArrayInitData
+  let assert Ok(type_idx) = numbers.u32(42)
+  let type_idx = structure_types.TypeIDX(type_idx)
+  let assert Ok(data_idx) = numbers.u32(4)
+  let data_idx = structure_types.DataIDX(data_idx)
+  round_trip(structure_types.ArrayInitData(type_idx, data_idx), <<
+    0xFB, 18, 42, 4,
+  >>)
 }
 
 pub fn array_init_elem_test() {
-  ArrayInitElem
+  let assert Ok(type_idx) = numbers.u32(42)
+  let type_idx = structure_types.TypeIDX(type_idx)
+  let assert Ok(elem_idx) = numbers.u32(4)
+  let elem_idx = structure_types.ElemIDX(elem_idx)
+  round_trip(structure_types.ArrayInitElem(type_idx, elem_idx), <<
+    0xFB, 19, 42, 4,
+  >>)
 }
 
 pub fn ref_test_test() {
-  RefTest
+  round_trip(structure_types.RefTest(structure_types.ArrayHeapType), <<
+    0xFB, 20, 0x6A,
+  >>)
+}
+
+pub fn ref_test_nullable_test() {
+  round_trip(structure_types.RefTestNullable(structure_types.ArrayHeapType), <<
+    0xFB, 21, 0x6A,
+  >>)
 }
 
 pub fn ref_cast_test() {
-  // 2 cases
-  RefCast
+  round_trip(structure_types.RefCast(structure_types.ArrayHeapType), <<
+    0xFB, 22, 0x6A,
+  >>)
+}
+
+pub fn ref_cast_nullable_test() {
+  round_trip(structure_types.RefCastNullable(structure_types.ArrayHeapType), <<
+    0xFB, 23, 0x6A,
+  >>)
 }
 
 pub fn any_convert_extern_test() {
-  AnyConvertExtern
+  round_trip(structure_types.AnyConvertExtern, <<0xFB, 26>>)
 }
 
 pub fn extern_convert_any_test() {
-  ExternConvertAny
+  round_trip(structure_types.ExternConvertAny, <<0xFB, 27>>)
 }
 
 pub fn ref_i31_test() {
-  RefI31
+  round_trip(structure_types.RefI31, <<0xFB, 28>>)
 }
 
 pub fn i31_get_s_test() {
-  I31GetS
+  round_trip(structure_types.I31GetS, <<0xFB, 29>>)
 }
 
 pub fn i31_get_u_test() {
-  I31GetU
+  round_trip(structure_types.I31GetU, <<0xFB, 30>>)
 }
 
 pub fn i32_trunc_sat_f32s_test() {
-  I32TruncSatF32S
+  round_trip(structure_types.I32TruncSatF32S, <<0xFC, 0>>)
 }
 
 pub fn i32_trunc_sat_f32u_test() {
-  I32TruncSatF32U
+  round_trip(structure_types.I32TruncSatF32U, <<0xFC, 1>>)
 }
 
 pub fn i32_trunc_sat_f64s_test() {
-  I32TruncSatF64S
+  round_trip(structure_types.I32TruncSatF64S, <<0xFC, 2>>)
 }
 
 pub fn i32_trunc_sat_f64u_test() {
-  I32TruncSatF64U
+  round_trip(structure_types.I32TruncSatF64U, <<0xFC, 3>>)
 }
 
 pub fn i64_trunc_sat_f32s_test() {
-  I64TruncSatF32S
+  round_trip(structure_types.I64TruncSatF32S, <<0xFC, 4>>)
 }
 
 pub fn i64_trunc_sat_f32u_test() {
-  I64TruncSatF32U
+  round_trip(structure_types.I64TruncSatF32U, <<0xFC, 5>>)
 }
 
 pub fn i64_trunc_sat_f64s_test() {
-  I64TruncSatF64S
+  round_trip(structure_types.I64TruncSatF64S, <<0xFC, 6>>)
 }
 
 pub fn i64_trunc_sat_f64u_test() {
-  I64TruncSatF64U
+  round_trip(structure_types.I64TruncSatF64U, <<0xFC, 7>>)
 }
 
 pub fn memory_init_test() {
-  MemoryInit
+  let assert Ok(data_idx) = numbers.u32(42)
+  let data_idx = structure_types.DataIDX(data_idx)
+
+  round_trip(structure_types.MemoryInit(data_idx), <<0xFC, 8, 42>>)
 }
 
 pub fn data_drop_test() {
-  DataDrop
+  let assert Ok(data_idx) = numbers.u32(42)
+  let data_idx = structure_types.DataIDX(data_idx)
+
+  round_trip(structure_types.DataDrop(data_idx), <<0xFC, 9, 42>>)
 }
 
 pub fn memory_copy_test() {
-  MemoryCopy
+  round_trip(structure_types.MemoryCopy, <<0xFC, 10, 0x00, 0x00>>)
 }
 
 pub fn memory_fill_test() {
-  MemoryFill
+  round_trip(structure_types.MemoryFill, <<0xFC, 11, 0x00>>)
 }
 
 pub fn table_init_test() {
-  TableInit
+  let assert Ok(elem_idx) = numbers.u32(42)
+  let elem_idx = structure_types.ElemIDX(elem_idx)
+  let assert Ok(table_idx) = numbers.u32(4)
+  let table_idx = structure_types.TableIDX(table_idx)
+  round_trip(structure_types.TableInit(elem_idx, table_idx), <<0xFC, 12, 42, 4>>)
 }
 
 pub fn elem_drop_test() {
-  ElemDrop
+  let assert Ok(elem_idx) = numbers.u32(42)
+  let elem_idx = structure_types.ElemIDX(elem_idx)
+  round_trip(structure_types.ElemDrop(elem_idx), <<0xFC, 13, 42>>)
 }
 
 pub fn table_copy_test() {
-  TableCopy
+  let assert Ok(dst_table_idx) = numbers.u32(42)
+  let dst_table_idx = structure_types.TableIDX(dst_table_idx)
+  let assert Ok(src_table_idx) = numbers.u32(4)
+  let src_table_idx = structure_types.TableIDX(src_table_idx)
+  round_trip(structure_types.TableCopy(dst_table_idx, src_table_idx), <<
+    0xFC, 14, 42, 4,
+  >>)
 }
 
 pub fn table_grow_test() {
-  TableGrow
+  let assert Ok(table_idx) = numbers.u32(42)
+  let table_idx = structure_types.TableIDX(table_idx)
+  round_trip(structure_types.TableGrow(table_idx), <<0xFC, 15, 42>>)
 }
 
 pub fn table_size_test() {
-  TableSize
+  let assert Ok(table_idx) = numbers.u32(42)
+  let table_idx = structure_types.TableIDX(table_idx)
+  round_trip(structure_types.TableSize(table_idx), <<0xFC, 16, 42>>)
 }
 
 pub fn table_fill_test() {
-  TableFill
+  let assert Ok(table_idx) = numbers.u32(42)
+  let table_idx = structure_types.TableIDX(table_idx)
+  round_trip(structure_types.TableFill(table_idx), <<0xFC, 17, 42>>)
 }
 
 pub fn v128_load_test() {
-  V128Load
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load(mem_arg), <<0xFD, 0x00, 42, 30>>)
 }
 
 pub fn v128_load8x8s_test() {
-  V128Load8x8S
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load8x8S(mem_arg), <<0xFD, 1, 42, 30>>)
 }
 
 pub fn v128_load8x8u_test() {
-  V128Load8x8U
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load8x8U(mem_arg), <<0xFD, 2, 42, 30>>)
 }
 
 pub fn v128_load16x4s_test() {
-  V128Load16x4S
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load16x4S(mem_arg), <<0xFD, 3, 42, 30>>)
 }
 
 pub fn v128_load16x4u_test() {
-  V128Load16x4U
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load16x4U(mem_arg), <<0xFD, 4, 42, 30>>)
 }
 
 pub fn v128_load32x2s_test() {
-  V128Load32x2S
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load32x2S(mem_arg), <<0xFD, 5, 42, 30>>)
 }
 
 pub fn v128_load32x2u_test() {
-  V128Load32x2U
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load32x2U(mem_arg), <<0xFD, 6, 42, 30>>)
 }
 
 pub fn v128_load8_splat_test() {
-  V128Load8Splat
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load8Splat(mem_arg), <<0xFD, 7, 42, 30>>)
 }
 
 pub fn v128_load16_splat_test() {
-  V128Load16Splat
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load16Splat(mem_arg), <<0xFD, 8, 42, 30>>)
 }
 
 pub fn v128_load32_splat_test() {
-  V128Load32Splat
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load32Splat(mem_arg), <<0xFD, 9, 42, 30>>)
 }
 
 pub fn v128_load64_splat_test() {
-  V128Load64Splat
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load64Splat(mem_arg), <<0xFD, 10, 42, 30>>)
 }
 
 pub fn v128_store_test() {
-  V128Store
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(30)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Store(mem_arg), <<0xFD, 11, 42, 30>>)
 }
 
 pub fn v128_const_test() {
-  V128Const
+  let assert Ok(v128_val) =
+    numbers.v128(<<
+      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+      0x0C, 0x0D, 0x0E, 0x0F,
+    >>)
+  round_trip(structure_types.V128Const(v128_val), <<
+    0xFD, 12, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
+    0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+  >>)
 }
 
 pub fn i8x16_shuffle_test() {
-  I8x16Shuffle
+  let assert Ok(lane_0) = structure_types.lane_16(0x00)
+  let assert Ok(lane_1) = structure_types.lane_16(0x01)
+  let assert Ok(lane_2) = structure_types.lane_16(0x02)
+  let assert Ok(lane_3) = structure_types.lane_16(0x03)
+  let assert Ok(lane_4) = structure_types.lane_16(0x04)
+  let assert Ok(lane_5) = structure_types.lane_16(0x05)
+  let assert Ok(lane_6) = structure_types.lane_16(0x06)
+  let assert Ok(lane_7) = structure_types.lane_16(0x07)
+  let assert Ok(lane_8) = structure_types.lane_16(0x08)
+  let assert Ok(lane_9) = structure_types.lane_16(0x09)
+  let assert Ok(lane_a) = structure_types.lane_16(0x0a)
+  let assert Ok(lane_b) = structure_types.lane_16(0x0b)
+  let assert Ok(lane_c) = structure_types.lane_16(0x0c)
+  let assert Ok(lane_d) = structure_types.lane_16(0x0d)
+  let assert Ok(lane_e) = structure_types.lane_16(0x0e)
+  let assert Ok(lane_f) = structure_types.lane_16(0x0f)
+
+  round_trip(
+    structure_types.I8x16Shuffle(
+      lane_0,
+      lane_1,
+      lane_2,
+      lane_3,
+      lane_4,
+      lane_5,
+      lane_6,
+      lane_7,
+      lane_8,
+      lane_9,
+      lane_a,
+      lane_b,
+      lane_c,
+      lane_d,
+      lane_e,
+      lane_f,
+    ),
+    <<
+      0xFD, 13, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
+      0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+    >>,
+  )
 }
 
 pub fn i8x16_swizzle_test() {
-  I8x16Swizzle
+  round_trip(structure_types.I8x16Swizzle, <<0xFD, 14>>)
 }
 
 pub fn i8x16_splat_test() {
-  I8x16Splat
+  round_trip(structure_types.I8x16Splat, <<0xFD, 15>>)
 }
 
 pub fn i16x8_splat_test() {
-  I16x8Splat
+  round_trip(structure_types.I16x8Splat, <<0xFD, 16>>)
 }
 
 pub fn i32x4_splat_test() {
-  I32x4Splat
+  round_trip(structure_types.I32x4Splat, <<0xFD, 17>>)
 }
 
 pub fn i64x2_splat_test() {
-  I64x2Splat
+  round_trip(structure_types.I64x2Splat, <<0xFD, 18>>)
 }
 
 pub fn f32x4_splat_test() {
-  F32x4Splat
+  round_trip(structure_types.F32x4Splat, <<0xFD, 19>>)
 }
 
 pub fn f64x2_splat_test() {
-  F64x2Splat
+  round_trip(structure_types.F64x2Splat, <<0xFD, 20>>)
 }
 
+// lane_idx
 pub fn i8x16_extract_lane_s_test() {
-  I8x16ExtractLaneS
+  let assert Ok(lane_idx) = structure_types.lane_16(2)
+  round_trip(structure_types.I8x16ExtractLaneS(lane_idx), <<0xFD, 21, 2>>)
 }
 
 pub fn i8x16_extract_lane_u_test() {
-  I8x16ExtractLaneU
+  let assert Ok(lane_idx) = structure_types.lane_16(2)
+  round_trip(structure_types.I8x16ExtractLaneU(lane_idx), <<0xFD, 22, 2>>)
 }
 
 pub fn i8x16_replace_lane_test() {
-  I8x16ReplaceLane
+  let assert Ok(lane_idx) = structure_types.lane_16(2)
+  round_trip(structure_types.I8x16ReplaceLane(lane_idx), <<0xFD, 23, 2>>)
 }
 
 pub fn i16x8_extract_lane_s_test() {
-  I16x8ExtractLaneS
+  let assert Ok(lane_idx) = structure_types.lane_8(2)
+  round_trip(structure_types.I16x8ExtractLaneS(lane_idx), <<0xFD, 24, 2>>)
 }
 
 pub fn i16x8_extract_lane_u_test() {
-  I16x8ExtractLaneU
+  let assert Ok(lane_idx) = structure_types.lane_8(2)
+  round_trip(structure_types.I16x8ExtractLaneU(lane_idx), <<0xFD, 25, 2>>)
 }
 
 pub fn i16x8_replace_lane_test() {
-  I16x8ReplaceLane
+  let assert Ok(lane_idx) = structure_types.lane_8(2)
+  round_trip(structure_types.I16x8ReplaceLane(lane_idx), <<0xFD, 26, 2>>)
 }
 
 pub fn i32x4_extract_lane_test() {
-  I32x4ExtractLane
+  let assert Ok(lane_idx) = structure_types.lane_4(2)
+  round_trip(structure_types.I32x4ExtractLane(lane_idx), <<0xFD, 27, 2>>)
 }
 
 pub fn i32x4_replace_lane_test() {
-  I32x4ReplaceLane
+  let assert Ok(lane_idx) = structure_types.lane_4(2)
+  round_trip(structure_types.I32x4ReplaceLane(lane_idx), <<0xFD, 28, 2>>)
 }
 
 pub fn i64x2_extract_lane_test() {
-  I64x2ExtractLane
+  let assert Ok(lane_idx) = structure_types.lane_2(2)
+  round_trip(structure_types.I64x2ExtractLane(lane_idx), <<0xFD, 29, 2>>)
 }
 
 pub fn i64x2_replace_lane_test() {
-  I64x2ReplaceLane
+  let assert Ok(lane_idx) = structure_types.lane_2(2)
+  round_trip(structure_types.I64x2ReplaceLane(lane_idx), <<0xFD, 30, 2>>)
 }
 
 pub fn f32x4_extract_lane_test() {
-  F32x4ExtractLane
+  let assert Ok(lane_idx) = structure_types.lane_4(2)
+  round_trip(structure_types.F32x4ExtractLane(lane_idx), <<0xFD, 31, 2>>)
 }
 
 pub fn f32x4_replace_lane_test() {
-  F32x4ReplaceLane
+  let assert Ok(lane_idx) = structure_types.lane_4(2)
+  round_trip(structure_types.F32x4ReplaceLane(lane_idx), <<0xFD, 32, 2>>)
 }
 
 pub fn f64x2_extract_lane_test() {
-  F64x2ExtractLane
+  let assert Ok(lane_idx) = structure_types.lane_2(2)
+  round_trip(structure_types.F64x2ExtractLane(lane_idx), <<0xFD, 33, 2>>)
 }
 
 pub fn f64x2_replace_lane_test() {
-  F64x2ReplaceLane
+  let assert Ok(lane_idx) = structure_types.lane_2(2)
+  round_trip(structure_types.F64x2ReplaceLane(lane_idx), <<0xFD, 34, 2>>)
 }
 
 pub fn i8x16_eq_test() {
-  I8x16Eq
+  round_trip(structure_types.I8x16Eq, <<0xFD, 35>>)
 }
 
 pub fn i8x16_ne_test() {
-  I8x16Ne
+  round_trip(structure_types.I8x16Ne, <<0xFD, 36>>)
 }
 
 pub fn i8x16_lt_s_test() {
-  I8x16LtS
+  round_trip(structure_types.I8x16LtS, <<0xFD, 37>>)
 }
 
 pub fn i8x16_lt_u_test() {
-  I8x16LtU
+  round_trip(structure_types.I8x16LtU, <<0xFD, 38>>)
 }
 
 pub fn i8x16_gt_s_test() {
-  I8x16GtS
+  round_trip(structure_types.I8x16GtS, <<0xFD, 39>>)
 }
 
 pub fn i8x16_gt_u_test() {
-  I8x16GtU
+  round_trip(structure_types.I8x16GtU, <<0xFD, 40>>)
 }
 
 pub fn i8x16_le_s_test() {
-  I8x16LeS
+  round_trip(structure_types.I8x16LeS, <<0xFD, 41>>)
 }
 
 pub fn i8x16_le_u_test() {
-  I8x16LeU
+  round_trip(structure_types.I8x16LeU, <<0xFD, 42>>)
 }
 
 pub fn i8x16_ge_s_test() {
-  I8x16GeS
+  round_trip(structure_types.I8x16GeS, <<0xFD, 43>>)
 }
 
 pub fn i8x16_ge_u_test() {
-  I8x16GeU
+  round_trip(structure_types.I8x16GeU, <<0xFD, 44>>)
 }
 
 pub fn i16x8_eq_test() {
-  I16x8Eq
+  round_trip(structure_types.I16x8Eq, <<0xFD, 45>>)
 }
 
 pub fn i16x8_ne_test() {
-  I16x8Ne
+  round_trip(structure_types.I16x8Ne, <<0xFD, 46>>)
 }
 
 pub fn i16x8_lt_s_test() {
-  I16x8LtS
+  round_trip(structure_types.I16x8LtS, <<0xFD, 47>>)
 }
 
 pub fn i16x8_lt_u_test() {
-  I16x8LtU
+  round_trip(structure_types.I16x8LtU, <<0xFD, 48>>)
 }
 
 pub fn i16x8_gt_s_test() {
-  I16x8GtS
+  round_trip(structure_types.I16x8GtS, <<0xFD, 49>>)
 }
 
 pub fn i16x8_gt_u_test() {
-  I16x8GtU
+  round_trip(structure_types.I16x8GtU, <<0xFD, 50>>)
 }
 
 pub fn i16x8_le_s_test() {
-  I16x8LeS
+  round_trip(structure_types.I16x8LeS, <<0xFD, 51>>)
 }
 
 pub fn i16x8_le_u_test() {
-  I16x8LeU
+  round_trip(structure_types.I16x8LeU, <<0xFD, 52>>)
 }
 
 pub fn i16x8_ge_s_test() {
-  I16x8GeS
+  round_trip(structure_types.I16x8GeS, <<0xFD, 53>>)
 }
 
 pub fn i16x8_ge_u_test() {
-  I16x8GeU
+  round_trip(structure_types.I16x8GeU, <<0xFD, 54>>)
 }
 
 pub fn i32x4_eq_test() {
-  I32x4Eq
+  round_trip(structure_types.I32x4Eq, <<0xFD, 55>>)
 }
 
 pub fn i32x4_ne_test() {
-  I32x4Ne
+  round_trip(structure_types.I32x4Ne, <<0xFD, 56>>)
 }
 
 pub fn i32x4_lt_s_test() {
-  I32x4LtS
+  round_trip(structure_types.I32x4LtS, <<0xFD, 57>>)
 }
 
 pub fn i32x4_lt_u_test() {
-  I32x4LtU
+  round_trip(structure_types.I32x4LtU, <<0xFD, 58>>)
 }
 
 pub fn i32x4_gt_s_test() {
-  I32x4GtS
+  round_trip(structure_types.I32x4GtS, <<0xFD, 59>>)
 }
 
 pub fn i32x4_gt_u_test() {
-  I32x4GtU
+  round_trip(structure_types.I32x4GtU, <<0xFD, 60>>)
 }
 
 pub fn i32x4_le_s_test() {
-  I32x4LeS
+  round_trip(structure_types.I32x4LeS, <<0xFD, 61>>)
 }
 
 pub fn i32x4_le_u_test() {
-  I32x4LeU
+  round_trip(structure_types.I32x4LeU, <<0xFD, 62>>)
 }
 
 pub fn i32x4_ge_s_test() {
-  I32x4GeS
+  round_trip(structure_types.I32x4GeS, <<0xFD, 63>>)
 }
 
 pub fn i32x4_ge_u_test() {
-  I32x4GeU
+  round_trip(structure_types.I32x4GeU, <<0xFD, 64>>)
 }
 
 pub fn f32x4_eq_test() {
-  F32x4Eq
-}
-
-pub fn f32x4_ne_test() {
-  F32x4Ne
-}
-
-pub fn f32x4_lt_test() {
-  F32x4Lt
-}
-
-pub fn f32x4_gt_test() {
-  F32x4Gt
-}
-
-pub fn f32x4_le_test() {
-  F32x4Le
-}
-
-pub fn f32x4_ge_test() {
-  F32x4Ge
-}
-
-pub fn f64x2_eq_test() {
-  F64x2Eq
-}
-
-pub fn f64x2_ne_test() {
-  F64x2Ne
-}
-
-pub fn f64x2_lt_test() {
-  F64x2Lt
-}
-
-pub fn f64x2_gt_test() {
-  F64x2Gt
-}
-
-pub fn f64x2_le_test() {
-  F64x2Le
-}
-
-pub fn f64x2_ge_test() {
-  F64x2Ge
-}
-
-pub fn v128_not_test() {
-  V128Not
-}
-
-pub fn v128_and_test() {
-  V128And
-}
-
-pub fn v128_andnot_test() {
-  V128Andnot
-}
-
-pub fn v128_or_test() {
-  V128Or
-}
-
-pub fn v128_xor_test() {
-  V128Xor
-}
-
-pub fn v128_bitselect_test() {
-  V128Bitselect
-}
-
-pub fn v128_any_true_test() {
-  V128AnyTrue
-}
-
-pub fn v128_load8_lane_test() {
-  V128Load8Lane
-}
-
-pub fn v128_load16_lane_test() {
-  V128Load16Lane
-}
-
-pub fn v128_load32_lane_test() {
-  V128Load32Lane
-}
-
-pub fn v128_load64_lane_test() {
-  V128Load64Lane
-}
-
-pub fn v128_store8_lane_test() {
-  V128Store8Lane
-}
-
-pub fn v128_store16_lane_test() {
-  V128Store16Lane
-}
-
-pub fn v128_store32_lane_test() {
-  V128Store32Lane
-}
-
-pub fn v128_store64_lane_test() {
-  V128Store64Lane
-}
-
-pub fn v128_load32_zero_test() {
-  V128Load32Zero
-}
-
-pub fn v128_load64_zero_test() {
-  V128Load64Zero
-}
-
-pub fn f32x4_demote_f64x2_zero_test() {
-  F32x4DemoteF64x2Zero
-}
-
-pub fn f64x2_promote_low_f32x4_test() {
-  F64x2PromoteLowF32x4
-}
-
-pub fn i8x16_abs_test() {
-  I8x16Abs
-}
-
-pub fn i8x16_neg_test() {
-  I8x16Neg
-}
-
-pub fn i8x16_popcnt_test() {
-  I8x16Popcnt
-}
-
-pub fn i8x16_all_true_test() {
-  I8x16AllTrue
-}
-
-pub fn i8x16_bitmask_test() {
-  I8x16Bitmask
-}
-
-pub fn i8x16_narrow_i16x8s_test() {
-  I8x16NarrowI16x8S
-}
-
-pub fn i8x16_narrow_i16x8u_test() {
-  I8x16NarrowI16x8U
-}
-
-pub fn f32x4_ceil_test() {
-  F32x4Ceil
-}
-
-pub fn f32x4_floor_test() {
-  F32x4Floor
-}
-
-pub fn f32x4_trunc_test() {
-  F32x4Trunc
-}
-
-pub fn f32x4_nearest_test() {
-  F32x4Nearest
-}
-
-pub fn i8x16_shl_test() {
-  I8x16Shl
-}
-
-pub fn i8x16_shr_s_test() {
-  I8x16ShrS
-}
-
-pub fn i8x16_shr_u_test() {
-  I8x16ShrU
-}
-
-pub fn i8x16_add_test() {
-  I8x16Add
-}
-
-pub fn i8x16_add_sat_s_test() {
-  I8x16AddSatS
-}
-
-pub fn i8x16_add_sat_u_test() {
-  I8x16AddSatU
-}
-
-pub fn i8x16_sub_test() {
-  I8x16Sub
-}
-
-pub fn i8x16_sub_sat_s_test() {
-  I8x16SubSatS
-}
-
-pub fn i8x16_sub_sat_u_test() {
-  I8x16SubSatU
-}
-
-pub fn f64x2_ceil_test() {
-  F64x2Ceil
-}
-
-pub fn f64x2_floor_test() {
-  F64x2Floor
-}
-
-pub fn i8x16_min_s_test() {
-  I8x16MinS
-}
-
-pub fn i8x16_min_u_test() {
-  I8x16MinU
-}
-
-pub fn i8x16_max_s_test() {
-  I8x16MaxS
-}
-
-pub fn i8x16_max_u_test() {
-  I8x16MaxU
-}
-
-pub fn f64x2_trunc_test() {
-  F64x2Trunc
-}
-
-pub fn i8x16_avgr_u_test() {
-  I8x16AvgrU
-}
-
-pub fn i16x8_extadd_pairwise_i8x16s_test() {
-  I16x8ExtaddPairwiseI8x16S
-}
-
-pub fn i16x8_extadd_pairwise_i8x16u_test() {
-  I16x8ExtaddPairwiseI8x16U
-}
-
-pub fn i32x4_extadd_pairwise_i16x8s_test() {
-  I32x4ExtaddPairwiseI16x8S
-}
-
-pub fn i32x4_extadd_pairwise_i16x8u_test() {
-  I32x4ExtaddPairwiseI16x8U
-}
-
-pub fn i16x8_abs_test() {
-  I16x8Abs
-}
-
-pub fn i16x8_neg_test() {
-  I16x8Neg
-}
-
-pub fn i16x8q15mulr_sat_s_test() {
-  I16x8Q15mulrSatS
-}
-
-pub fn i16x8_all_true_test() {
-  I16x8AllTrue
-}
-
-pub fn i16x8_bitmask_test() {
-  I16x8Bitmask
-}
-
-pub fn i16x8_narrow_i32x4s_test() {
-  I16x8NarrowI32x4S
-}
-
-pub fn i16x8_narrow_i32x4u_test() {
-  I16x8NarrowI32x4U
-}
-
-pub fn i16x8_extend_low_i8x16s_test() {
-  I16x8ExtendLowI8x16S
-}
-
-pub fn i16x8_extend_high_i8x16s_test() {
-  I16x8ExtendHighI8x16S
-}
-
-pub fn i16x8_extend_low_i8x16u_test() {
-  I16x8ExtendLowI8x16U
-}
-
-pub fn i16x8_extend_high_i8x16u_test() {
-  I16x8ExtendHighI8x16U
-}
-
-pub fn i16x8_shl_test() {
-  I16x8Shl
-}
-
-pub fn i16x8_shr_s_test() {
-  I16x8ShrS
-}
-
-pub fn i16x8_shr_u_test() {
-  I16x8ShrU
-}
-
-pub fn i16x8_add_test() {
-  I16x8Add
-}
-
-pub fn i16x8_add_sat_s_test() {
-  I16x8AddSatS
-}
-
-pub fn i16x8_add_sat_u_test() {
-  I16x8AddSatU
-}
-
-pub fn i16x8_sub_test() {
-  I16x8Sub
-}
-
-pub fn i16x8_sub_sat_s_test() {
-  I16x8SubSatS
-}
-
-pub fn i16x8_sub_sat_u_test() {
-  I16x8SubSatU
-}
-
-pub fn f64x2_nearest_test() {
-  F64x2Nearest
-}
-
-pub fn i16x8_mul_test() {
-  I16x8Mul
-}
-
-pub fn i16x8_min_s_test() {
-  I16x8MinS
-}
-
-pub fn i16x8_min_u_test() {
-  I16x8MinU
-}
-
-pub fn i16x8_max_s_test() {
-  I16x8MaxS
-}
-
-pub fn i16x8_max_u_test() {
-  I16x8MaxU
-}
-
-pub fn i16x8_avgr_u_test() {
-  I16x8AvgrU
-}
-
-pub fn i16x8_extmul_low_i8x16s_test() {
-  I16x8ExtmulLowI8x16S
-}
-
-pub fn i16x8_extmul_high_i8x16s_test() {
-  I16x8ExtmulHighI8x16S
-}
-
-pub fn i16x8_extmul_low_i8x16u_test() {
-  I16x8ExtmulLowI8x16U
-}
-
-pub fn i16x8_extmul_high_i8x16u_test() {
-  I16x8ExtmulHighI8x16U
-}
-
-pub fn i32x4_abs_test() {
-  I32x4Abs
-}
-
-pub fn i32x4_neg_test() {
-  I32x4Neg
-}
-
-pub fn i32x4_all_true_test() {
-  I32x4AllTrue
-}
-
-pub fn i32x4_bitmask_test() {
-  I32x4Bitmask
-}
-
-pub fn i32x4_extend_low_i16x8s_test() {
-  I32x4ExtendLowI16x8S
-}
-
-pub fn i32x4_extend_high_i16x8s_test() {
-  I32x4ExtendHighI16x8S
-}
-
-pub fn i32x4_extend_low_i16x8u_test() {
-  I32x4ExtendLowI16x8U
-}
-
-pub fn i32x4_extend_high_i16x8u_test() {
-  I32x4ExtendHighI16x8U
-}
-
-pub fn i32x4_shl_test() {
-  I32x4Shl
-}
-
-pub fn i32x4_shr_s_test() {
-  I32x4ShrS
-}
-
-pub fn i32x4_shr_u_test() {
-  I32x4ShrU
-}
-
-pub fn i32x4_add_test() {
-  I32x4Add
-}
-
-pub fn i32x4_sub_test() {
-  I32x4Sub
-}
-
-pub fn i32x4_mul_test() {
-  I32x4Mul
-}
-
-pub fn i32x4_min_s_test() {
-  I32x4MinS
-}
-
-pub fn i32x4_min_u_test() {
-  I32x4MinU
-}
-
-pub fn i32x4_max_s_test() {
-  I32x4MaxS
-}
-
-pub fn i32x4_max_u_test() {
-  I32x4MaxU
-}
-
-pub fn i32x4_dot_i16x8s_test() {
-  I32x4DotI16x8S
-}
-
-pub fn i32x4_extmul_low_i16x8s_test() {
-  I32x4ExtmulLowI16x8S
-}
-
-pub fn i32x4_extmul_high_i16x8s_test() {
-  I32x4ExtmulHighI16x8S
-}
-
-pub fn i32x4_extmul_low_i16x8u_test() {
-  I32x4ExtmulLowI16x8U
-}
-
-pub fn i32x4_extmul_high_i16x8u_test() {
-  I32x4ExtmulHighI16x8U
-}
-
-pub fn i64x2_abs_test() {
-  I64x2Abs
-}
-
-pub fn i64x2_neg_test() {
-  I64x2Neg
-}
-
-pub fn i64x2_all_true_test() {
-  I64x2AllTrue
-}
-
-pub fn i64x2_bitmask_test() {
-  I64x2Bitmask
-}
-
-pub fn i64x2_extend_low_i32x4s_test() {
-  I64x2ExtendLowI32x4S
-}
-
-pub fn i64x2_extend_high_i32x4s_test() {
-  I64x2ExtendHighI32x4S
-}
-
-pub fn i64x2_extend_low_i32x4u_test() {
-  I64x2ExtendLowI32x4U
-}
-
-pub fn i64x2_extend_high_i32x4u_test() {
-  I64x2ExtendHighI32x4U
-}
-
-pub fn i64x2_shl_test() {
-  I64x2Shl
-}
-
-pub fn i64x2_shr_s_test() {
-  I64x2ShrS
-}
-
-pub fn i64x2_shr_u_test() {
-  I64x2ShrU
-}
-
-pub fn i64x2_add_test() {
-  I64x2Add
-}
-
-pub fn i64x2_sub_test() {
-  I64x2Sub
-}
-
-pub fn i64x2_mul_test() {
-  I64x2Mul
+  round_trip(structure_types.F32x4Eq, <<0xFD, 65>>)
 }
 
 pub fn i64x2_eq_test() {
-  I64x2Eq
+  round_trip(structure_types.I64x2Eq, <<0xFD, 214, 1>>)
 }
 
 pub fn i64x2_ne_test() {
-  I64x2Ne
+  round_trip(structure_types.I64x2Ne, <<0xFD, 215, 1>>)
 }
 
 pub fn i64x2_lt_s_test() {
-  I64x2LtS
+  round_trip(structure_types.I64x2LtS, <<0xFD, 216, 1>>)
 }
 
 pub fn i64x2_gt_s_test() {
-  I64x2GtS
+  round_trip(structure_types.I64x2GtS, <<0xFD, 217, 1>>)
 }
 
 pub fn i64x2_le_s_test() {
-  I64x2LeS
+  round_trip(structure_types.I64x2LeS, <<0xFD, 218, 1>>)
 }
 
 pub fn i64x2_ge_s_test() {
-  I64x2GeS
+  round_trip(structure_types.I64x2GeS, <<0xFD, 219, 1>>)
+}
+
+pub fn f32x4_ne_test() {
+  round_trip(structure_types.F32x4Ne, <<0xFD, 66>>)
+}
+
+pub fn f32x4_lt_test() {
+  round_trip(structure_types.F32x4Lt, <<0xFD, 67>>)
+}
+
+pub fn f32x4_gt_test() {
+  round_trip(structure_types.F32x4Gt, <<0xFD, 68>>)
+}
+
+pub fn f32x4_le_test() {
+  round_trip(structure_types.F32x4Le, <<0xFD, 69>>)
+}
+
+pub fn f32x4_ge_test() {
+  round_trip(structure_types.F32x4Ge, <<0xFD, 70>>)
+}
+
+pub fn f64x2_eq_test() {
+  round_trip(structure_types.F64x2Eq, <<0xFD, 71>>)
+}
+
+pub fn f64x2_ne_test() {
+  round_trip(structure_types.F64x2Ne, <<0xFD, 72>>)
+}
+
+pub fn f64x2_lt_test() {
+  round_trip(structure_types.F64x2Lt, <<0xFD, 73>>)
+}
+
+pub fn f64x2_gt_test() {
+  round_trip(structure_types.F64x2Gt, <<0xFD, 74>>)
+}
+
+pub fn f64x2_le_test() {
+  round_trip(structure_types.F64x2Le, <<0xFD, 75>>)
+}
+
+pub fn f64x2_ge_test() {
+  round_trip(structure_types.F64x2Ge, <<0xFD, 76>>)
+}
+
+pub fn v128_not_test() {
+  round_trip(structure_types.V128Not, <<0xFD, 77>>)
+}
+
+pub fn v128_and_test() {
+  round_trip(structure_types.V128And, <<0xFD, 78>>)
+}
+
+pub fn v128_and_not_test() {
+  round_trip(structure_types.V128AndNot, <<0xFD, 79>>)
+}
+
+pub fn v128_or_test() {
+  round_trip(structure_types.V128Or, <<0xFD, 80>>)
+}
+
+pub fn v128_xor_test() {
+  round_trip(structure_types.V128Xor, <<0xFD, 81>>)
+}
+
+pub fn v128_bitselect_test() {
+  round_trip(structure_types.V128Bitselect, <<0xFD, 82>>)
+}
+
+pub fn v128_any_true_test() {
+  round_trip(structure_types.V128AnyTrue, <<0xFD, 83>>)
+}
+
+pub fn v128_load8_lane_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  let assert Ok(lane_idx) = structure_types.lane_16(2)
+  round_trip(structure_types.V128Load8Lane(mem_arg, lane_idx), <<
+    0xFD, 84, 42, 4, 2,
+  >>)
+}
+
+pub fn v128_load16_lane_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  let assert Ok(lane_idx) = structure_types.lane_8(2)
+  round_trip(structure_types.V128Load16Lane(mem_arg, lane_idx), <<
+    0xFD, 85, 42, 4, 2,
+  >>)
+}
+
+pub fn v128_load32_lane_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  let assert Ok(lane_idx) = structure_types.lane_4(2)
+  round_trip(structure_types.V128Load32Lane(mem_arg, lane_idx), <<
+    0xFD, 86, 42, 4, 2,
+  >>)
+}
+
+pub fn v128_load64_lane_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  let assert Ok(lane_idx) = structure_types.lane_2(2)
+  round_trip(structure_types.V128Load64Lane(mem_arg, lane_idx), <<
+    0xFD, 87, 42, 4, 2,
+  >>)
+}
+
+pub fn v128_store8_lane_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  let assert Ok(lane_idx) = structure_types.lane_16(2)
+  round_trip(structure_types.V128Store8Lane(mem_arg, lane_idx), <<
+    0xFD, 88, 42, 4, 2,
+  >>)
+}
+
+pub fn v128_store16_lane_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  let assert Ok(lane_idx) = structure_types.lane_8(2)
+  round_trip(structure_types.V128Store16Lane(mem_arg, lane_idx), <<
+    0xFD, 89, 42, 4, 2,
+  >>)
+}
+
+pub fn v128_store32_lane_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  let assert Ok(lane_idx) = structure_types.lane_4(2)
+  round_trip(structure_types.V128Store32Lane(mem_arg, lane_idx), <<
+    0xFD, 90, 42, 4, 2,
+  >>)
+}
+
+pub fn v128_store64_lane_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  let assert Ok(lane_idx) = structure_types.lane_2(2)
+  round_trip(structure_types.V128Store64Lane(mem_arg, lane_idx), <<
+    0xFD, 91, 42, 4, 2,
+  >>)
+}
+
+pub fn v128_load32_zero_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load32Zero(mem_arg), <<0xFD, 92, 42, 4>>)
+}
+
+pub fn v128_load64_zero_test() {
+  let assert Ok(align) = numbers.u32(42)
+  let assert Ok(offset) = numbers.u32(4)
+  let mem_arg = structure_types.MemArg(align, offset)
+  round_trip(structure_types.V128Load64Zero(mem_arg), <<0xFD, 93, 42, 4>>)
+}
+
+pub fn f32x4_demote_f64x2_zero_test() {
+  round_trip(structure_types.F32x4DemoteF64x2Zero, <<0xFD, 94>>)
+}
+
+pub fn f64x2_promote_low_f32x4_test() {
+  round_trip(structure_types.F64x2PromoteLowF32x4, <<0xFD, 95>>)
+}
+
+pub fn i8x16_abs_test() {
+  round_trip(structure_types.I8x16Abs, <<0xFD, 96>>)
+}
+
+pub fn i8x16_neg_test() {
+  round_trip(structure_types.I8x16Neg, <<0xFD, 97>>)
+}
+
+pub fn i8x16_popcnt_test() {
+  round_trip(structure_types.I8x16Popcnt, <<0xFD, 98>>)
+}
+
+pub fn i8x16_all_true_test() {
+  round_trip(structure_types.I8x16AllTrue, <<0xFD, 99>>)
+}
+
+pub fn i8x16_bitmask_test() {
+  round_trip(structure_types.I8x16Bitmask, <<0xFD, 100>>)
+}
+
+pub fn i8x16_narrow_i16x8s_test() {
+  round_trip(structure_types.I8x16NarrowI16x8S, <<0xFD, 101>>)
+}
+
+pub fn i8x16_narrow_i16x8u_test() {
+  // 0xFD, 102
+  round_trip(structure_types.I8x16NarrowI16x8U, <<0xFD, 102>>)
+}
+
+pub fn f32x4_ceil_test() {
+  round_trip(structure_types.F32x4Ceil, <<0xFD, 103>>)
+}
+
+pub fn f32x4_floor_test() {
+  round_trip(structure_types.F32x4Floor, <<0xFD, 104>>)
+}
+
+pub fn f32x4_trunc_test() {
+  round_trip(structure_types.F32x4Trunc, <<0xFD, 105>>)
+}
+
+pub fn f32x4_nearest_test() {
+  round_trip(structure_types.F32x4Nearest, <<0xFD, 106>>)
+}
+
+pub fn i8x16_shl_test() {
+  round_trip(structure_types.I8x16Shl, <<0xFD, 107>>)
+}
+
+pub fn i8x16_shr_s_test() {
+  round_trip(structure_types.I8x16ShrS, <<0xFD, 108>>)
+}
+
+pub fn i8x16_shr_u_test() {
+  round_trip(structure_types.I8x16ShrU, <<0xFD, 109>>)
+}
+
+pub fn i8x16_add_test() {
+  round_trip(structure_types.I8x16Add, <<0xFD, 110>>)
+}
+
+pub fn i8x16_add_sat_s_test() {
+  round_trip(structure_types.I8x16AddSatS, <<0xFD, 111>>)
+}
+
+pub fn i8x16_add_sat_u_test() {
+  round_trip(structure_types.I8x16AddSatU, <<0xFD, 112>>)
+}
+
+pub fn i8x16_sub_test() {
+  round_trip(structure_types.I8x16Sub, <<0xFD, 113>>)
+}
+
+pub fn i8x16_sub_sat_s_test() {
+  round_trip(structure_types.I8x16SubSatS, <<0xFD, 114>>)
+}
+
+pub fn i8x16_sub_sat_u_test() {
+  round_trip(structure_types.I8x16SubSatU, <<0xFD, 115>>)
+}
+
+pub fn f64x2_ceil_test() {
+  round_trip(structure_types.F64x2Ceil, <<0xFD, 116>>)
+}
+
+pub fn f64x2_floor_test() {
+  round_trip(structure_types.F64x2Floor, <<0xFD, 117>>)
+}
+
+pub fn i8x16_min_s_test() {
+  round_trip(structure_types.I8x16MinS, <<0xFD, 118>>)
+}
+
+pub fn i8x16_min_u_test() {
+  round_trip(structure_types.I8x16MinU, <<0xFD, 119>>)
+}
+
+pub fn i8x16_max_s_test() {
+  round_trip(structure_types.I8x16MaxS, <<0xFD, 120>>)
+}
+
+pub fn i8x16_max_u_test() {
+  round_trip(structure_types.I8x16MaxU, <<0xFD, 121>>)
+}
+
+pub fn f64x2_trunc_test() {
+  round_trip(structure_types.F64x2Trunc, <<0xFD, 122>>)
+}
+
+pub fn i8x16_avgr_u_test() {
+  round_trip(structure_types.I8x16AvgrU, <<0xFD, 123>>)
+}
+
+pub fn i16x8_extadd_pairwise_i8x16s_test() {
+  round_trip(structure_types.I16x8ExtaddPairwiseI8x16S, <<0xFD, 124>>)
+}
+
+pub fn i16x8_extadd_pairwise_i8x16u_test() {
+  round_trip(structure_types.I16x8ExtaddPairwiseI8x16U, <<0xFD, 125>>)
+}
+
+pub fn i32x4_extadd_pairwise_i16x8s_test() {
+  round_trip(structure_types.I32x4ExtaddPairwiseI16x8S, <<0xFD, 126>>)
+}
+
+pub fn i32x4_extadd_pairwise_i16x8u_test() {
+  round_trip(structure_types.I32x4ExtaddPairwiseI16x8U, <<0xFD, 127>>)
+}
+
+pub fn i16x8_abs_test() {
+  round_trip(structure_types.I16x8Abs, <<0xFD, 128, 1>>)
+}
+
+pub fn i16x8_neg_test() {
+  round_trip(structure_types.I16x8Neg, <<0xFD, 129, 1>>)
+}
+
+pub fn i16x8q15mulr_sat_s_test() {
+  round_trip(structure_types.I16x8Q15mulrSatS, <<0xFD, 130, 1>>)
+}
+
+pub fn i16x8_all_true_test() {
+  round_trip(structure_types.I16x8AllTrue, <<0xFD, 131, 1>>)
+}
+
+pub fn i16x8_bitmask_test() {
+  round_trip(structure_types.I16x8Bitmask, <<0xFD, 132, 1>>)
+}
+
+pub fn i16x8_narrow_i32x4s_test() {
+  round_trip(structure_types.I16x8NarrowI32x4S, <<0xFD, 133, 1>>)
+}
+
+pub fn i16x8_narrow_i32x4u_test() {
+  round_trip(structure_types.I16x8NarrowI32x4U, <<0xFD, 134, 1>>)
+}
+
+pub fn i16x8_extend_low_i8x16s_test() {
+  round_trip(structure_types.I16x8ExtendLowI8x16S, <<0xFD, 135, 1>>)
+}
+
+pub fn i16x8_extend_high_i8x16s_test() {
+  round_trip(structure_types.I16x8ExtendHighI8x16S, <<0xFD, 136, 1>>)
+}
+
+pub fn i16x8_extend_low_i8x16u_test() {
+  round_trip(structure_types.I16x8ExtendLowI8x16U, <<0xFD, 137, 1>>)
+}
+
+pub fn i16x8_extend_high_i8x16u_test() {
+  round_trip(structure_types.I16x8ExtendHighI8x16U, <<0xFD, 138, 1>>)
+}
+
+pub fn i16x8_shl_test() {
+  round_trip(structure_types.I16x8Shl, <<0xFD, 139, 1>>)
+}
+
+pub fn i16x8_shr_s_test() {
+  round_trip(structure_types.I16x8ShrS, <<0xFD, 140, 1>>)
+}
+
+pub fn i16x8_shr_u_test() {
+  round_trip(structure_types.I16x8ShrU, <<0xFD, 141, 1>>)
+}
+
+pub fn i16x8_add_test() {
+  round_trip(structure_types.I16x8Add, <<0xFD, 142, 1>>)
+}
+
+pub fn i16x8_add_sat_s_test() {
+  round_trip(structure_types.I16x8AddSatS, <<0xFD, 143, 1>>)
+}
+
+pub fn i16x8_add_sat_u_test() {
+  round_trip(structure_types.I16x8AddSatU, <<0xFD, 144, 1>>)
+}
+
+pub fn i16x8_sub_test() {
+  round_trip(structure_types.I16x8Sub, <<0xFD, 145, 1>>)
+}
+
+pub fn i16x8_sub_sat_s_test() {
+  round_trip(structure_types.I16x8SubSatS, <<0xFD, 146, 1>>)
+}
+
+pub fn i16x8_sub_sat_u_test() {
+  round_trip(structure_types.I16x8SubSatU, <<0xFD, 147, 1>>)
+}
+
+pub fn f64x2_nearest_test() {
+  round_trip(structure_types.F64x2Nearest, <<0xFD, 148, 1>>)
+}
+
+pub fn i16x8_mul_test() {
+  round_trip(structure_types.I16x8Mul, <<0xFD, 149, 1>>)
+}
+
+pub fn i16x8_min_s_test() {
+  round_trip(structure_types.I16x8MinS, <<0xFD, 150, 1>>)
+}
+
+pub fn i16x8_min_u_test() {
+  round_trip(structure_types.I16x8MinU, <<0xFD, 151, 1>>)
+}
+
+pub fn i16x8_max_s_test() {
+  round_trip(structure_types.I16x8MaxS, <<0xFD, 152, 1>>)
+}
+
+pub fn i16x8_max_u_test() {
+  round_trip(structure_types.I16x8MaxU, <<0xFD, 153, 1>>)
+}
+
+pub fn i16x8_avgr_u_test() {
+  round_trip(structure_types.I16x8AvgrU, <<0xFD, 155, 1>>)
+}
+
+pub fn i16x8_extmul_low_i8x16s_test() {
+  round_trip(structure_types.I16x8ExtmulLowI8x16S, <<0xFD, 156, 1>>)
+}
+
+pub fn i16x8_extmul_high_i8x16s_test() {
+  round_trip(structure_types.I16x8ExtmulHighI8x16S, <<0xFD, 157, 1>>)
+}
+
+pub fn i16x8_extmul_low_i8x16u_test() {
+  round_trip(structure_types.I16x8ExtmulLowI8x16U, <<0xFD, 158, 1>>)
+}
+
+pub fn i16x8_extmul_high_i8x16u_test() {
+  round_trip(structure_types.I16x8ExtmulHighI8x16U, <<0xFD, 159, 1>>)
+}
+
+pub fn i32x4_abs_test() {
+  round_trip(structure_types.I32x4Abs, <<0xFD, 160, 1>>)
+}
+
+pub fn i32x4_neg_test() {
+  round_trip(structure_types.I32x4Neg, <<0xFD, 161, 1>>)
+}
+
+pub fn i32x4_all_true_test() {
+  round_trip(structure_types.I32x4AllTrue, <<0xFD, 163, 1>>)
+}
+
+pub fn i32x4_bitmask_test() {
+  round_trip(structure_types.I32x4Bitmask, <<0xFD, 164, 1>>)
+}
+
+pub fn i32x4_extend_low_i16x8s_test() {
+  round_trip(structure_types.I32x4ExtendLowI16x8S, <<0xFD, 167, 1>>)
+}
+
+pub fn i32x4_extend_high_i16x8s_test() {
+  round_trip(structure_types.I32x4ExtendHighI16x8S, <<0xFD, 168, 1>>)
+}
+
+pub fn i32x4_extend_low_i16x8u_test() {
+  round_trip(structure_types.I32x4ExtendLowI16x8U, <<0xFD, 169, 1>>)
+}
+
+pub fn i32x4_extend_high_i16x8u_test() {
+  round_trip(structure_types.I32x4ExtendHighI16x8U, <<0xFD, 170, 1>>)
+}
+
+pub fn i32x4_shl_test() {
+  round_trip(structure_types.I32x4Shl, <<0xFD, 171, 1>>)
+}
+
+pub fn i32x4_shr_s_test() {
+  round_trip(structure_types.I32x4ShrS, <<0xFD, 172, 1>>)
+}
+
+pub fn i32x4_shr_u_test() {
+  round_trip(structure_types.I32x4ShrU, <<0xFD, 173, 1>>)
+}
+
+pub fn i32x4_add_test() {
+  round_trip(structure_types.I32x4Add, <<0xFD, 174, 1>>)
+}
+
+pub fn i32x4_sub_test() {
+  round_trip(structure_types.I32x4Sub, <<0xFD, 177, 1>>)
+}
+
+pub fn i32x4_mul_test() {
+  round_trip(structure_types.I32x4Mul, <<0xFD, 181, 1>>)
+}
+
+pub fn i32x4_min_s_test() {
+  round_trip(structure_types.I32x4MinS, <<0xFD, 182, 1>>)
+}
+
+pub fn i32x4_min_u_test() {
+  round_trip(structure_types.I32x4MinU, <<0xFD, 183, 1>>)
+}
+
+pub fn i32x4_max_s_test() {
+  round_trip(structure_types.I32x4MaxS, <<0xFD, 184, 1>>)
+}
+
+pub fn i32x4_max_u_test() {
+  round_trip(structure_types.I32x4MaxU, <<0xFD, 185, 1>>)
+}
+
+pub fn i32x4_dot_i16x8s_test() {
+  round_trip(structure_types.I32x4DotI16x8S, <<0xFD, 186, 1>>)
+}
+
+pub fn i32x4_extmul_low_i16x8s_test() {
+  round_trip(structure_types.I32x4ExtmulLowI16x8S, <<0xFD, 188, 1>>)
+}
+
+pub fn i32x4_extmul_high_i16x8s_test() {
+  round_trip(structure_types.I32x4ExtmulHighI16x8S, <<0xFD, 189, 1>>)
+}
+
+pub fn i32x4_extmul_low_i16x8u_test() {
+  round_trip(structure_types.I32x4ExtmulLowI16x8U, <<0xFD, 190, 1>>)
+}
+
+pub fn i32x4_extmul_high_i16x8u_test() {
+  round_trip(structure_types.I32x4ExtmulHighI16x8U, <<0xFD, 191, 1>>)
+}
+
+pub fn i64x2_abs_test() {
+  round_trip(structure_types.I64x2Abs, <<0xFD, 192, 1>>)
+}
+
+pub fn i64x2_neg_test() {
+  round_trip(structure_types.I64x2Neg, <<0xFD, 193, 1>>)
+}
+
+pub fn i64x2_all_true_test() {
+  round_trip(structure_types.I64x2AllTrue, <<0xFD, 195, 1>>)
+}
+
+pub fn i64x2_bitmask_test() {
+  round_trip(structure_types.I64x2Bitmask, <<0xFD, 196, 1>>)
+}
+
+pub fn i64x2_extend_low_i32x4s_test() {
+  round_trip(structure_types.I64x2ExtendLowI32x4S, <<0xFD, 199, 1>>)
+}
+
+pub fn i64x2_extend_high_i32x4s_test() {
+  round_trip(structure_types.I64x2ExtendHighI32x4S, <<0xFD, 200, 1>>)
+}
+
+pub fn i64x2_extend_low_i32x4u_test() {
+  round_trip(structure_types.I64x2ExtendLowI32x4U, <<0xFD, 201, 1>>)
+}
+
+pub fn i64x2_extend_high_i32x4u_test() {
+  round_trip(structure_types.I64x2ExtendHighI32x4U, <<0xFD, 202, 1>>)
+}
+
+pub fn i64x2_shl_test() {
+  round_trip(structure_types.I64x2Shl, <<0xFD, 203, 1>>)
+}
+
+pub fn i64x2_shr_s_test() {
+  round_trip(structure_types.I64x2ShrS, <<0xFD, 204, 1>>)
+}
+
+pub fn i64x2_shr_u_test() {
+  round_trip(structure_types.I64x2ShrU, <<0xFD, 205, 1>>)
+}
+
+pub fn i64x2_add_test() {
+  round_trip(structure_types.I64x2Add, <<0xFD, 206, 1>>)
+}
+
+pub fn i64x2_sub_test() {
+  round_trip(structure_types.I64x2Sub, <<0xFD, 209, 1>>)
+}
+
+pub fn i64x2_mul_test() {
+  round_trip(structure_types.I64x2Mul, <<0xFD, 213, 1>>)
 }
 
 pub fn i64x2_extmul_low_i32x4s_test() {
-  I64x2ExtmulLowI32x4S
+  round_trip(structure_types.I64x2ExtmulLowI32x4S, <<0xFD, 220, 1>>)
 }
 
 pub fn i64x2_extmul_high_i32x4s_test() {
-  I64x2ExtmulHighI32x4S
+  round_trip(structure_types.I64x2ExtmulHighI32x4S, <<0xFD, 221, 1>>)
 }
 
 pub fn i64x2_extmul_low_i32x4u_test() {
-  I64x2ExtmulLowI32x4U
+  round_trip(structure_types.I64x2ExtmulLowI32x4U, <<0xFD, 222, 1>>)
 }
 
 pub fn i64x2_extmul_high_i32x4u_test() {
-  I64x2ExtmulHighI32x4U
+  round_trip(structure_types.I64x2ExtmulHighI32x4U, <<0xFD, 223, 1>>)
 }
 
 pub fn f32x4_abs_test() {
-  F32x4Abs
+  round_trip(structure_types.F32x4Abs, <<0xFD, 224, 1>>)
 }
 
 pub fn f32x4_neg_test() {
-  F32x4Neg
+  round_trip(structure_types.F32x4Neg, <<0xFD, 225, 1>>)
 }
 
 pub fn f32x4_sqrt_test() {
-  F32x4Sqrt
+  round_trip(structure_types.F32x4Sqrt, <<0xFD, 227, 1>>)
 }
 
 pub fn f32x4_add_test() {
-  F32x4Add
+  round_trip(structure_types.F32x4Add, <<0xFD, 228, 1>>)
 }
 
 pub fn f32x4_sub_test() {
-  F32x4Sub
+  round_trip(structure_types.F32x4Sub, <<0xFD, 229, 1>>)
 }
 
 pub fn f32x4_mul_test() {
-  F32x4Mul
+  round_trip(structure_types.F32x4Mul, <<0xFD, 230, 1>>)
 }
 
 pub fn f32x4_div_test() {
-  F32x4Div
+  round_trip(structure_types.F32x4Div, <<0xFD, 231, 1>>)
 }
 
 pub fn f32x4_min_test() {
-  F32x4Min
+  round_trip(structure_types.F32x4Min, <<0xFD, 232, 1>>)
 }
 
 pub fn f32x4_max_test() {
-  F32x4Max
+  round_trip(structure_types.F32x4Max, <<0xFD, 233, 1>>)
 }
 
 pub fn f32x4_pmin_test() {
-  F32x4Pmin
+  round_trip(structure_types.F32x4Pmin, <<0xFD, 234, 1>>)
 }
 
 pub fn f32x4_pmax_test() {
-  F32x4Pmax
+  round_trip(structure_types.F32x4Pmax, <<0xFD, 235, 1>>)
 }
 
 pub fn f64x2_abs_test() {
-  F64x2Abs
+  round_trip(structure_types.F64x2Abs, <<0xFD, 236, 1>>)
 }
 
 pub fn f64x2_neg_test() {
-  F64x2Neg
+  round_trip(structure_types.F64x2Neg, <<0xFD, 237, 1>>)
 }
 
 pub fn f64x2_sqrt_test() {
-  F64x2Sqrt
+  round_trip(structure_types.F64x2Sqrt, <<0xFD, 239, 1>>)
 }
 
 pub fn f64x2_add_test() {
-  F64x2Add
+  round_trip(structure_types.F64x2Add, <<0xFD, 240, 1>>)
 }
 
 pub fn f64x2_sub_test() {
-  F64x2Sub
+  round_trip(structure_types.F64x2Sub, <<0xFD, 241, 1>>)
 }
 
 pub fn f64x2_mul_test() {
-  F64x2Mul
+  round_trip(structure_types.F64x2Mul, <<0xFD, 242, 1>>)
 }
 
 pub fn f64x2_div_test() {
-  F64x2Div
+  round_trip(structure_types.F64x2Div, <<0xFD, 243, 1>>)
 }
 
 pub fn f64x2_min_test() {
-  F64x2Min
+  round_trip(structure_types.F64x2Min, <<0xFD, 244, 1>>)
 }
 
 pub fn f64x2_max_test() {
-  F64x2Max
+  round_trip(structure_types.F64x2Max, <<0xFD, 245, 1>>)
 }
 
 pub fn f64x2_pmin_test() {
-  F64x2Pmin
+  round_trip(structure_types.F64x2Pmin, <<0xFD, 246, 1>>)
 }
 
 pub fn f64x2_pmax_test() {
-  F64x2Pmax
+  round_trip(structure_types.F64x2Pmax, <<0xFD, 247, 1>>)
 }
 
 pub fn i32x4_trunc_sat_f32x4s_test() {
-  I32x4TruncSatF32x4S
+  round_trip(structure_types.I32x4TruncSatF32x4S, <<0xFD, 248, 1>>)
 }
 
 pub fn i32x4_trunc_sat_f32x4u_test() {
-  I32x4TruncSatF32x4U
+  round_trip(structure_types.I32x4TruncSatF32x4U, <<0xFD, 249, 1>>)
 }
 
 pub fn f32x4_convert_i32x4s_test() {
-  F32x4ConvertI32x4S
+  round_trip(structure_types.F32x4ConvertI32x4S, <<0xFD, 250, 1>>)
 }
 
 pub fn f32x4_convert_i32x4u_test() {
-  F32x4ConvertI32x4U
+  round_trip(structure_types.F32x4ConvertI32x4U, <<0xFD, 251, 1>>)
 }
 
 pub fn i32x4_trunc_sat_f64x2s_zero_test() {
-  I32x4TruncSatF64x2SZero
+  round_trip(structure_types.I32x4TruncSatF64x2SZero, <<0xFD, 252, 1>>)
 }
 
 pub fn i32x4_trunc_sat_f64x2u_zero_test() {
-  I32x4TruncSatF64x2UZero
+  round_trip(structure_types.I32x4TruncSatF64x2UZero, <<0xFD, 253, 1>>)
 }
 
 pub fn f64x2_convert_low_i32x4s_test() {
-  F64x2ConvertLowI32x4S
+  round_trip(structure_types.F64x2ConvertLowI32x4S, <<0xFD, 254, 1>>)
 }
 
 pub fn f64x2_convert_low_i32x4u_test() {
-  F64x2ConvertLowI32x4U
+  round_trip(structure_types.F64x2ConvertLowI32x4U, <<0xFD, 255, 1>>)
 }

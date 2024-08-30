@@ -1,4 +1,6 @@
+import builder/i32x4
 import gleam/bit_array
+import gleam/bool
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/int
 import gleam/io
@@ -1213,6 +1215,40 @@ pub fn encode_instruction(
     I64Extend8S -> Ok(builder |> bytes_builder.append(<<0xC2>>))
     I64Extend16S -> Ok(builder |> bytes_builder.append(<<0xC3>>))
     I64Extend32S -> Ok(builder |> bytes_builder.append(<<0xC4>>))
+    F32x4Abs -> Ok(builder |> bytes_builder.append(<<0xFD, 224, 1>>))
+    F32x4Neg -> Ok(builder |> bytes_builder.append(<<0xFD, 225, 1>>))
+    F32x4Sqrt -> Ok(builder |> bytes_builder.append(<<0xFD, 227, 1>>))
+    F32x4Add -> Ok(builder |> bytes_builder.append(<<0xFD, 228, 1>>))
+    F32x4Sub -> Ok(builder |> bytes_builder.append(<<0xFD, 229, 1>>))
+    F32x4Mul -> Ok(builder |> bytes_builder.append(<<0xFD, 230, 1>>))
+    F32x4Div -> Ok(builder |> bytes_builder.append(<<0xFD, 231, 1>>))
+    F32x4Min -> Ok(builder |> bytes_builder.append(<<0xFD, 232, 1>>))
+    F32x4Max -> Ok(builder |> bytes_builder.append(<<0xFD, 233, 1>>))
+    F32x4Pmin -> Ok(builder |> bytes_builder.append(<<0xFD, 234, 1>>))
+    F32x4Pmax -> Ok(builder |> bytes_builder.append(<<0xFD, 235, 1>>))
+    F64x2Abs -> Ok(builder |> bytes_builder.append(<<0xFD, 236, 1>>))
+    F64x2Neg -> Ok(builder |> bytes_builder.append(<<0xFD, 237, 1>>))
+    F64x2Sqrt -> Ok(builder |> bytes_builder.append(<<0xFD, 239, 1>>))
+    F64x2Add -> Ok(builder |> bytes_builder.append(<<0xFD, 240, 1>>))
+    F64x2Sub -> Ok(builder |> bytes_builder.append(<<0xFD, 241, 1>>))
+    F64x2Mul -> Ok(builder |> bytes_builder.append(<<0xFD, 242, 1>>))
+    F64x2Div -> Ok(builder |> bytes_builder.append(<<0xFD, 243, 1>>))
+    F64x2Min -> Ok(builder |> bytes_builder.append(<<0xFD, 244, 1>>))
+    F64x2Max -> Ok(builder |> bytes_builder.append(<<0xFD, 245, 1>>))
+    F64x2Pmin -> Ok(builder |> bytes_builder.append(<<0xFD, 246, 1>>))
+    F64x2Pmax -> Ok(builder |> bytes_builder.append(<<0xFD, 247, 1>>))
+    I32x4TruncSatF32x4S -> Ok(builder |> bytes_builder.append(<<0xFD, 248, 1>>))
+    I32x4TruncSatF32x4U -> Ok(builder |> bytes_builder.append(<<0xFD, 249, 1>>))
+    F32x4ConvertI32x4S -> Ok(builder |> bytes_builder.append(<<0xFD, 250, 1>>))
+    F32x4ConvertI32x4U -> Ok(builder |> bytes_builder.append(<<0xFD, 251, 1>>))
+    I32x4TruncSatF64x2SZero ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 252, 1>>))
+    I32x4TruncSatF64x2UZero ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 253, 1>>))
+    F64x2ConvertLowI32x4S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 254, 1>>))
+    F64x2ConvertLowI32x4U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 255, 1>>))
     Drop ->
       builder
       |> bytes_builder.append(<<0x1A>>)
@@ -1652,6 +1688,46 @@ pub fn decode_instruction(
         _ ->
           Error(
             "Invalid ref instruction: 0xFB 0x" <> { inst_id |> int.to_base16 },
+          )
+      }
+    }
+    <<0xFD, rest:bits>> -> {
+      use #(inst_id, rest) <- result.try(decode_u32(rest))
+      let inst_id = inst_id |> unwrap_u32
+      case inst_id {
+        224 -> Ok(#(F32x4Abs, rest))
+        225 -> Ok(#(F32x4Neg, rest))
+        227 -> Ok(#(F32x4Sqrt, rest))
+        228 -> Ok(#(F32x4Add, rest))
+        229 -> Ok(#(F32x4Sub, rest))
+        230 -> Ok(#(F32x4Mul, rest))
+        231 -> Ok(#(F32x4Div, rest))
+        232 -> Ok(#(F32x4Min, rest))
+        233 -> Ok(#(F32x4Max, rest))
+        234 -> Ok(#(F32x4Pmin, rest))
+        235 -> Ok(#(F32x4Pmax, rest))
+        236 -> Ok(#(F64x2Abs, rest))
+        237 -> Ok(#(F64x2Neg, rest))
+        239 -> Ok(#(F64x2Sqrt, rest))
+        240 -> Ok(#(F64x2Add, rest))
+        241 -> Ok(#(F64x2Sub, rest))
+        242 -> Ok(#(F64x2Mul, rest))
+        243 -> Ok(#(F64x2Div, rest))
+        244 -> Ok(#(F64x2Min, rest))
+        245 -> Ok(#(F64x2Max, rest))
+        246 -> Ok(#(F64x2Pmin, rest))
+        247 -> Ok(#(F64x2Pmax, rest))
+        248 -> Ok(#(I32x4TruncSatF32x4S, rest))
+        249 -> Ok(#(I32x4TruncSatF32x4U, rest))
+        250 -> Ok(#(F32x4ConvertI32x4S, rest))
+        251 -> Ok(#(F32x4ConvertI32x4U, rest))
+        252 -> Ok(#(I32x4TruncSatF64x2SZero, rest))
+        253 -> Ok(#(I32x4TruncSatF64x2UZero, rest))
+        254 -> Ok(#(F64x2ConvertLowI32x4S, rest))
+        255 -> Ok(#(F64x2ConvertLowI32x4U, rest))
+        _ ->
+          Error(
+            "Invalid SIMD instruction: 0xFD 0x" <> { inst_id |> int.to_base16 },
           )
       }
     }

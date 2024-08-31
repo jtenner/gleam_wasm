@@ -51,9 +51,12 @@ pub fn main() {
 
   io.debug(#("In:", rest |> bit_array.byte_size))
   use #(module, rest) <- result.try(modules.decode_module(rest))
-  io.debug(#("bytes left:", rest |> bit_array.byte_size))
-  use result <- result.map(modules.encode_module(module))
 
+  // 0 bytes left?
+  io.debug(#("bytes left:", rest |> bit_array.byte_size))
+
+  use result <- result.map(modules.encode_module(module))
+  // bytes should match original
   io.debug(#("Out:", result |> bit_array.byte_size))
   let assert Ok(_) =
     simplifile.write_bits("./temp/assemblyscript.re-encoded.wasm", result)

@@ -465,16 +465,16 @@ pub fn decode_rec_type(bits: BitArray) {
 }
 
 pub fn encode_rec_type(builder: BytesBuilder, rec_type: RecType) {
-  case rec_type.st |> finger_tree.size {
+  case rec_type.sub_types |> finger_tree.size {
     1 ->
-      case rec_type.st |> finger_tree.shift {
-        Ok(#(st, _)) -> encode_sub_type(builder, st)
+      case rec_type.sub_types |> finger_tree.shift {
+        Ok(#(sub_type, _)) -> encode_sub_type(builder, sub_type)
         Error(_) -> Error("Invalid recursive type")
       }
     t if t > 1 ->
       builder
       |> bytes_builder.append(<<0x4E>>)
-      |> common.encode_vec(rec_type.st, encode_sub_type)
+      |> common.encode_vec(rec_type.sub_types, encode_sub_type)
     _ -> Error("Invalid recursive type")
   }
 }

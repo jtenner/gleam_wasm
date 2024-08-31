@@ -479,7 +479,7 @@ fn sub_type_equals(a: structure_types.SubType, b: structure_types.SubType) {
 }
 
 fn rec_type_equals(a: structure_types.RecType, b: structure_types.RecType) {
-  do_sub_types_equal(a.st, b.st)
+  do_sub_types_equal(a.sub_types, b.sub_types)
 }
 
 fn do_sub_types_equal(

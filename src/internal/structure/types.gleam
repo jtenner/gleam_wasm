@@ -266,7 +266,7 @@ pub type CompositeType {
 /// It is used to describe the shape of mutually recursive SubTypes.
 /// Please see: https://webassembly.github.io/gc/core/syntax/types.html#recursive-types
 pub type RecType {
-  RecType(st: FingerTree(SubType))
+  RecType(sub_types: FingerTree(SubType))
 }
 
 /// An index into the module's type section.

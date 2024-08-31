@@ -1,10 +1,11 @@
 import gleam/bytes_builder.{type BytesBuilder}
 import gleam/int
+import gleam/result
 import internal/structure/numbers.{
   type I16, type I32, type I64, type I8, type S33, type U16, type U32, type U64,
-  type U8, i16, i32, i64, i8, s33, u16, u32, u64, u8, unwrap_i16, unwrap_i32,
-  unwrap_i64, unwrap_i8, unwrap_s33, unwrap_u16, unwrap_u32, unwrap_u64,
-  unwrap_u8,
+  type U8, type V128Value, i16, i32, i64, i8, s33, u16, u32, u64, u8, unwrap_i16,
+  unwrap_i32, unwrap_i64, unwrap_i8, unwrap_s33, unwrap_u16, unwrap_u32,
+  unwrap_u64, unwrap_u8, unwrap_v128, v128,
 }
 
 pub fn decode_i8(bits: BitArray) {
@@ -41,6 +42,16 @@ pub fn decode_u64(bits: BitArray) {
 
 pub fn decode_s33(bits: BitArray) {
   do_decode_signed(bits, s33, 33)
+}
+
+pub fn decode_v128(bits: BitArray) {
+  case bits {
+    <<v128_val:bits-128, rest:bits>> -> {
+      use v128_val <- result.map(v128(v128_val))
+      #(v128_val, rest)
+    }
+    _ -> Error("Could not decode V128")
+  }
 }
 
 fn finish_decode(
@@ -607,7 +618,7 @@ fn do_encode_unsigned(builder: BytesBuilder, val: Int) {
 
 fn do_encode_signed(builder: BytesBuilder, val: Int) {
   case val {
-    val if val >= 63 ->
+    val if val > 63 ->
       builder
       |> bytes_builder.append(<<0b1:1, val:7>>)
       |> do_encode_signed(val |> int.bitwise_shift_right(7))
@@ -655,4 +666,9 @@ pub fn encode_i8(builder: BytesBuilder, val: I8) {
 
 pub fn encode_s33(builder: BytesBuilder, val: S33) {
   do_encode_signed(builder, val |> unwrap_s33)
+}
+
+pub fn encode_v128(builder: BytesBuilder, val: V128Value) {
+  builder
+  |> bytes_builder.append(val |> unwrap_v128)
 }

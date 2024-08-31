@@ -1,0 +1,315 @@
+    Waiting for build directory lock
+
+warning: Todo found
+     ┌─ /home/jtenner/gleam_wasm/src/internal/structure/types.gleam:1517:30
+     │
+1517 │     | StructNewDefault(_) -> todo
+     │                              ^^^^ This code is incomplete
+
+This code will crash if it is run. Be sure to finish it before
+running your program.
+
+Hint: I think its type is `Result(InstructionType, Nil)`.
+
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/internal/binary/types.gleam:1:1
+  │
+1 │ import builder/i32x4
+  │ ^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/internal/binary/types.gleam:2:1
+  │
+2 │ import gleam/bit_array
+  │ ^^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/internal/binary/types.gleam:3:1
+  │
+3 │ import gleam/bool
+  │ ^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/internal/binary/types.gleam:6:1
+  │
+6 │ import gleam/io
+  │ ^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/internal/binary/types.gleam:9:1
+  │
+9 │ import gleam/string
+  │ ^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported value
+   ┌─ /home/jtenner/gleam_wasm/src/internal/binary/types.gleam:18:15
+   │
+18 │   unwrap_u32, unwrap_v128, v128,
+   │               ^^^^^^^^^^^ This imported value is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported value
+   ┌─ /home/jtenner/gleam_wasm/src/internal/binary/types.gleam:18:28
+   │
+18 │   unwrap_u32, unwrap_v128, v128,
+   │                            ^^^^ This imported value is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+    ┌─ /home/jtenner/gleam_wasm/src/internal/binary/types.gleam:121:1
+    │
+121 │ import simplifile
+    │ ^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported type
+  ┌─ /home/jtenner/gleam_wasm/test/instruction_test.gleam:3:22
+  │
+3 │ import gleam/option.{type Option, None, Some}
+  │                      ^^^^^^^^^^^ This imported type is never used
+
+Hint: You can safely remove it.
+
+warning: Unused variable
+  ┌─ /home/jtenner/gleam_wasm/src/internal/validation/module.gleam:3:24
+  │
+3 │ pub fn module_validate(module: BinaryModule) {
+  │                        ^^^^^^^^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_module`.
+
+warning: Todo found
+  ┌─ /home/jtenner/gleam_wasm/src/internal/validation/module.gleam:4:3
+  │
+4 │   todo
+  │   ^^^^ This code is incomplete
+
+This code will crash if it is run. Be sure to finish it before
+running your program.
+
+warning: Unused imported type
+  ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:4:36
+  │
+4 │ import internal/structure/numbers.{type U32}
+  │                                    ^^^^^^^^ This imported type is never used
+
+Hint: You can safely remove it.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:534:25
+    │
+534 │ pub fn visit_field_type(ctx: ctx, rt: FieldType, visitor: TypeVisitor(ctx)) {
+    │                         ^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_ctx`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:534:35
+    │
+534 │ pub fn visit_field_type(ctx: ctx, rt: FieldType, visitor: TypeVisitor(ctx)) {
+    │                                   ^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_rt`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:534:50
+    │
+534 │ pub fn visit_field_type(ctx: ctx, rt: FieldType, visitor: TypeVisitor(ctx)) {
+    │                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_visitor`.
+
+warning: Todo found
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:535:3
+    │
+535 │   todo
+    │   ^^^^ This code is incomplete
+
+This code will crash if it is run. Be sure to finish it before
+running your program.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:538:24
+    │
+538 │ pub fn visit_func_type(ctx: ctx, rt: FuncType, visitor: TypeVisitor(ctx)) {
+    │                        ^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_ctx`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:538:34
+    │
+538 │ pub fn visit_func_type(ctx: ctx, rt: FuncType, visitor: TypeVisitor(ctx)) {
+    │                                  ^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_rt`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:538:48
+    │
+538 │ pub fn visit_func_type(ctx: ctx, rt: FuncType, visitor: TypeVisitor(ctx)) {
+    │                                                ^^^^^^^^^^^^^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_visitor`.
+
+warning: Todo found
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:539:3
+    │
+539 │   todo
+    │   ^^^^ This code is incomplete
+
+This code will crash if it is run. Be sure to finish it before
+running your program.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:649:27
+    │
+649 │ pub fn visit_storage_type(ctx: ctx, rt: StorageType, visitor: TypeVisitor(ctx)) {
+    │                           ^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_ctx`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:649:37
+    │
+649 │ pub fn visit_storage_type(ctx: ctx, rt: StorageType, visitor: TypeVisitor(ctx)) {
+    │                                     ^^^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_rt`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:649:54
+    │
+649 │ pub fn visit_storage_type(ctx: ctx, rt: StorageType, visitor: TypeVisitor(ctx)) {
+    │                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_visitor`.
+
+warning: Todo found
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:650:3
+    │
+650 │   todo
+    │   ^^^^ This code is incomplete
+
+This code will crash if it is run. Be sure to finish it before
+running your program.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:653:26
+    │
+653 │ pub fn visit_struct_type(ctx: ctx, rt: StructType, visitor: TypeVisitor(ctx)) {
+    │                          ^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_ctx`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:653:36
+    │
+653 │ pub fn visit_struct_type(ctx: ctx, rt: StructType, visitor: TypeVisitor(ctx)) {
+    │                                    ^^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_rt`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:653:52
+    │
+653 │ pub fn visit_struct_type(ctx: ctx, rt: StructType, visitor: TypeVisitor(ctx)) {
+    │                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_visitor`.
+
+warning: Todo found
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:654:3
+    │
+654 │   todo
+    │   ^^^^ This code is incomplete
+
+This code will crash if it is run. Be sure to finish it before
+running your program.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:727:23
+    │
+727 │ pub fn visit_val_type(ctx: ctx, rt: ValType, visitor: TypeVisitor(ctx)) {
+    │                       ^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_ctx`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:727:33
+    │
+727 │ pub fn visit_val_type(ctx: ctx, rt: ValType, visitor: TypeVisitor(ctx)) {
+    │                                 ^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_rt`.
+
+warning: Unused variable
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:727:46
+    │
+727 │ pub fn visit_val_type(ctx: ctx, rt: ValType, visitor: TypeVisitor(ctx)) {
+    │                                              ^^^^^^^^^^^^^^^^^^^^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_visitor`.
+
+warning: Todo found
+    ┌─ /home/jtenner/gleam_wasm/src/transformer/types.gleam:728:3
+    │
+728 │   todo
+    │   ^^^^ This code is incomplete
+
+This code will crash if it is run. Be sure to finish it before
+running your program.
+  Compiling shinecoder
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/shinecoder.gleam:2:1
+  │
+2 │ import gleam/bytes_builder
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/shinecoder.gleam:4:1
+  │
+4 │ import gleam/result
+  │ ^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/shinecoder.gleam:5:1
+  │
+5 │ import internal/binary/common
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/shinecoder.gleam:7:1
+  │
+7 │ import internal/binary/values
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /home/jtenner/gleam_wasm/src/shinecoder.gleam:8:1
+  │
+8 │ import internal/structure/numbers
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+

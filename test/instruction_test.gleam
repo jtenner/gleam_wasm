@@ -1081,7 +1081,7 @@ pub fn ref_eq_test() {
 }
 
 pub fn ref_as_non_null_test() {
-  round_trip(structure_types.RefAsNonNull, <<0x43>>)
+  round_trip(structure_types.RefAsNonNull, <<0xD4>>)
 }
 
 pub fn struct_new_test() {
@@ -1315,7 +1315,7 @@ pub fn memory_init_test() {
   let assert Ok(data_idx) = numbers.u32(42)
   let data_idx = structure_types.DataIDX(data_idx)
 
-  round_trip(structure_types.MemoryInit(data_idx), <<0xFC, 8, 42>>)
+  round_trip(structure_types.MemoryInit(data_idx), <<0xFC, 8, 42, 0x00>>)
 }
 
 pub fn data_drop_test() {
@@ -1586,13 +1586,13 @@ pub fn i32x4_replace_lane_test() {
 }
 
 pub fn i64x2_extract_lane_test() {
-  let assert Ok(lane_idx) = structure_types.lane_2(2)
-  round_trip(structure_types.I64x2ExtractLane(lane_idx), <<0xFD, 29, 2>>)
+  let assert Ok(lane_idx) = structure_types.lane_2(1)
+  round_trip(structure_types.I64x2ExtractLane(lane_idx), <<0xFD, 29, 1>>)
 }
 
 pub fn i64x2_replace_lane_test() {
-  let assert Ok(lane_idx) = structure_types.lane_2(2)
-  round_trip(structure_types.I64x2ReplaceLane(lane_idx), <<0xFD, 30, 2>>)
+  let assert Ok(lane_idx) = structure_types.lane_2(1)
+  round_trip(structure_types.I64x2ReplaceLane(lane_idx), <<0xFD, 30, 1>>)
 }
 
 pub fn f32x4_extract_lane_test() {
@@ -1606,13 +1606,13 @@ pub fn f32x4_replace_lane_test() {
 }
 
 pub fn f64x2_extract_lane_test() {
-  let assert Ok(lane_idx) = structure_types.lane_2(2)
-  round_trip(structure_types.F64x2ExtractLane(lane_idx), <<0xFD, 33, 2>>)
+  let assert Ok(lane_idx) = structure_types.lane_2(1)
+  round_trip(structure_types.F64x2ExtractLane(lane_idx), <<0xFD, 33, 1>>)
 }
 
 pub fn f64x2_replace_lane_test() {
-  let assert Ok(lane_idx) = structure_types.lane_2(2)
-  round_trip(structure_types.F64x2ReplaceLane(lane_idx), <<0xFD, 34, 2>>)
+  let assert Ok(lane_idx) = structure_types.lane_2(1)
+  round_trip(structure_types.F64x2ReplaceLane(lane_idx), <<0xFD, 34, 1>>)
 }
 
 pub fn i8x16_eq_test() {
@@ -1869,9 +1869,9 @@ pub fn v128_load64_lane_test() {
   let assert Ok(align) = numbers.u32(42)
   let assert Ok(offset) = numbers.u32(4)
   let mem_arg = structure_types.MemArg(align, offset)
-  let assert Ok(lane_idx) = structure_types.lane_2(2)
+  let assert Ok(lane_idx) = structure_types.lane_2(1)
   round_trip(structure_types.V128Load64Lane(mem_arg, lane_idx), <<
-    0xFD, 87, 42, 4, 2,
+    0xFD, 87, 42, 4, 1,
   >>)
 }
 
@@ -1909,9 +1909,9 @@ pub fn v128_store64_lane_test() {
   let assert Ok(align) = numbers.u32(42)
   let assert Ok(offset) = numbers.u32(4)
   let mem_arg = structure_types.MemArg(align, offset)
-  let assert Ok(lane_idx) = structure_types.lane_2(2)
+  let assert Ok(lane_idx) = structure_types.lane_2(1)
   round_trip(structure_types.V128Store64Lane(mem_arg, lane_idx), <<
-    0xFD, 91, 42, 4, 2,
+    0xFD, 91, 42, 4, 1,
   >>)
 }
 

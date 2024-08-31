@@ -219,6 +219,11 @@ pub opaque type V128Value {
   V128Value(val: BitArray)
 }
 
+/// unwrap a V128Value into its BitArray
+pub fn unwrap_v128(val: V128Value) {
+  val.val
+}
+
 /// Create a V128Value from a BitArray, validating the size is 16 bytes,
 /// and returning an error if it isn't.
 pub fn v128(val: BitArray) -> Result(V128Value, String) {
@@ -275,11 +280,6 @@ pub fn unwrap_f32(val: F32) {
 
 /// Unwrap a F64 into its IEEEFloat value
 pub fn unwrap_f64(val: F64) {
-  val.val
-}
-
-/// Unwrap a V128Value into its underlying BitArray
-pub fn unwrap_v128(val: V128Value) {
   val.val
 }
 

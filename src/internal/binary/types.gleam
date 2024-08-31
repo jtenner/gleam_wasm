@@ -102,20 +102,20 @@ import internal/structure/types.{
   Limits, LocalGet, LocalIDX, LocalSet, LocalTee, Locals, Loop, MemArg, MemIDX,
   MemType, MemoryCopy, MemoryFill, MemoryGrow, MemoryInit, MemorySize,
   NoExternHeapType, NoExternRefType, NoFuncHeapType, NoFuncRefType, NoneHeapType,
-  NoneRefType, Nop, RecType, RefAsNonNull, RefCast, RefEq, RefFunc, RefI31,
-  RefIsNull, RefNull, RefTest, RefTypeValType, Return, ReturnCall,
-  ReturnCallIndirect, ReturnCallRef, Select, SelectT, StructCompositeType,
-  StructGet, StructGetS, StructGetU, StructHeapType, StructNew, StructNewDefault,
-  StructRefType, StructSet, StructType, SubType, TableCopy, TableFill, TableGet,
-  TableGrow, TableIDX, TableInit, TableSet, TableSize, TableType, TypeIDX,
-  Unreachable, V128And, V128AndNot, V128AnyTrue, V128Bitselect, V128Const,
-  V128Load, V128Load16Lane, V128Load16Splat, V128Load16x4S, V128Load16x4U,
-  V128Load32Lane, V128Load32Splat, V128Load32Zero, V128Load32x2S, V128Load32x2U,
-  V128Load64Lane, V128Load64Splat, V128Load64Zero, V128Load8Lane, V128Load8Splat,
-  V128Load8x8S, V128Load8x8U, V128Not, V128Or, V128Store, V128Store16Lane,
-  V128Store32Lane, V128Store64Lane, V128Store8Lane, V128ValType, V128Xor,
-  ValTypeBlockType, ValTypeStorageType, Var, VoidBlockType, lane_16, lane_2,
-  lane_4, lane_8,
+  NoneRefType, Nop, RecType, RefAsNonNull, RefCast, RefCastNullable, RefEq,
+  RefFunc, RefI31, RefIsNull, RefNull, RefTest, RefTestNullable, RefTypeValType,
+  Return, ReturnCall, ReturnCallIndirect, ReturnCallRef, Select, SelectT,
+  StructCompositeType, StructGet, StructGetS, StructGetU, StructHeapType,
+  StructNew, StructNewDefault, StructRefType, StructSet, StructType, SubType,
+  TableCopy, TableFill, TableGet, TableGrow, TableIDX, TableInit, TableSet,
+  TableSize, TableType, TypeIDX, Unreachable, V128And, V128AndNot, V128AnyTrue,
+  V128Bitselect, V128Const, V128Load, V128Load16Lane, V128Load16Splat,
+  V128Load16x4S, V128Load16x4U, V128Load32Lane, V128Load32Splat, V128Load32Zero,
+  V128Load32x2S, V128Load32x2U, V128Load64Lane, V128Load64Splat, V128Load64Zero,
+  V128Load8Lane, V128Load8Splat, V128Load8x8S, V128Load8x8U, V128Not, V128Or,
+  V128Store, V128Store16Lane, V128Store32Lane, V128Store64Lane, V128Store8Lane,
+  V128ValType, V128Xor, ValTypeBlockType, ValTypeStorageType, Var, VoidBlockType,
+  lane_16, lane_2, lane_4, lane_8,
 }
 import pprint
 import simplifile
@@ -1215,6 +1215,122 @@ pub fn encode_instruction(
     I64Extend8S -> Ok(builder |> bytes_builder.append(<<0xC2>>))
     I64Extend16S -> Ok(builder |> bytes_builder.append(<<0xC3>>))
     I64Extend32S -> Ok(builder |> bytes_builder.append(<<0xC4>>))
+    I32TruncSatF32S -> Ok(builder |> bytes_builder.append(<<0xFC, 0>>))
+    I32TruncSatF32U -> Ok(builder |> bytes_builder.append(<<0xFC, 1>>))
+    I32TruncSatF64S -> Ok(builder |> bytes_builder.append(<<0xFC, 2>>))
+    I32TruncSatF64U -> Ok(builder |> bytes_builder.append(<<0xFC, 3>>))
+    I64TruncSatF32S -> Ok(builder |> bytes_builder.append(<<0xFC, 4>>))
+    I64TruncSatF32U -> Ok(builder |> bytes_builder.append(<<0xFC, 5>>))
+    I64TruncSatF64S -> Ok(builder |> bytes_builder.append(<<0xFC, 6>>))
+    I64TruncSatF64U -> Ok(builder |> bytes_builder.append(<<0xFC, 7>>))
+    TableInit(elem_idx, table_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFC, 12>>)
+        |> encode_elem_idx(elem_idx),
+      )
+      builder |> encode_table_idx(table_idx)
+    }
+    ElemDrop(elem_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFC, 13>>)
+      |> encode_elem_idx(elem_idx)
+
+    MemoryInit(data_idx) -> {
+      use builder <- result.map(
+        builder
+        |> bytes_builder.append(<<0xFC, 8>>)
+        |> encode_data_idx(data_idx),
+      )
+      builder |> bytes_builder.append(<<0x00>>)
+    }
+    DataDrop(data_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFC, 9>>)
+      |> encode_data_idx(data_idx)
+    TableCopy(table_idx1, table_idx2) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFC, 14>>)
+        |> encode_table_idx(table_idx1),
+      )
+      builder |> encode_table_idx(table_idx2)
+    }
+    TableGrow(table_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFC, 15>>)
+      |> encode_table_idx(table_idx)
+    TableSize(table_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFC, 16>>)
+      |> encode_table_idx(table_idx)
+    TableFill(table_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFC, 17>>)
+      |> encode_table_idx(table_idx)
+    MemoryCopy -> Ok(builder |> bytes_builder.append(<<0xFC, 10, 0x00, 0x00>>))
+    MemoryFill -> Ok(builder |> bytes_builder.append(<<0xFC, 11, 0x00>>))
+    I32x4ExtaddPairwiseI16x8S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 126>>))
+    I32x4ExtaddPairwiseI16x8U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 127>>))
+    I32x4Abs -> Ok(builder |> bytes_builder.append(<<0xFD, 160, 1>>))
+    I32x4Neg -> Ok(builder |> bytes_builder.append(<<0xFD, 161, 1>>))
+    I32x4AllTrue -> Ok(builder |> bytes_builder.append(<<0xFD, 163, 1>>))
+    I32x4Bitmask -> Ok(builder |> bytes_builder.append(<<0xFD, 164, 1>>))
+    I32x4ExtendLowI16x8S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 167, 1>>))
+    I32x4ExtendHighI16x8S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 168, 1>>))
+    I32x4ExtendLowI16x8U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 169, 1>>))
+    I32x4ExtendHighI16x8U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 170, 1>>))
+    I32x4Shl -> Ok(builder |> bytes_builder.append(<<0xFD, 171, 1>>))
+    I32x4ShrS -> Ok(builder |> bytes_builder.append(<<0xFD, 172, 1>>))
+    I32x4ShrU -> Ok(builder |> bytes_builder.append(<<0xFD, 173, 1>>))
+    I32x4Add -> Ok(builder |> bytes_builder.append(<<0xFD, 174, 1>>))
+    I32x4Sub -> Ok(builder |> bytes_builder.append(<<0xFD, 177, 1>>))
+    I32x4Mul -> Ok(builder |> bytes_builder.append(<<0xFD, 181, 1>>))
+    I32x4MinS -> Ok(builder |> bytes_builder.append(<<0xFD, 182, 1>>))
+    I32x4MinU -> Ok(builder |> bytes_builder.append(<<0xFD, 183, 1>>))
+    I32x4MaxS -> Ok(builder |> bytes_builder.append(<<0xFD, 184, 1>>))
+    I32x4MaxU -> Ok(builder |> bytes_builder.append(<<0xFD, 185, 1>>))
+    I32x4DotI16x8S -> Ok(builder |> bytes_builder.append(<<0xFD, 186, 1>>))
+    I32x4ExtmulLowI16x8S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 188, 1>>))
+    I32x4ExtmulHighI16x8S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 189, 1>>))
+    I32x4ExtmulLowI16x8U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 190, 1>>))
+    I32x4ExtmulHighI16x8U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 191, 1>>))
+    I64x2Abs -> Ok(builder |> bytes_builder.append(<<0xFD, 192, 1>>))
+    I64x2Neg -> Ok(builder |> bytes_builder.append(<<0xFD, 193, 1>>))
+    I64x2AllTrue -> Ok(builder |> bytes_builder.append(<<0xFD, 195, 1>>))
+    I64x2Bitmask -> Ok(builder |> bytes_builder.append(<<0xFD, 196, 1>>))
+    I64x2ExtendLowI32x4S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 199, 1>>))
+    I64x2ExtendHighI32x4S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 200, 1>>))
+    I64x2ExtendLowI32x4U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 201, 1>>))
+    I64x2ExtendHighI32x4U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 202, 1>>))
+    I64x2Shl -> Ok(builder |> bytes_builder.append(<<0xFD, 203, 1>>))
+    I64x2ShrS -> Ok(builder |> bytes_builder.append(<<0xFD, 204, 1>>))
+    I64x2ShrU -> Ok(builder |> bytes_builder.append(<<0xFD, 205, 1>>))
+    I64x2Add -> Ok(builder |> bytes_builder.append(<<0xFD, 206, 1>>))
+    I64x2Sub -> Ok(builder |> bytes_builder.append(<<0xFD, 209, 1>>))
+    I64x2Mul -> Ok(builder |> bytes_builder.append(<<0xFD, 213, 1>>))
+    I64x2ExtmulLowI32x4S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 220, 1>>))
+    I64x2ExtmulHighI32x4S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 221, 1>>))
+    I64x2ExtmulLowI32x4U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 222, 1>>))
+    I64x2ExtmulHighI32x4U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 223, 1>>))
     F32x4Abs -> Ok(builder |> bytes_builder.append(<<0xFD, 224, 1>>))
     F32x4Neg -> Ok(builder |> bytes_builder.append(<<0xFD, 225, 1>>))
     F32x4Sqrt -> Ok(builder |> bytes_builder.append(<<0xFD, 227, 1>>))
@@ -1253,6 +1369,183 @@ pub fn encode_instruction(
       builder
       |> bytes_builder.append(<<0x1A>>)
       |> Ok
+    // 0xFB 0 𝑥:typeidx -> struct.new 𝑥
+    StructNew(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 0>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 1 𝑥:typeidx -> struct.new_default 𝑥
+    StructNewDefault(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 1>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 2 𝑥:typeidx 𝑦:fieldidx -> struct.get 𝑥 𝑦
+    StructGet(type_idx, field_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 2>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_field_idx(field_idx)
+    }
+    // 0xFB 3 𝑥:typeidx 𝑦:fieldidx -> struct.get_s 𝑥 𝑦
+    StructGetS(type_idx, field_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 3>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_field_idx(field_idx)
+    }
+    // 0xFB 4 𝑥:typeidx 𝑦:fieldidx -> struct.get_u 𝑥 𝑦
+    StructGetU(type_idx, field_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 4>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_field_idx(field_idx)
+    }
+    // 0xFB 5 𝑥:typeidx 𝑦:fieldidx -> struct.set 𝑥 𝑦
+    StructSet(type_idx, field_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 5>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_field_idx(field_idx)
+    }
+    // 0xFB 6 𝑥:typeidx -> array.new 𝑥
+    ArrayNew(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 6>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 7 𝑥:typeidx -> array.new_default 𝑥
+    ArrayNewDefault(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 7>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 8 𝑥:typeidx 𝑛:u32 -> array.new_fixed 𝑥 𝑛
+    ArrayNewFixed(type_idx, size) -> {
+      use builder <- result.map(
+        builder
+        |> bytes_builder.append(<<0xFB, 8>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_u32(size)
+    }
+    // 0xFB 9 𝑥:typeidx 𝑦:dataidx -> array.new_data 𝑥 𝑦
+    ArrayNewData(type_idx, data_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 9>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_data_idx(data_idx)
+    }
+    // 0xFB 10 𝑥:typeidx 𝑦:elemidx -> array.new_elem 𝑥 𝑦
+    ArrayNewElem(type_idx, elem_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 10>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_elem_idx(elem_idx)
+    }
+    // 0xFB 11 𝑥:typeidx -> array.get 𝑥
+    ArrayGet(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 11>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 12 𝑥:typeidx -> array.get_s 𝑥
+    ArrayGetS(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 12>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 13 𝑥:typeidx -> array.get_u 𝑥
+    ArrayGetU(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 13>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 14 𝑥:typeidx -> array.set 𝑥
+    ArraySet(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 14>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 15 -> array_len
+    ArrayLen -> Ok(builder |> bytes_builder.append(<<0xFB, 15>>))
+    // 0xFB 16 𝑥:typeidx -> array.fill 𝑥
+    ArrayFill(type_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 16>>)
+      |> encode_type_idx(type_idx)
+    // 0xFB 17 𝑥:typeidx 𝑦:typeidx -> array.copy 𝑥 𝑦
+    ArrayCopy(type_idx1, type_idx2) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 17>>)
+        |> encode_type_idx(type_idx1),
+      )
+      builder
+      |> encode_type_idx(type_idx2)
+    }
+    // 0xFB 18 𝑥:typeidx 𝑦:dataidx -> array.init_data 𝑥 𝑦
+    ArrayInitData(type_idx, data_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 18>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_data_idx(data_idx)
+    }
+    // 0xFB 19 𝑥:typeidx 𝑦:elemidx -> array.init_elem 𝑥 𝑦
+    ArrayInitElem(type_idx, elem_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFB, 19>>)
+        |> encode_type_idx(type_idx),
+      )
+      builder
+      |> encode_elem_idx(elem_idx)
+    }
+    // 0xFB 20 ht:heaptype -> ref.test (ref ht)
+    RefTest(ht) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 20>>)
+      |> encode_heap_type(ht)
+    // 0xFB 21 ht:heaptype -> ref.test (ref null ht)
+    RefTestNullable(ht) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 21>>)
+      |> encode_heap_type(ht)
+    // 0xFB 22 ht:heaptype -> ref.cast (ref ht)
+    RefCast(ht) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 22>>)
+      |> encode_heap_type(ht)
+    // 0xFB 23 ht:heaptype -> ref.cast (ref null ht)
+    RefCastNullable(ht) ->
+      builder
+      |> bytes_builder.append(<<0xFB, 23>>)
+      |> encode_heap_type(ht)
+    // 0xFB 26 -> any_convert_extern
+    AnyConvertExtern -> Ok(builder |> bytes_builder.append(<<0xFB, 26>>))
+    // 0xFB 27 -> extern_convert_any
+    ExternConvertAny -> Ok(builder |> bytes_builder.append(<<0xFB, 27>>))
+    // 0xFB 28 -> ref_i31
+    RefI31 -> Ok(builder |> bytes_builder.append(<<0xFB, 28>>))
+    // 0xFB 29 -> i31_get_s
+    I31GetS -> Ok(builder |> bytes_builder.append(<<0xFB, 29>>))
+    // 0xFB 30 -> i31_get_u
+    I31GetU -> Ok(builder |> bytes_builder.append(<<0xFB, 30>>))
     BrOnCast(label_idx, rt1, rt2) -> {
       let ht1_nullable = types.ref_type_is_nullable(rt1)
       let ht2_nullable = types.ref_type_is_nullable(rt2)
@@ -1295,6 +1588,469 @@ pub fn encode_instruction(
       |> bytes_builder.append(<<0xD0>>)
       |> encode_heap_type(ht)
     RefIsNull -> Ok(builder |> bytes_builder.append(<<0xD1>>))
+    RefFunc(func_idx) ->
+      builder
+      |> bytes_builder.append(<<0xD2>>)
+      |> encode_func_idx(func_idx)
+    RefEq -> Ok(builder |> bytes_builder.append(<<0xD3>>))
+    RefAsNonNull -> Ok(builder |> bytes_builder.append(<<0xD4>>))
+    V128Load(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load8x8S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 1>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load8x8U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 2>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load16x4S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 3>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load16x4U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 4>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load32x2S(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 5>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load32x2U(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 6>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load8Splat(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 7>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load16Splat(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 8>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load32Splat(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 9>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load64Splat(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 10>>)
+      |> encode_mem_arg(mem_arg)
+    V128Store(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 11>>)
+      |> encode_mem_arg(mem_arg)
+    V128Const(v128_val) ->
+      Ok(
+        builder
+        |> bytes_builder.append(<<
+          0xFD,
+          12,
+          { v128_val |> numbers.unwrap_v128 }:bits,
+        >>),
+      )
+    I8x16Shuffle(
+      lane_0,
+      lane_1,
+      lane_2,
+      lane_3,
+      lane_4,
+      lane_5,
+      lane_6,
+      lane_7,
+      lane_8,
+      lane_9,
+      lane_10,
+      lane_11,
+      lane_12,
+      lane_13,
+      lane_14,
+      lane_15,
+    ) -> {
+      use builder <- result.try(
+        builder |> bytes_builder.append(<<0xFD, 13>>) |> encode_lane_16(lane_0),
+      )
+      use builder <- result.try(builder |> encode_lane_16(lane_1))
+      use builder <- result.try(builder |> encode_lane_16(lane_2))
+      use builder <- result.try(builder |> encode_lane_16(lane_3))
+      use builder <- result.try(builder |> encode_lane_16(lane_4))
+      use builder <- result.try(builder |> encode_lane_16(lane_5))
+      use builder <- result.try(builder |> encode_lane_16(lane_6))
+      use builder <- result.try(builder |> encode_lane_16(lane_7))
+      use builder <- result.try(builder |> encode_lane_16(lane_8))
+      use builder <- result.try(builder |> encode_lane_16(lane_9))
+      use builder <- result.try(builder |> encode_lane_16(lane_10))
+      use builder <- result.try(builder |> encode_lane_16(lane_11))
+      use builder <- result.try(builder |> encode_lane_16(lane_12))
+      use builder <- result.try(builder |> encode_lane_16(lane_13))
+      use builder <- result.try(builder |> encode_lane_16(lane_14))
+      builder |> encode_lane_16(lane_15)
+    }
+    I8x16Swizzle -> Ok(builder |> bytes_builder.append(<<0xFD, 14>>))
+    I8x16Splat -> Ok(builder |> bytes_builder.append(<<0xFD, 15>>))
+    I16x8Splat -> Ok(builder |> bytes_builder.append(<<0xFD, 16>>))
+    I32x4Splat -> Ok(builder |> bytes_builder.append(<<0xFD, 17>>))
+    I64x2Splat -> Ok(builder |> bytes_builder.append(<<0xFD, 18>>))
+    F32x4Splat -> Ok(builder |> bytes_builder.append(<<0xFD, 19>>))
+    F64x2Splat -> Ok(builder |> bytes_builder.append(<<0xFD, 20>>))
+    I8x16ExtractLaneS(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 21>>)
+      |> encode_lane_16(lane_idx)
+    I8x16ExtractLaneU(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 22>>)
+      |> encode_lane_16(lane_idx)
+    I8x16ReplaceLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 23>>)
+      |> encode_lane_16(lane_idx)
+    I16x8ExtractLaneS(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 24>>)
+      |> encode_lane_8(lane_idx)
+    I16x8ExtractLaneU(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 25>>)
+      |> encode_lane_8(lane_idx)
+    I16x8ReplaceLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 26>>)
+      |> encode_lane_8(lane_idx)
+    I32x4ExtractLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 27>>)
+      |> encode_lane_4(lane_idx)
+    I32x4ReplaceLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 28>>)
+      |> encode_lane_4(lane_idx)
+    I64x2ExtractLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 29>>)
+      |> encode_lane_2(lane_idx)
+    I64x2ReplaceLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 30>>)
+      |> encode_lane_2(lane_idx)
+    F32x4ExtractLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 31>>)
+      |> encode_lane_4(lane_idx)
+    F32x4ReplaceLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 32>>)
+      |> encode_lane_4(lane_idx)
+    F64x2ExtractLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 33>>)
+      |> encode_lane_2(lane_idx)
+    F64x2ReplaceLane(lane_idx) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 34>>)
+      |> encode_lane_2(lane_idx)
+    I8x16Eq -> Ok(builder |> bytes_builder.append(<<0xFD, 35>>))
+    I8x16Ne -> Ok(builder |> bytes_builder.append(<<0xFD, 36>>))
+    I8x16LtS -> Ok(builder |> bytes_builder.append(<<0xFD, 37>>))
+    I8x16LtU -> Ok(builder |> bytes_builder.append(<<0xFD, 38>>))
+    I8x16GtS -> Ok(builder |> bytes_builder.append(<<0xFD, 39>>))
+    I8x16GtU -> Ok(builder |> bytes_builder.append(<<0xFD, 40>>))
+    I8x16LeS -> Ok(builder |> bytes_builder.append(<<0xFD, 41>>))
+    I8x16LeU -> Ok(builder |> bytes_builder.append(<<0xFD, 42>>))
+    I8x16GeS -> Ok(builder |> bytes_builder.append(<<0xFD, 43>>))
+    I8x16GeU -> Ok(builder |> bytes_builder.append(<<0xFD, 44>>))
+    I16x8Eq -> Ok(builder |> bytes_builder.append(<<0xFD, 45>>))
+    I16x8Ne -> Ok(builder |> bytes_builder.append(<<0xFD, 46>>))
+    I16x8LtS -> Ok(builder |> bytes_builder.append(<<0xFD, 47>>))
+    I16x8LtU -> Ok(builder |> bytes_builder.append(<<0xFD, 48>>))
+    I16x8GtS -> Ok(builder |> bytes_builder.append(<<0xFD, 49>>))
+    I16x8GtU -> Ok(builder |> bytes_builder.append(<<0xFD, 50>>))
+    I16x8LeS -> Ok(builder |> bytes_builder.append(<<0xFD, 51>>))
+    I16x8LeU -> Ok(builder |> bytes_builder.append(<<0xFD, 52>>))
+    I16x8GeS -> Ok(builder |> bytes_builder.append(<<0xFD, 53>>))
+    I16x8GeU -> Ok(builder |> bytes_builder.append(<<0xFD, 54>>))
+    I32x4Eq -> Ok(builder |> bytes_builder.append(<<0xFD, 55>>))
+    I32x4Ne -> Ok(builder |> bytes_builder.append(<<0xFD, 56>>))
+    I32x4LtS -> Ok(builder |> bytes_builder.append(<<0xFD, 57>>))
+    I32x4LtU -> Ok(builder |> bytes_builder.append(<<0xFD, 58>>))
+    I32x4GtS -> Ok(builder |> bytes_builder.append(<<0xFD, 59>>))
+    I32x4GtU -> Ok(builder |> bytes_builder.append(<<0xFD, 60>>))
+    I32x4LeS -> Ok(builder |> bytes_builder.append(<<0xFD, 61>>))
+    I32x4LeU -> Ok(builder |> bytes_builder.append(<<0xFD, 62>>))
+    I32x4GeS -> Ok(builder |> bytes_builder.append(<<0xFD, 63>>))
+    I32x4GeU -> Ok(builder |> bytes_builder.append(<<0xFD, 64>>))
+    I64x2Eq -> Ok(builder |> bytes_builder.append(<<0xFD, 214, 1>>))
+    I64x2Ne -> Ok(builder |> bytes_builder.append(<<0xFD, 215, 1>>))
+    I64x2LtS -> Ok(builder |> bytes_builder.append(<<0xFD, 216, 1>>))
+    I64x2GtS -> Ok(builder |> bytes_builder.append(<<0xFD, 217, 1>>))
+    I64x2LeS -> Ok(builder |> bytes_builder.append(<<0xFD, 218, 1>>))
+    I64x2GeS -> Ok(builder |> bytes_builder.append(<<0xFD, 219, 1>>))
+    F32x4Eq -> Ok(builder |> bytes_builder.append(<<0xFD, 65>>))
+    F32x4Ne -> Ok(builder |> bytes_builder.append(<<0xFD, 66>>))
+    F32x4Lt -> Ok(builder |> bytes_builder.append(<<0xFD, 67>>))
+    F32x4Gt -> Ok(builder |> bytes_builder.append(<<0xFD, 68>>))
+    F32x4Le -> Ok(builder |> bytes_builder.append(<<0xFD, 69>>))
+    F32x4Ge -> Ok(builder |> bytes_builder.append(<<0xFD, 70>>))
+    F64x2Eq -> Ok(builder |> bytes_builder.append(<<0xFD, 71>>))
+    F64x2Ne -> Ok(builder |> bytes_builder.append(<<0xFD, 72>>))
+    F64x2Lt -> Ok(builder |> bytes_builder.append(<<0xFD, 73>>))
+    F64x2Gt -> Ok(builder |> bytes_builder.append(<<0xFD, 74>>))
+    F64x2Le -> Ok(builder |> bytes_builder.append(<<0xFD, 75>>))
+    F64x2Ge -> Ok(builder |> bytes_builder.append(<<0xFD, 76>>))
+    V128Not -> Ok(builder |> bytes_builder.append(<<0xFD, 77>>))
+    V128And -> Ok(builder |> bytes_builder.append(<<0xFD, 78>>))
+    V128AndNot -> Ok(builder |> bytes_builder.append(<<0xFD, 79>>))
+    V128Or -> Ok(builder |> bytes_builder.append(<<0xFD, 80>>))
+    V128Xor -> Ok(builder |> bytes_builder.append(<<0xFD, 81>>))
+    V128Bitselect -> Ok(builder |> bytes_builder.append(<<0xFD, 82>>))
+    V128AnyTrue -> Ok(builder |> bytes_builder.append(<<0xFD, 83>>))
+    V128Load8Lane(mem_arg, lane_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFD, 84>>)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder
+      |> encode_lane_16(lane_idx)
+    }
+
+    V128Load16Lane(mem_arg, lane_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFD, 85>>)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder
+      |> encode_lane_8(lane_idx)
+    }
+    V128Load32Lane(mem_arg, lane_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFD, 86>>)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder
+      |> encode_lane_4(lane_idx)
+    }
+    V128Load64Lane(mem_arg, lane_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFD, 87>>)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder
+      |> encode_lane_2(lane_idx)
+    }
+    V128Store8Lane(mem_arg, lane_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFD, 88>>)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder
+      |> encode_lane_16(lane_idx)
+    }
+    V128Store16Lane(mem_arg, lane_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFD, 89>>)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder
+      |> encode_lane_8(lane_idx)
+    }
+    V128Store32Lane(mem_arg, lane_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFD, 90>>)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder
+      |> encode_lane_4(lane_idx)
+    }
+    V128Store64Lane(mem_arg, lane_idx) -> {
+      use builder <- result.try(
+        builder
+        |> bytes_builder.append(<<0xFD, 91>>)
+        |> encode_mem_arg(mem_arg),
+      )
+      builder
+      |> encode_lane_2(lane_idx)
+    }
+    V128Load32Zero(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 92>>)
+      |> encode_mem_arg(mem_arg)
+    V128Load64Zero(mem_arg) ->
+      builder
+      |> bytes_builder.append(<<0xFD, 93>>)
+      |> encode_mem_arg(mem_arg)
+    F32x4DemoteF64x2Zero -> Ok(builder |> bytes_builder.append(<<0xFD, 94>>))
+    F64x2PromoteLowF32x4 -> Ok(builder |> bytes_builder.append(<<0xFD, 95>>))
+
+    I16x8ExtmulLowI8x16S ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0x9C, 0x01>>)
+      |> Ok
+    I16x8ExtmulHighI8x16S ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0x9D, 0x01>>)
+      |> Ok
+    I16x8ExtmulLowI8x16U ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0x9E, 0x01>>)
+      |> Ok
+    I16x8ExtmulHighI8x16U ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0x9F, 0x01>>)
+      |> Ok
+    I8x16Abs ->
+      builder
+      |> bytes_builder.append(<<0xFD, 96>>)
+      |> Ok
+    I8x16Neg ->
+      builder
+      |> bytes_builder.append(<<0xFD, 97>>)
+      |> Ok
+    I8x16Popcnt ->
+      builder
+      |> bytes_builder.append(<<0xFD, 98>>)
+      |> Ok
+    I8x16AllTrue ->
+      builder
+      |> bytes_builder.append(<<0xFD, 99>>)
+      |> Ok
+    I8x16Bitmask ->
+      builder
+      |> bytes_builder.append(<<0xFD, 100>>)
+      |> Ok
+    I8x16NarrowI16x8S ->
+      builder
+      |> bytes_builder.append(<<0xFD, 101>>)
+      |> Ok
+    I8x16NarrowI16x8U ->
+      builder
+      |> bytes_builder.append(<<0xFD, 102>>)
+      |> Ok
+    I8x16Shl ->
+      builder
+      |> bytes_builder.append(<<0xFD, 107>>)
+      |> Ok
+    I8x16ShrS ->
+      builder
+      |> bytes_builder.append(<<0xFD, 108>>)
+      |> Ok
+    I8x16ShrU ->
+      builder
+      |> bytes_builder.append(<<0xFD, 109>>)
+      |> Ok
+    I8x16Add ->
+      builder
+      |> bytes_builder.append(<<0xFD, 110>>)
+      |> Ok
+    I8x16AddSatS ->
+      builder
+      |> bytes_builder.append(<<0xFD, 111>>)
+      |> Ok
+    I8x16AddSatU ->
+      builder
+      |> bytes_builder.append(<<0xFD, 112>>)
+      |> Ok
+    I8x16Sub ->
+      builder
+      |> bytes_builder.append(<<0xFD, 113>>)
+      |> Ok
+    I8x16SubSatS ->
+      builder
+      |> bytes_builder.append(<<0xFD, 114>>)
+      |> Ok
+    I8x16SubSatU ->
+      builder
+      |> bytes_builder.append(<<0xFD, 115>>)
+      |> Ok
+    I8x16MinS ->
+      builder
+      |> bytes_builder.append(<<0xFD, 118>>)
+      |> Ok
+    I8x16MinU ->
+      builder
+      |> bytes_builder.append(<<0xFD, 119>>)
+      |> Ok
+    I8x16MaxS ->
+      builder
+      |> bytes_builder.append(<<0xFD, 120>>)
+      |> Ok
+    I8x16MaxU ->
+      builder
+      |> bytes_builder.append(<<0xFD, 121>>)
+      |> Ok
+    I8x16AvgrU ->
+      builder
+      |> bytes_builder.append(<<0xFD, 123>>)
+      |> Ok
+    I16x8AvgrU ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0x9B, 0x01>>)
+      |> Ok
+    I16x8MaxU ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0x99, 0x01>>)
+      |> Ok
+    I16x8MaxS ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0x98, 0x01>>)
+      |> Ok
+    I16x8ExtaddPairwiseI8x16S ->
+      builder
+      |> bytes_builder.append(<<0xFD, 124>>)
+      |> Ok
+    I16x8ExtaddPairwiseI8x16U ->
+      builder
+      |> bytes_builder.append(<<0xFD, 125>>)
+      |> Ok
+    I16x8Abs ->
+      builder
+      |> bytes_builder.append(<<0xFD, 128, 0x01>>)
+      |> Ok
+    I16x8Neg ->
+      builder
+      |> bytes_builder.append(<<0xFD, 0x81, 0x01>>)
+      |> Ok
+    I16x8Q15mulrSatS -> Ok(builder |> bytes_builder.append(<<0xFD, 130, 1>>))
+    I16x8AllTrue -> Ok(builder |> bytes_builder.append(<<0xFD, 131, 1>>))
+    I16x8Bitmask -> Ok(builder |> bytes_builder.append(<<0xFD, 132, 1>>))
+    I16x8NarrowI32x4S -> Ok(builder |> bytes_builder.append(<<0xFD, 133, 1>>))
+    I16x8NarrowI32x4U -> Ok(builder |> bytes_builder.append(<<0xFD, 134, 1>>))
+    I16x8ExtendLowI8x16S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 135, 1>>))
+    I16x8ExtendHighI8x16S ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 136, 1>>))
+    I16x8ExtendLowI8x16U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 137, 1>>))
+    I16x8ExtendHighI8x16U ->
+      Ok(builder |> bytes_builder.append(<<0xFD, 138, 1>>))
+    I16x8Shl -> Ok(builder |> bytes_builder.append(<<0xFD, 139, 1>>))
+    I16x8ShrS -> Ok(builder |> bytes_builder.append(<<0xFD, 140, 1>>))
+    I16x8ShrU -> Ok(builder |> bytes_builder.append(<<0xFD, 141, 1>>))
+    I16x8Add -> Ok(builder |> bytes_builder.append(<<0xFD, 142, 1>>))
+    I16x8AddSatS -> Ok(builder |> bytes_builder.append(<<0xFD, 143, 1>>))
+    I16x8AddSatU -> Ok(builder |> bytes_builder.append(<<0xFD, 144, 1>>))
+    I16x8Sub -> Ok(builder |> bytes_builder.append(<<0xFD, 145, 1>>))
+    I16x8SubSatS -> Ok(builder |> bytes_builder.append(<<0xFD, 146, 1>>))
+    I16x8SubSatU -> Ok(builder |> bytes_builder.append(<<0xFD, 147, 1>>))
+    I16x8Mul -> Ok(builder |> bytes_builder.append(<<0xFD, 149, 1>>))
+    I16x8MinS -> Ok(builder |> bytes_builder.append(<<0xFD, 150, 1>>))
+    I16x8MinU -> Ok(builder |> bytes_builder.append(<<0xFD, 151, 1>>))
+    F32x4Ceil -> Ok(builder |> bytes_builder.append(<<0xFD, 103>>))
+    F32x4Floor -> Ok(builder |> bytes_builder.append(<<0xFD, 104>>))
+    F32x4Trunc -> Ok(builder |> bytes_builder.append(<<0xFD, 105>>))
+    F32x4Nearest -> Ok(builder |> bytes_builder.append(<<0xFD, 106>>))
+    F64x2Ceil -> Ok(builder |> bytes_builder.append(<<0xFD, 116>>))
+    F64x2Floor -> Ok(builder |> bytes_builder.append(<<0xFD, 117>>))
+    F64x2Trunc -> Ok(builder |> bytes_builder.append(<<0xFD, 122>>))
+    F64x2Nearest -> Ok(builder |> bytes_builder.append(<<0xFD, 148, 1>>))
     inst -> {
       let name = pprint.format(inst)
       Error("Instruction not implemented: " <> name)
@@ -1643,6 +2399,12 @@ pub fn decode_instruction(
       #(RefNull(heap_type), rest)
     }
     <<0xD1, rest:bits>> -> Ok(#(RefIsNull, rest))
+    <<0xD2, rest:bits>> -> {
+      use #(func_idx, rest) <- result.map(decode_func_idx(rest))
+      #(RefFunc(func_idx), rest)
+    }
+    <<0xD3, rest:bits>> -> Ok(#(RefEq, rest))
+    <<0xD4, rest:bits>> -> Ok(#(RefAsNonNull, rest))
     <<0xD5, rest:bits>> -> {
       use #(label_idx, rest) <- result.map(decode_label_idx(rest))
       #(BrOnNull(label_idx), rest)
@@ -1655,6 +2417,137 @@ pub fn decode_instruction(
       use #(inst_id, rest) <- result.try(decode_u32(rest))
       let inst_id = inst_id |> unwrap_u32
       case inst_id {
+        0 -> {
+          // 𝑥:typeidx -> struct.new 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(StructNew(type_idx), rest)
+        }
+        1 -> {
+          // 𝑥:typeidx -> struct.new_default 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(StructNewDefault(type_idx), rest)
+        }
+        2 -> {
+          // 𝑥:typeidx 𝑦:fieldidx -> struct.get 𝑥 𝑦
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(field_idx, rest) <- result.map(decode_field_idx(rest))
+          #(StructGet(type_idx, field_idx), rest)
+        }
+        3 -> {
+          // 𝑥:typeidx 𝑦:fieldidx -> struct.get_s 𝑥 𝑦
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(field_idx, rest) <- result.map(decode_field_idx(rest))
+          #(StructGetS(type_idx, field_idx), rest)
+        }
+        4 -> {
+          // 𝑥:typeidx 𝑦:fieldidx -> struct.get_u 𝑥 𝑦
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(field_idx, rest) <- result.map(decode_field_idx(rest))
+          #(StructGetU(type_idx, field_idx), rest)
+        }
+        5 -> {
+          // 𝑥:typeidx 𝑦:fieldidx -> struct.set 𝑥 𝑦
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(field_idx, rest) <- result.map(decode_field_idx(rest))
+          #(StructSet(type_idx, field_idx), rest)
+        }
+        6 -> {
+          // 𝑥:typeidx -> array.new 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(ArrayNew(type_idx), rest)
+        }
+        7 -> {
+          // 𝑥:typeidx -> array.new_default 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(ArrayNewDefault(type_idx), rest)
+        }
+        8 -> {
+          // 𝑥:typeidx 𝑛:u32 -> array.new_fixed 𝑥 𝑛
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(len, rest) <- result.map(decode_u32(rest))
+          #(ArrayNewFixed(type_idx, len), rest)
+        }
+        9 -> {
+          // 𝑥:typeidx 𝑦:dataidx -> array.new_data 𝑥 𝑦
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(data_idx, rest) <- result.map(decode_data_idx(rest))
+          #(ArrayNewData(type_idx, data_idx), rest)
+        }
+        10 -> {
+          // 𝑥:typeidx 𝑦:elemidx -> array.new_elem 𝑥 𝑦
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(elem_idx, rest) <- result.map(decode_elem_idx(rest))
+          #(ArrayNewElem(type_idx, elem_idx), rest)
+        }
+        11 -> {
+          // 𝑥:typeidx -> array.get 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(ArrayGet(type_idx), rest)
+        }
+        12 -> {
+          // 𝑥:typeidx -> array.get_s 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(ArrayGetS(type_idx), rest)
+        }
+        13 -> {
+          // 𝑥:typeidx -> array.get_u 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(ArrayGetU(type_idx), rest)
+        }
+        14 -> {
+          // 𝑥:typeidx -> array.set 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(ArraySet(type_idx), rest)
+        }
+        15 -> Ok(#(ArrayLen, rest))
+        16 -> {
+          // 𝑥:typeidx -> array.fill 𝑥
+          use #(type_idx, rest) <- result.map(decode_type_idx(rest))
+          #(ArrayFill(type_idx), rest)
+        }
+        17 -> {
+          // 𝑥:typeidx 𝑦:typeidx -> array.copy 𝑥 𝑦
+          use #(type_idx1, rest) <- result.try(decode_type_idx(rest))
+          use #(type_idx2, rest) <- result.map(decode_type_idx(rest))
+          #(ArrayCopy(type_idx1, type_idx2), rest)
+        }
+        18 -> {
+          // 𝑥:typeidx 𝑦:dataidx -> array.init_data 𝑥 𝑦
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(data_idx, rest) <- result.map(decode_data_idx(rest))
+          #(ArrayInitData(type_idx, data_idx), rest)
+        }
+        19 -> {
+          // 𝑥:typeidx 𝑦:elemidx -> array.init_elem 𝑥 𝑦
+          use #(type_idx, rest) <- result.try(decode_type_idx(rest))
+          use #(elem_idx, rest) <- result.map(decode_elem_idx(rest))
+          #(ArrayInitElem(type_idx, elem_idx), rest)
+        }
+        20 -> {
+          // ht:heaptype -> ref.test (ref ht)
+          use #(ht, rest) <- result.map(decode_heap_type(rest))
+          #(RefTest(ht), rest)
+        }
+        21 -> {
+          // ht:heaptype -> ref.test (ref null ht)
+          use #(ht, rest) <- result.map(decode_heap_type(rest))
+          #(RefTestNullable(ht), rest)
+        }
+        22 -> {
+          // ht:heaptype -> ref.cast (ref ht)
+          use #(ht, rest) <- result.map(decode_heap_type(rest))
+          #(RefCast(ht), rest)
+        }
+        23 -> {
+          // ht:heaptype -> ref.cast (ref null ht)
+          use #(ht, rest) <- result.map(decode_heap_type(rest))
+          #(RefCastNullable(ht), rest)
+        }
+        26 -> Ok(#(AnyConvertExtern, rest))
+        27 -> Ok(#(ExternConvertAny, rest))
+        28 -> Ok(#(RefI31, rest))
+        29 -> Ok(#(I31GetS, rest))
+        30 -> Ok(#(I31GetU, rest))
         24 -> {
           // br_on_cast [cast_flags] [label_idx] [heap_type] [heap_type]
           use #(cast_flags, rest) <- result.try(decode_cast_flags(rest))
@@ -1691,10 +2584,443 @@ pub fn decode_instruction(
           )
       }
     }
+    <<0xFC, rest:bits>> -> {
+      use #(inst_id, rest) <- result.try(decode_u32(rest))
+      let inst_id = inst_id |> unwrap_u32
+      case inst_id {
+        0 -> Ok(#(I32TruncSatF32S, rest))
+        1 -> Ok(#(I32TruncSatF32U, rest))
+        2 -> Ok(#(I32TruncSatF64S, rest))
+        3 -> Ok(#(I32TruncSatF64U, rest))
+        4 -> Ok(#(I64TruncSatF32S, rest))
+        5 -> Ok(#(I64TruncSatF32U, rest))
+        6 -> Ok(#(I64TruncSatF64S, rest))
+        7 -> Ok(#(I64TruncSatF64U, rest))
+        8 -> {
+          use #(data_idx, rest) <- result.try(decode_data_idx(rest))
+          use #(_, rest) <- result.map(rest |> common.expect_decode_byte(0x00))
+          #(MemoryInit(data_idx), rest)
+        }
+        9 -> {
+          use #(data_idx, rest) <- result.map(decode_data_idx(rest))
+          #(DataDrop(data_idx), rest)
+        }
+        10 -> {
+          use rest <- result.map(
+            rest |> common.expect_decode_bytes(<<0x00, 0x00>>),
+          )
+          #(MemoryCopy, rest)
+        }
+        11 -> {
+          use #(_, rest) <- result.map(rest |> common.expect_decode_byte(0x00))
+          #(MemoryFill, rest)
+        }
+        // 12 elemidx 𝑥:tableidx ⇒ table.init 𝑥 𝑦
+        12 -> {
+          use #(elem_idx, rest) <- result.try(decode_elem_idx(rest))
+          use #(table_idx, rest) <- result.map(rest |> decode_table_idx)
+          #(TableInit(elem_idx, table_idx), rest)
+        }
+        // 13 elemidx ⇒ elem.drop 𝑥
+        13 -> {
+          use #(elem_idx, rest) <- result.map(decode_elem_idx(rest))
+          #(ElemDrop(elem_idx), rest)
+        }
+        // 14 tableidx 𝑦:tableidx ⇒ table.copy 𝑥 𝑦
+        14 -> {
+          use #(table_idx, rest) <- result.try(decode_table_idx(rest))
+          use #(table_idx2, rest) <- result.map(rest |> decode_table_idx)
+          #(TableCopy(table_idx, table_idx2), rest)
+        }
+        // 15 tableidx ⇒ table.grow 𝑥
+        15 -> {
+          use #(table_idx, rest) <- result.map(rest |> decode_table_idx)
+          #(TableGrow(table_idx), rest)
+        }
+        // 16 tableidx ⇒ table.size 𝑥
+        16 -> {
+          use #(table_idx, rest) <- result.map(rest |> decode_table_idx)
+          #(TableSize(table_idx), rest)
+        }
+        // 17 tableidx ⇒ table.fill 𝑥
+        17 -> {
+          use #(table_idx, rest) <- result.map(rest |> decode_table_idx)
+          #(TableFill(table_idx), rest)
+        }
+        _ ->
+          Error(
+            "Invalid saturation truncation instruction 0xFC 0x"
+            <> { inst_id |> int.to_base16 },
+          )
+      }
+    }
     <<0xFD, rest:bits>> -> {
       use #(inst_id, rest) <- result.try(decode_u32(rest))
       let inst_id = inst_id |> unwrap_u32
       case inst_id {
+        0 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load(mem_arg), rest)
+        }
+        1 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load8x8S(mem_arg), rest)
+        }
+        2 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load8x8U(mem_arg), rest)
+        }
+        3 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load16x4S(mem_arg), rest)
+        }
+        4 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load16x4U(mem_arg), rest)
+        }
+        5 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load32x2S(mem_arg), rest)
+        }
+        6 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load32x2U(mem_arg), rest)
+        }
+        7 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load8Splat(mem_arg), rest)
+        }
+        8 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load16Splat(mem_arg), rest)
+        }
+        9 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load32Splat(mem_arg), rest)
+        }
+        10 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Load64Splat(mem_arg), rest)
+        }
+        11 -> {
+          use #(mem_arg, rest) <- result.map(rest |> decode_mem_arg)
+          #(V128Store(mem_arg), rest)
+        }
+        12 -> {
+          use #(v128_val, rest) <- result.map(rest |> values.decode_v128)
+          #(V128Const(v128_val), rest)
+        }
+        13 -> {
+          use #(lane_0, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_1, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_2, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_3, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_4, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_5, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_6, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_7, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_8, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_9, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_10, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_11, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_12, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_13, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_14, rest) <- result.try(rest |> decode_lane_16)
+          use #(lane_15, rest) <- result.map(rest |> decode_lane_16)
+          #(
+            I8x16Shuffle(
+              lane_0,
+              lane_1,
+              lane_2,
+              lane_3,
+              lane_4,
+              lane_5,
+              lane_6,
+              lane_7,
+              lane_8,
+              lane_9,
+              lane_10,
+              lane_11,
+              lane_12,
+              lane_13,
+              lane_14,
+              lane_15,
+            ),
+            rest,
+          )
+        }
+        14 -> Ok(#(I8x16Swizzle, rest))
+        15 -> Ok(#(I8x16Splat, rest))
+        16 -> Ok(#(I16x8Splat, rest))
+        17 -> Ok(#(I32x4Splat, rest))
+        18 -> Ok(#(I64x2Splat, rest))
+        19 -> Ok(#(F32x4Splat, rest))
+        20 -> Ok(#(F64x2Splat, rest))
+        21 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_16(rest))
+          #(I8x16ExtractLaneS(lane_idx), rest)
+        }
+        22 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_16(rest))
+          #(I8x16ExtractLaneU(lane_idx), rest)
+        }
+        23 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_16(rest))
+          #(I8x16ReplaceLane(lane_idx), rest)
+        }
+        24 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_8(rest))
+          #(I16x8ExtractLaneS(lane_idx), rest)
+        }
+        25 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_8(rest))
+          #(I16x8ExtractLaneU(lane_idx), rest)
+        }
+        26 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_8(rest))
+          #(I16x8ReplaceLane(lane_idx), rest)
+        }
+        27 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_4(rest))
+          #(I32x4ExtractLane(lane_idx), rest)
+        }
+        28 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_4(rest))
+          #(I32x4ReplaceLane(lane_idx), rest)
+        }
+        29 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_2(rest))
+          #(I64x2ExtractLane(lane_idx), rest)
+        }
+        30 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_2(rest))
+          #(I64x2ReplaceLane(lane_idx), rest)
+        }
+        31 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_4(rest))
+          #(F32x4ExtractLane(lane_idx), rest)
+        }
+        32 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_4(rest))
+          #(F32x4ReplaceLane(lane_idx), rest)
+        }
+        33 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_2(rest))
+          #(F64x2ExtractLane(lane_idx), rest)
+        }
+        34 -> {
+          use #(lane_idx, rest) <- result.map(decode_lane_2(rest))
+          #(F64x2ReplaceLane(lane_idx), rest)
+        }
+        35 -> Ok(#(I8x16Eq, rest))
+        36 -> Ok(#(I8x16Ne, rest))
+        37 -> Ok(#(I8x16LtS, rest))
+        38 -> Ok(#(I8x16LtU, rest))
+        39 -> Ok(#(I8x16GtS, rest))
+        40 -> Ok(#(I8x16GtU, rest))
+        41 -> Ok(#(I8x16LeS, rest))
+        42 -> Ok(#(I8x16LeU, rest))
+        43 -> Ok(#(I8x16GeS, rest))
+        44 -> Ok(#(I8x16GeU, rest))
+        45 -> Ok(#(I16x8Eq, rest))
+        46 -> Ok(#(I16x8Ne, rest))
+        47 -> Ok(#(I16x8LtS, rest))
+        48 -> Ok(#(I16x8LtU, rest))
+        49 -> Ok(#(I16x8GtS, rest))
+        50 -> Ok(#(I16x8GtU, rest))
+        51 -> Ok(#(I16x8LeS, rest))
+        52 -> Ok(#(I16x8LeU, rest))
+        53 -> Ok(#(I16x8GeS, rest))
+        54 -> Ok(#(I16x8GeU, rest))
+        55 -> Ok(#(I32x4Eq, rest))
+        56 -> Ok(#(I32x4Ne, rest))
+        57 -> Ok(#(I32x4LtS, rest))
+        58 -> Ok(#(I32x4LtU, rest))
+        59 -> Ok(#(I32x4GtS, rest))
+        60 -> Ok(#(I32x4GtU, rest))
+        61 -> Ok(#(I32x4LeS, rest))
+        62 -> Ok(#(I32x4LeU, rest))
+        63 -> Ok(#(I32x4GeS, rest))
+        64 -> Ok(#(I32x4GeU, rest))
+        214 -> Ok(#(I64x2Eq, rest))
+        215 -> Ok(#(I64x2Ne, rest))
+        216 -> Ok(#(I64x2LtS, rest))
+        217 -> Ok(#(I64x2GtS, rest))
+        218 -> Ok(#(I64x2LeS, rest))
+        219 -> Ok(#(I64x2GeS, rest))
+        65 -> Ok(#(F32x4Eq, rest))
+        66 -> Ok(#(F32x4Ne, rest))
+        67 -> Ok(#(F32x4Lt, rest))
+        68 -> Ok(#(F32x4Gt, rest))
+        69 -> Ok(#(F32x4Le, rest))
+        70 -> Ok(#(F32x4Ge, rest))
+        71 -> Ok(#(F64x2Eq, rest))
+        72 -> Ok(#(F64x2Ne, rest))
+        73 -> Ok(#(F64x2Lt, rest))
+        74 -> Ok(#(F64x2Gt, rest))
+        75 -> Ok(#(F64x2Le, rest))
+        76 -> Ok(#(F64x2Ge, rest))
+        77 -> Ok(#(V128Not, rest))
+        78 -> Ok(#(V128And, rest))
+        79 -> Ok(#(V128AndNot, rest))
+        80 -> Ok(#(V128Or, rest))
+        81 -> Ok(#(V128Xor, rest))
+        82 -> Ok(#(V128Bitselect, rest))
+        83 -> Ok(#(V128AnyTrue, rest))
+        84 -> {
+          use #(mem_arg, rest) <- result.try(decode_mem_arg(rest))
+          use #(lane_idx, rest) <- result.map(decode_lane_16(rest))
+          #(V128Load8Lane(mem_arg, lane_idx), rest)
+        }
+        85 -> {
+          use #(mem_arg, rest) <- result.try(decode_mem_arg(rest))
+          use #(lane_idx, rest) <- result.map(decode_lane_8(rest))
+          #(V128Load16Lane(mem_arg, lane_idx), rest)
+        }
+        86 -> {
+          use #(mem_arg, rest) <- result.try(decode_mem_arg(rest))
+          use #(lane_idx, rest) <- result.map(decode_lane_4(rest))
+          #(V128Load32Lane(mem_arg, lane_idx), rest)
+        }
+        87 -> {
+          use #(mem_arg, rest) <- result.try(decode_mem_arg(rest))
+          use #(lane_idx, rest) <- result.map(decode_lane_2(rest))
+          #(V128Load64Lane(mem_arg, lane_idx), rest)
+        }
+        88 -> {
+          use #(mem_arg, rest) <- result.try(decode_mem_arg(rest))
+          use #(lane_idx, rest) <- result.map(decode_lane_16(rest))
+          #(V128Store8Lane(mem_arg, lane_idx), rest)
+        }
+        89 -> {
+          use #(mem_arg, rest) <- result.try(decode_mem_arg(rest))
+          use #(lane_idx, rest) <- result.map(decode_lane_8(rest))
+          #(V128Store16Lane(mem_arg, lane_idx), rest)
+        }
+        90 -> {
+          use #(mem_arg, rest) <- result.try(decode_mem_arg(rest))
+          use #(lane_idx, rest) <- result.map(decode_lane_4(rest))
+          #(V128Store32Lane(mem_arg, lane_idx), rest)
+        }
+        91 -> {
+          use #(mem_arg, rest) <- result.try(decode_mem_arg(rest))
+          use #(lane_idx, rest) <- result.map(decode_lane_2(rest))
+          #(V128Store64Lane(mem_arg, lane_idx), rest)
+        }
+        92 -> {
+          use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+          #(V128Load32Zero(mem_arg), rest)
+        }
+        93 -> {
+          use #(mem_arg, rest) <- result.map(decode_mem_arg(rest))
+          #(V128Load64Zero(mem_arg), rest)
+        }
+        94 -> Ok(#(F32x4DemoteF64x2Zero, rest))
+        95 -> Ok(#(F64x2PromoteLowF32x4, rest))
+        96 -> Ok(#(I8x16Abs, rest))
+        97 -> Ok(#(I8x16Neg, rest))
+        98 -> Ok(#(I8x16Popcnt, rest))
+        99 -> Ok(#(I8x16AllTrue, rest))
+        100 -> Ok(#(I8x16Bitmask, rest))
+        101 -> Ok(#(I8x16NarrowI16x8S, rest))
+        102 -> Ok(#(I8x16NarrowI16x8U, rest))
+        103 -> Ok(#(F32x4Ceil, rest))
+        104 -> Ok(#(F32x4Floor, rest))
+        105 -> Ok(#(F32x4Trunc, rest))
+        106 -> Ok(#(F32x4Nearest, rest))
+        116 -> Ok(#(F64x2Ceil, rest))
+        117 -> Ok(#(F64x2Floor, rest))
+        122 -> Ok(#(F64x2Trunc, rest))
+        148 -> Ok(#(F64x2Nearest, rest))
+        107 -> Ok(#(I8x16Shl, rest))
+        108 -> Ok(#(I8x16ShrS, rest))
+        109 -> Ok(#(I8x16ShrU, rest))
+        110 -> Ok(#(I8x16Add, rest))
+        111 -> Ok(#(I8x16AddSatS, rest))
+        112 -> Ok(#(I8x16AddSatU, rest))
+        113 -> Ok(#(I8x16Sub, rest))
+        114 -> Ok(#(I8x16SubSatS, rest))
+        115 -> Ok(#(I8x16SubSatU, rest))
+        118 -> Ok(#(I8x16MinS, rest))
+        119 -> Ok(#(I8x16MinU, rest))
+        120 -> Ok(#(I8x16MaxS, rest))
+        121 -> Ok(#(I8x16MaxU, rest))
+        123 -> Ok(#(I8x16AvgrU, rest))
+        124 -> Ok(#(I16x8ExtaddPairwiseI8x16S, rest))
+        125 -> Ok(#(I16x8ExtaddPairwiseI8x16U, rest))
+        128 -> Ok(#(I16x8Abs, rest))
+        129 -> Ok(#(I16x8Neg, rest))
+        130 -> Ok(#(I16x8Q15mulrSatS, rest))
+        131 -> Ok(#(I16x8AllTrue, rest))
+        132 -> Ok(#(I16x8Bitmask, rest))
+        133 -> Ok(#(I16x8NarrowI32x4S, rest))
+        134 -> Ok(#(I16x8NarrowI32x4U, rest))
+        135 -> Ok(#(I16x8ExtendLowI8x16S, rest))
+        136 -> Ok(#(I16x8ExtendHighI8x16S, rest))
+        137 -> Ok(#(I16x8ExtendLowI8x16U, rest))
+        138 -> Ok(#(I16x8ExtendHighI8x16U, rest))
+        139 -> Ok(#(I16x8Shl, rest))
+        140 -> Ok(#(I16x8ShrS, rest))
+        141 -> Ok(#(I16x8ShrU, rest))
+        142 -> Ok(#(I16x8Add, rest))
+        143 -> Ok(#(I16x8AddSatS, rest))
+        144 -> Ok(#(I16x8AddSatU, rest))
+        145 -> Ok(#(I16x8Sub, rest))
+        146 -> Ok(#(I16x8SubSatS, rest))
+        147 -> Ok(#(I16x8SubSatU, rest))
+        149 -> Ok(#(I16x8Mul, rest))
+        150 -> Ok(#(I16x8MinS, rest))
+        151 -> Ok(#(I16x8MinU, rest))
+        126 -> Ok(#(I32x4ExtaddPairwiseI16x8S, rest))
+        127 -> Ok(#(I32x4ExtaddPairwiseI16x8U, rest))
+        152 -> Ok(#(I16x8MaxS, rest))
+        153 -> Ok(#(I16x8MaxU, rest))
+        155 -> Ok(#(I16x8AvgrU, rest))
+        156 -> Ok(#(I16x8ExtmulLowI8x16S, rest))
+        157 -> Ok(#(I16x8ExtmulHighI8x16S, rest))
+        158 -> Ok(#(I16x8ExtmulLowI8x16U, rest))
+        159 -> Ok(#(I16x8ExtmulHighI8x16U, rest))
+        160 -> Ok(#(I32x4Abs, rest))
+        161 -> Ok(#(I32x4Neg, rest))
+        163 -> Ok(#(I32x4AllTrue, rest))
+        164 -> Ok(#(I32x4Bitmask, rest))
+        167 -> Ok(#(I32x4ExtendLowI16x8S, rest))
+        168 -> Ok(#(I32x4ExtendHighI16x8S, rest))
+        169 -> Ok(#(I32x4ExtendLowI16x8U, rest))
+        170 -> Ok(#(I32x4ExtendHighI16x8U, rest))
+        171 -> Ok(#(I32x4Shl, rest))
+        172 -> Ok(#(I32x4ShrS, rest))
+        173 -> Ok(#(I32x4ShrU, rest))
+        174 -> Ok(#(I32x4Add, rest))
+        177 -> Ok(#(I32x4Sub, rest))
+        181 -> Ok(#(I32x4Mul, rest))
+        182 -> Ok(#(I32x4MinS, rest))
+        183 -> Ok(#(I32x4MinU, rest))
+        184 -> Ok(#(I32x4MaxS, rest))
+        185 -> Ok(#(I32x4MaxU, rest))
+        186 -> Ok(#(I32x4DotI16x8S, rest))
+        188 -> Ok(#(I32x4ExtmulLowI16x8S, rest))
+        189 -> Ok(#(I32x4ExtmulHighI16x8S, rest))
+        190 -> Ok(#(I32x4ExtmulLowI16x8U, rest))
+        191 -> Ok(#(I32x4ExtmulHighI16x8U, rest))
+        192 -> Ok(#(I64x2Abs, rest))
+        193 -> Ok(#(I64x2Neg, rest))
+        195 -> Ok(#(I64x2AllTrue, rest))
+        196 -> Ok(#(I64x2Bitmask, rest))
+        199 -> Ok(#(I64x2ExtendLowI32x4S, rest))
+        200 -> Ok(#(I64x2ExtendHighI32x4S, rest))
+        201 -> Ok(#(I64x2ExtendLowI32x4U, rest))
+        202 -> Ok(#(I64x2ExtendHighI32x4U, rest))
+        203 -> Ok(#(I64x2Shl, rest))
+        204 -> Ok(#(I64x2ShrS, rest))
+        205 -> Ok(#(I64x2ShrU, rest))
+        206 -> Ok(#(I64x2Add, rest))
+        209 -> Ok(#(I64x2Sub, rest))
+        213 -> Ok(#(I64x2Mul, rest))
+        220 -> Ok(#(I64x2ExtmulLowI32x4S, rest))
+        221 -> Ok(#(I64x2ExtmulHighI32x4S, rest))
+        222 -> Ok(#(I64x2ExtmulLowI32x4U, rest))
+        223 -> Ok(#(I64x2ExtmulHighI32x4U, rest))
         224 -> Ok(#(F32x4Abs, rest))
         225 -> Ok(#(F32x4Neg, rest))
         227 -> Ok(#(F32x4Sqrt, rest))
